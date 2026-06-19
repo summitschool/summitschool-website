@@ -839,7 +839,7 @@
         // My Tasks loader (now with real ID upload form for the special task).
         // Badge shows pending count (hardcoded skeleton for Phase 1/2; will query tasks + id_uploads).
         // ID task renders professional ack form + camera/gallery input + name validation (required).
-        // On submit: client upload to temp-ids/ in Family-Documents + metadata (simulated row for now; real table in DB step).
+        // On submit: client upload to {userId}/ids/pending/ in Family-Documents + metadata rows.
         async function loadMyTasks() {
             const list = document.getElementById('my-tasks-list');
             const badge = document.getElementById('my-tasks-badge');
@@ -1056,11 +1056,16 @@
             btn.textContent = 'Uploading...';
 
             try {
-                // Upload to temp-ids/ folder in the Family-Documents bucket (client-side for now)
-                const storagePath = `temp-ids/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+                const { data: { user: uploadUser } } = await supabaseClient.auth.getUser();
+                if (!uploadUser) throw new Error('You must be logged in to upload an ID.');
+
+                const storagePath = buildPendingIdStoragePath(uploadUser.id, file.name);
                 const { error: uploadErr } = await supabaseClient.storage
                     .from('Family-Documents')
-                    .upload(storagePath, file, { upsert: false });
+                    .upload(storagePath, file, {
+                        upsert: false,
+                        contentType: file.type || 'image/jpeg'
+                    });
 
                 if (uploadErr) throw uploadErr;
 
@@ -1842,52 +1847,169 @@
             return String(storagePath).replace(/^\/+/, '');
         }
 
+        function sanitizeStorageFileName(fileName) {
+            const raw = String(fileName || 'id-photo');
+            const extMatch = raw.match(/(\.[a-zA-Z0-9]{2,5})$/);
+            const ext = extMatch ? extMatch[1].toLowerCase() : '.jpg';
+            const base = raw
+                .replace(/\.[^/.]+$/, '')
+                .replace(/[^a-zA-Z0-9_-]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 60) || 'id-photo';
+            return `${base}${ext}`;
+        }
+
+        function buildPendingIdStoragePath(userId, fileName) {
+            return `${userId}/ids/pending/${Date.now()}-${sanitizeStorageFileName(fileName)}`;
+        }
+
+        function isPendingIdStoragePath(path) {
+            const normalized = normalizeStoragePath(path);
+            return normalized?.startsWith('temp-ids/')
+                || (normalized && /\/ids\/pending\//.test(normalized));
+        }
+
+        function getStoragePathCandidates(storedPath) {
+            const path = normalizeStoragePath(storedPath);
+            if (!path || path.startsWith('http')) return [path].filter(Boolean);
+
+            const candidates = new Set([path]);
+            const parts = path.split('/');
+            const fileName = parts.pop();
+            const folder = parts.join('/');
+
+            if (fileName) {
+                candidates.add(folder ? `${folder}/${encodeURIComponent(fileName)}` : encodeURIComponent(fileName));
+                const timestampPrefix = fileName.match(/^(\d+)-/)?.[1];
+                const safeName = sanitizeStorageFileName(fileName.replace(/^\d+-/, ''));
+                if (timestampPrefix && safeName) {
+                    const pendingFolder = folder || 'temp-ids';
+                    candidates.add(`${pendingFolder}/${timestampPrefix}-${safeName}`);
+                }
+            }
+
+            return [...candidates];
+        }
+
+        async function probeStoragePath(path) {
+            const { error } = await supabaseClient.storage
+                .from('Family-Documents')
+                .download(path);
+            return !error;
+        }
+
+        async function resolveStoragePath(storedPath) {
+            const path = normalizeStoragePath(storedPath);
+            if (!path || path.startsWith('http')) return path;
+
+            for (const candidate of getStoragePathCandidates(path)) {
+                if (await probeStoragePath(candidate)) return candidate;
+            }
+
+            const parts = path.split('/');
+            const fileName = parts.pop();
+            const folder = parts.join('/') || 'temp-ids';
+            const timestampPrefix = (fileName || '').match(/^(\d+)-/)?.[1];
+
+            const { data: files, error: listError } = await supabaseClient.storage
+                .from('Family-Documents')
+                .list(folder, { limit: 200, sortBy: { column: 'name', order: 'desc' } });
+
+            if (!listError && files?.length) {
+                let match = files.find(file => file.name === fileName);
+                if (!match && timestampPrefix) {
+                    match = files.find(file => file.name.startsWith(`${timestampPrefix}-`));
+                }
+                if (!match && fileName) {
+                    const safeHint = sanitizeStorageFileName(fileName.replace(/^\d+-/, ''));
+                    match = files.find(file => file.name.includes(safeHint));
+                }
+                if (match) return `${folder}/${match.name}`;
+            }
+
+            throw new Error(`Storage file not found at ${path}. The upload may have failed or been removed.`);
+        }
+
+        async function resolveStoragePathOptional(storedPath) {
+            try {
+                return await resolveStoragePath(storedPath);
+            } catch (err) {
+                console.warn('[Storage] Path resolution failed:', err.message);
+                return null;
+            }
+        }
+
         async function getSignedStorageUrl(storagePath) {
             const path = normalizeStoragePath(storagePath);
             if (!path || path.startsWith('http')) return storagePath;
-            const { data, error } = await supabaseClient.storage
-                .from('Family-Documents')
-                .createSignedUrl(path, 60 * 60 * 24);
-            if (error) {
-                console.warn('[Storage] Signed URL failed for', path, error.message);
+
+            try {
+                const resolvedPath = await resolveStoragePath(path);
+                const { data, error } = await supabaseClient.storage
+                    .from('Family-Documents')
+                    .createSignedUrl(resolvedPath, 60 * 60 * 24);
+                if (error) {
+                    console.warn('[Storage] Signed URL failed for', resolvedPath, error.message);
+                    return null;
+                }
+                return data?.signedUrl || null;
+            } catch (err) {
+                console.warn('[Storage] Could not resolve path for signed URL:', err.message);
                 return null;
             }
-            return data?.signedUrl || null;
         }
 
-        async function moveIdToPermanentStorage(userId, tempPath) {
-            const sourcePath = normalizeStoragePath(tempPath);
-            const fileName = sourcePath.split('/').pop() || `id-${Date.now()}.jpg`;
-            const permanentPath = `${userId}/ids/${fileName}`;
+        async function moveIdToPermanentStorage(userId, sourcePathInput) {
+            const sourcePath = await resolveStoragePath(sourcePathInput);
+            const rawName = sourcePath.split('/').pop() || `id-${Date.now()}.jpg`;
+            const fileName = sanitizeStorageFileName(rawName.replace(/^\d+-/, ''));
+            const permanentPath = `${userId}/ids/${Date.now()}-${fileName}`;
 
-            const { error: copyError } = await supabaseClient.storage
+            const { data: fileData, error: downloadError } = await supabaseClient.storage
                 .from('Family-Documents')
-                .copy(sourcePath, permanentPath);
+                .download(sourcePath);
 
-            if (copyError) {
-                const { data: fileData, error: downloadError } = await supabaseClient.storage
-                    .from('Family-Documents')
-                    .download(sourcePath);
+            if (downloadError) throw downloadError;
 
-                if (downloadError) throw downloadError;
+            const { error: uploadError } = await supabaseClient.storage
+                .from('Family-Documents')
+                .upload(permanentPath, fileData, {
+                    upsert: true,
+                    contentType: fileData.type || 'image/jpeg'
+                });
 
-                const { error: uploadError } = await supabaseClient.storage
-                    .from('Family-Documents')
-                    .upload(permanentPath, fileData, { upsert: true, contentType: fileData.type || 'image/jpeg' });
+            if (uploadError) throw uploadError;
 
-                if (uploadError) throw uploadError;
-            }
-
-            await supabaseClient.storage
+            const { error: removeError } = await supabaseClient.storage
                 .from('Family-Documents')
                 .remove([sourcePath]);
+
+            if (removeError) {
+                console.warn('[Storage] Could not remove pending ID source file:', removeError.message);
+            }
 
             return permanentPath;
         }
 
+        async function tryMoveIdToPermanentStorage(userId, sourcePath) {
+            const normalized = normalizeStoragePath(sourcePath);
+            if (!normalized || !isPendingIdStoragePath(normalized)) {
+                return normalized;
+            }
+
+            try {
+                return await moveIdToPermanentStorage(userId, normalized);
+            } catch (err) {
+                console.warn('[ID Storage] Move skipped:', err.message);
+                const resolved = await resolveStoragePathOptional(normalized);
+                return resolved || normalized;
+            }
+        }
+
         async function ensurePermanentIdPath(doc) {
             const path = normalizeStoragePath(doc.url);
-            if (!path || !path.startsWith('temp-ids/')) return path;
+            if (!path || !isPendingIdStoragePath(path)) return path;
 
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user || user.id !== doc.user_id) return path;
@@ -1925,7 +2047,7 @@
             let tempDocsQuery = supabaseClient
                 .from('family_documents')
                 .select('id, user_id, title, description, url, category, school_year, created_at')
-                .ilike('url', 'temp-ids/%')
+                .or('url.ilike.temp-ids/%,url.ilike.%/ids/pending/%')
                 .not('title', 'ilike', '%on file%')
                 .order('created_at', { ascending: false });
 
@@ -2055,7 +2177,8 @@
                             </a>
                             <p class="text-[10px] text-slate-500">Click the preview to open full size in a new tab.</p>
                         ` : `
-                            <p class="text-xs text-amber-700">Preview unavailable. Storage path: ${item.storage_path || 'unknown'}</p>
+                            <p class="text-xs text-amber-700">Preview unavailable — admin may not have storage access for this path yet. You can still approve; the family will finalize the file when they open My ID.</p>
+                            <p class="text-[10px] text-slate-500 mt-1">Storage path: ${item.storage_path || 'unknown'}</p>
                         `}
                     </div>
                 `;
@@ -2075,6 +2198,8 @@
             button.disabled = true;
 
             try {
+                let approveStorageMoved = false;
+
                 if (source === 'family_documents') {
                     const { data: doc, error: fetchError } = await supabaseClient
                         .from('family_documents')
@@ -2084,10 +2209,9 @@
 
                     if (fetchError || !doc) throw fetchError || new Error('Document not found');
 
-                    let finalUrl = normalizeStoragePath(doc.url);
-                    if (finalUrl?.startsWith('temp-ids/')) {
-                        finalUrl = await moveIdToPermanentStorage(doc.user_id, finalUrl);
-                    }
+                    const originalUrl = normalizeStoragePath(doc.url);
+                    const finalUrl = await tryMoveIdToPermanentStorage(doc.user_id, originalUrl);
+                    const storageMoved = finalUrl !== originalUrl && !isPendingIdStoragePath(finalUrl);
 
                     const { error } = await supabaseClient
                         .from('family_documents')
@@ -2108,6 +2232,8 @@
                     if (uploadSyncError) {
                         console.warn('[ID Approve] id_uploads sync skipped:', uploadSyncError.message);
                     }
+
+                    approveStorageMoved = storageMoved;
                 } else if (source === 'id_uploads') {
                     const { data: upload, error: fetchError } = await supabaseClient
                         .from('id_uploads')
@@ -2117,10 +2243,9 @@
 
                     if (fetchError || !upload) throw fetchError || new Error('Upload not found');
 
-                    let finalUrl = normalizeStoragePath(upload.storage_path);
-                    if (finalUrl?.startsWith('temp-ids/')) {
-                        finalUrl = await moveIdToPermanentStorage(upload.user_id, finalUrl);
-                    }
+                    const originalUrl = normalizeStoragePath(upload.storage_path);
+                    const finalUrl = await tryMoveIdToPermanentStorage(upload.user_id, originalUrl);
+                    const storageMoved = finalUrl !== originalUrl && !isPendingIdStoragePath(finalUrl);
 
                     const { error: insertError } = await supabaseClient
                         .from('family_documents')
@@ -2139,13 +2264,17 @@
                         .from('id_uploads')
                         .update({ status: 'approved' })
                         .eq('id', docId);
+
+                    approveStorageMoved = storageMoved;
                 }
 
                 const statusDiv = document.getElementById('admin-upload-status');
                 if (statusDiv) {
                     statusDiv.classList.remove('hidden');
                     statusDiv.className = 'mt-4 text-sm text-emerald-600';
-                    statusDiv.textContent = 'ID approved and added to the family\'s My ID section.';
+                    statusDiv.textContent = approveStorageMoved
+                        ? 'ID approved and added to the family\'s My ID section.'
+                        : 'ID approved. The file will finalize automatically when the family next opens My ID.';
                     setTimeout(() => { statusDiv.textContent = ''; }, 5000);
                 }
 
