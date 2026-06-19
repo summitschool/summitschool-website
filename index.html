@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Summit Church School — A Christ-centered homeschool cover program in Rainbow City, Alabama. Providing structure, support, and faith for homeschool families across the state.">
+    <meta name="keywords" content="homeschool, Alabama homeschool, church school, homeschool cover, Rainbow City AL, Christian homeschool, Summit Church School">
+    <meta name="author" content="Summit Church School">
+    <title>Summit Church School | Homeschool Cover in Alabama</title>
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:title" content="Summit Church School | Homeschool Cover in Alabama">
+    <meta property="og:description" content="Homeschooling with Structure, Support, and Faith. A ministry of Summit Church providing legal church school coverage for Alabama families.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://summitchurchschool.org">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="images/logo.png">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap');
+        
+        :root {
+            --navy: #0A2540;
+            --gold: #C9A227;
+            --sage: #7C8F7E;
+        }
+        
+        .tail-container {
+            max-width: 1280px;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+
+        /* Elegant typography */
+        .heading-serif {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .body-text {
+            font-family: 'Inter', system_ui, sans-serif;
+            line-height: 1.7;
+        }
+
+        /* Color palette */
+        .bg-navy { background-color: #0A2540; }
+        .text-navy { color: #0A2540; }
+        .bg-gold { background-color: #C9A227; }
+        .text-gold { color: #C9A227; }
+        .bg-sage { background-color: #7C8F7E; }
+        .text-sage { color: #7C8F7E; }
+        .bg-ivory { background-color: #FDFBF7; }
+        .bg-cream { background-color: #F5F0E6; }
+        .border-gold { border-color: #C9A227; }
+
+        /* Smooth everything */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Subtle animations */
+        .nav-link {
+            position: relative;
+            transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .nav-link:after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background-color: #C9A227;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .nav-link:hover:after {
+            width: 100%;
+        }
+
+        .benefit-card {
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), 
+                        box-shadow 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        .benefit-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+        }
+
+        .section-header {
+            position: relative;
+            display: inline-block;
+        }
+        .section-header:after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 48px;
+            height: 3px;
+            background: linear-gradient(to right, #C9A227, #E8D5A3);
+            border-radius: 3px;
+        }
+
+        /* Accordion / Details styling */
+        details.faq-item {
+            transition: all 0.3s ease;
+        }
+        details.faq-item[open] {
+            background-color: #F8F4ED;
+        }
+        details.faq-item summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+            color: #0A2540;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        details.faq-item summary::-webkit-details-marker {
+            display: none;
+        }
+        details.faq-item summary .chevron {
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            color: #C9A227;
+            flex-shrink: 0;
+        }
+        details.faq-item[open] summary .chevron {
+            transform: rotate(180deg);
+        }
+        details.faq-item .faq-answer {
+            padding: 0 1.5rem 1.5rem 1.5rem;
+            color: #334155;
+            line-height: 1.75;
+        }
+
+        /* Button styles */
+        .btn-primary {
+            background-color: #0A2540;
+            color: white;
+            transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        .btn-primary:hover {
+            background-color: #1E3A5F;
+            transform: translateY(-1px);
+        }
+        .btn-gold {
+            background-color: #C9A227;
+            color: #0A2540;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        .btn-gold:hover {
+            background-color: #E8D5A3;
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background-color: transparent;
+            color: #0A2540;
+            border: 2px solid #0A2540;
+            transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        .btn-outline:hover {
+            background-color: #0A2540;
+            color: white;
+        }
+
+        /* Mobile menu */
+        .mobile-menu {
+            animation: slideDown 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Hero overlay */
+        .hero-overlay {
+            background: linear-gradient(
+                to bottom, 
+                rgba(10, 37, 64, 0.45) 0%, 
+                rgba(10, 37, 64, 0.65) 40%, 
+                rgba(10, 37, 64, 0.78) 100%
+            );
+        }
+
+        /* Hero background - solid dark navy */
+        .hero-bg {
+            background-color: #0A2540;
+        }
+
+        /* Payment buttons */
+        .payment-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        .payment-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+
+        /* Form styles */
+        .form-input {
+            transition: all 0.2s ease;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #C9A227;
+            box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
+        }
+
+        /* Step numbers */
+        .step-number {
+            background: linear-gradient(135deg, #0A2540 0%, #1E3A5F 100%);
+            color: white;
+            font-weight: 700;
+        }
+
+        /* Accessibility focus */
+        .nav-link:focus-visible,
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid #C9A227;
+            outline-offset: 3px;
+            border-radius: 4px;
+        }
+
+        /* Print styles */
+        @media print {
+            .no-print { display: none !important; }
+            .hero { min-height: auto !important; }
+        }
+    </style>
+</head>
+<body class="bg-ivory text-slate-800 body-text antialiased">
+    <!-- Sticky Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
+        <div class="tail-container">
+            <div class="flex items-center justify-between h-24">
+                <!-- Logo -->
+                <a href="#" class="flex items-center">
+                    <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-20 w-auto object-contain rounded-2xl">
+                </a>
+
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center gap-x-9 text-sm font-medium">
+                    <a href="#about" class="nav-link text-slate-700 hover:text-navy">About</a>
+                    <a href="#why" class="nav-link text-slate-700 hover:text-navy">Why Summit</a>
+                    <a href="#faq" class="nav-link text-slate-700 hover:text-navy">FAQ</a>
+                    <a href="#enrollment" class="nav-link text-slate-700 hover:text-navy">Enrollment</a>
+                    <a href="#resources" class="nav-link text-slate-700 hover:text-navy">Resources</a>
+                    <a href="members.html" class="nav-link text-slate-700 hover:text-navy">Members</a>
+                    <a href="#contact" class="nav-link text-slate-700 hover:text-navy">Contact</a>
+                </div>
+
+                <!-- Desktop CTA -->
+                <div class="hidden md:block">
+                    <a href="#enrollment" 
+                       class="inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold rounded-full bg-navy text-white hover:bg-navy-light transition-all active:scale-[0.985]">
+                        Enroll Now
+                    </a>
+                </div>
+
+                <!-- Mobile Login + Hamburger (visible only on mobile, placed nicely on the right) -->
+                <div class="flex items-center gap-x-2 md:hidden">
+                    <a href="members.html" 
+                       class="px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985] shadow-sm">
+                        Login
+                    </a>
+                    <!-- Mobile Hamburger -->
+                    <button id="mobile-menu-btn"
+                            class="w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
+                            aria-label="Open menu"
+                            aria-expanded="false">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-slate-200">
+            <div class="tail-container py-6 flex flex-col gap-y-1 text-base font-medium">
+                <a href="#about" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">About Us</a>
+                <a href="#why" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Why Summit</a>
+                <a href="#faq" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">FAQ</a>
+                <a href="#enrollment" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Enrollment</a>
+                <a href="#resources" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Resources</a>
+                <a href="members.html" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Members</a>
+                <a href="#contact" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Contact</a>
+                
+                <div class="pt-3 px-4">
+                    <a href="#enrollment" 
+                       class="block w-full text-center px-6 py-3.5 text-base font-semibold rounded-2xl bg-navy text-white active:scale-[0.985]">
+                        Enroll Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 1. HERO HEADER -->
+    <header class="hero-bg relative min-h-[60dvh] sm:min-h-[85dvh] md:min-h-[100dvh] flex items-center justify-center overflow-hidden">
+        <!-- Content -->
+        <div class="relative tail-container text-center px-6 pt-8 sm:pt-8">
+            <h1 class="heading-serif text-5xl sm:text-6xl md:text-7xl text-white tracking-tighter leading-[1.05] max-w-5xl mx-auto">
+                Homeschooling with<br>Structure, Support,<br>and Faith
+            </h1>
+            
+            <p class="mt-6 text-xl md:text-2xl text-white/90 max-w-2xl mx-auto font-light tracking-[-0.2px]">
+                A Christ-centered church school cover serving families across Alabama.
+            </p>
+
+            <!-- CTAs -->
+            <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="#enrollment"
+                   class="btn-gold w-full sm:w-auto px-9 py-4 text-lg rounded-2xl shadow-lg shadow-black/20 flex items-center justify-center gap-x-2 group">
+                    Enroll Now
+                    <svg class="w-5 h-5 group-hover:translate-x-0.5 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5V3"></path>
+                    </svg>
+                </a>
+                <a href="#about"
+                   class="btn-outline w-full sm:w-auto px-9 py-4 text-lg rounded-2xl border-2 border-white text-white hover:bg-white/10 flex items-center justify-center">
+                    Learn More
+                </a>
+            </div>
+
+            <div class="mt-9 text-white/70 text-sm tracking-widest font-medium">RAINBOW CITY, ALABAMA • SERVING FAMILIES STATEWIDE</div>
+        </div>
+
+        <!-- Scroll indicator -->
+        <div class="absolute bottom-9 left-1/2 -translate-x-1/2 hidden md:block">
+            <a href="#about" class="flex flex-col items-center text-white/70 hover:text-white transition text-xs tracking-[2px]">
+                SCROLL TO BEGIN
+                <svg class="w-4 h-4 mt-1.5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                </svg>
+            </a>
+        </div>
+    </header>
+
+    <!-- 3. ABOUT US -->
+    <section id="about" class="pb-16 bg-white">
+        <!-- Full-width hero image at start of About section -->
+        <div class="w-screen relative left-1/2 -translate-x-1/2 mb-8">
+            <img src="images/hero-logo.png?v=20260615" 
+                 alt="Summit Church School" 
+                 class="w-full h-auto max-h-[660px] object-contain">
+        </div>
+
+        <div class="tail-container pt-8">
+            <div class="max-w-4xl mx-auto text-center">
+                <a href="https://summitchurchrbc.com" target="_blank" rel="noopener noreferrer" class="inline-block px-4 py-1 rounded-full bg-cream text-sage text-xs font-semibold tracking-[1.5px] mb-4 hover:bg-cream/80 transition">A MINISTRY OF SUMMIT CHURCH</a>
+                
+                <h2 class="heading-serif text-5xl sm:text-6xl text-navy tracking-tighter">About Summit Church School</h2>
+                
+                <div class="mt-8 text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+                    <p>We exist to come alongside parents who have answered the call to educate their children at home — offering the structure, accountability, and Christ-centered community that makes the journey sustainable and deeply rewarding.</p>
+                </div>
+                <p class="mt-4 text-base text-slate-500 max-w-2xl mx-auto">At Summit Church School, we believe homeschooling is more than education—it’s a lifestyle of learning, growth, and family connection.</p>
+            </div>
+
+            <div class="mt-12 max-w-3xl mx-auto bg-cream border border-gold/10 rounded-3xl p-10 md:p-14">
+                <div class="flex flex-col md:flex-row gap-10 items-center">
+                    <div class="flex-1">
+                        <p class="text-[17px] leading-[1.78] text-slate-700">
+                            Founded as a ministry of <a href="https://summitchurchrbc.com" target="_blank" rel="noopener noreferrer" class="text-navy underline hover:text-gold transition">Summit Church</a> in Rainbow City, Alabama, Summit Church School provides a legal church school cover for homeschool families throughout the state. 
+                            We believe parents are the primary educators of their children and we are honored to walk with you in that sacred responsibility.
+                        </p>
+                        <p class="mt-5 text-[17px] leading-[1.78] text-slate-700">
+                            Whether you are just beginning or have been homeschooling for years, we offer the peace of mind that comes from professional recordkeeping, legal coverage, and a supportive community of like-minded families.
+                        </p>
+                    </div>
+                    
+                    <!-- Bible Verse -->
+                    <div class="flex-shrink-0 md:w-72 bg-white border border-gold/30 rounded-2xl p-7 shadow-sm">
+                        <div class="text-gold mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+                            </svg>
+                        </div>
+                        <blockquote class="text-navy text-[15.5px] leading-snug italic font-medium">
+                            “Train up a child in the way he should go, and when he is old he will not depart from it.”
+                        </blockquote>
+                        <p class="mt-4 text-xs uppercase tracking-[1.5px] text-sage font-semibold">— Proverbs 22:6</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. WHY CHOOSE SUMMIT -->
+    <section id="why" class="py-16 bg-ivory">
+        <div class="tail-container">
+            <div class="max-w-3xl mx-auto text-center mb-12">
+                <h2 class="heading-serif text-5xl text-navy tracking-tighter">Why Families Choose Summit</h2>
+                <p class="mt-4 text-xl text-slate-600">A supportive partnership designed for the realities of home education.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                <!-- Benefit Cards -->
+                <div class="benefit-card bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col">
+                    <div class="w-12 h-12 rounded-2xl bg-navy flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 8.944 11.922 1.677-.243 3.292-.75 4.78-1.5"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-navy tracking-tight">Legal Accountability</h3>
+                    <p class="mt-3 text-slate-600 flex-1">Operate with confidence under Alabama’s church school exemption in compliance with AL Code § 16-28-7 (2025). We handle the legal structure and accountability so you can focus on teaching.</p>
+                </div>
+
+                <div class="benefit-card bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col">
+                    <div class="w-12 h-12 rounded-2xl bg-navy flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-navy tracking-tight">Professional Records</h3>
+                    <p class="mt-3 text-slate-600 flex-1">We maintain cumulative files, issue report cards, and prepare official transcripts for college and scholarship applications. We also provide physical diplomas and host complete graduation commencement ceremonies for Pre-K, Kindergarten, and High School graduates. Our high school diplomas are recognized as official and accepted by all 2-year and 4-year colleges and universities, as well as all branches of the military.</p>
+                </div>
+
+                <div class="benefit-card bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col">
+                    <div class="w-12 h-12 rounded-2xl bg-navy flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 01-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 01-2 2 2 2 0 01-2-2 2 2 0 012-2 2 2 0 012 2z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-navy tracking-tight">Faith-Filled Community</h3>
+                    <p class="mt-3 text-slate-600 flex-1">Join a private group of encouraging parents who share your values and understand the unique joys and challenges of homeschooling.</p>
+                </div>
+
+                <div class="benefit-card bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col">
+                    <div class="w-12 h-12 rounded-2xl bg-navy flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-navy tracking-tight">One Annual Payment Per Family</h3>
+                    <p class="mt-3 text-slate-600 flex-1">One clear annual payment per family provides church school coverage for the full school year, including legal accountability, recordkeeping, and access to our private Facebook support group. Curriculum is not included.</p>
+                </div>
+
+                <div class="benefit-card bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col">
+                    <div class="w-12 h-12 rounded-2xl bg-navy flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-navy tracking-tight">Sports &amp; Enrichment Ready</h3>
+                    <p class="mt-3 text-slate-600 flex-1">Our church school status satisfies eligibility for many sports leagues, music programs, and extracurricular activities across Alabama. Summit also provides co-ops, clubs (including our own Beta Club chapter), field trips, and art classes that we organize and lead.</p>
+                </div>
+
+                <div class="benefit-card bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col">
+                    <div class="w-12 h-12 rounded-2xl bg-navy flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-navy tracking-tight">Responsive Parent Support</h3>
+                    <p class="mt-3 text-slate-600 flex-1">Real people who answer emails and texts quickly. Guidance on record keeping, high school planning, and encouragement when you need it most.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. FAQ - ACCORDION -->
+    <section id="faq" class="py-16 bg-white border-t border-slate-100">
+        <div class="tail-container max-w-4xl mx-auto">
+            <div class="text-center mb-10">
+                <h2 class="heading-serif text-5xl text-navy tracking-tighter">Frequently Asked Questions</h2>
+                <p class="mt-3 text-xl text-slate-600">Everything you need to know about joining our community.</p>
+            </div>
+
+            <div class="space-y-3">
+                <!-- FAQ 1 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Is homeschooling legal in Alabama?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Yes! Homeschooling is legal in Alabama. Families may homeschool through a church school, private school, or with a private tutor who meets state requirements. Summit Church School operates in compliance with <a href="https://law.justia.com/codes/alabama/title-16/chapter-28/article-1/section-16-28-7/" target="_blank" rel="noopener noreferrer" class="text-navy underline hover:text-gold transition">AL Code § 16-28-7 (2025)</a>.</div>
+                </details>
+
+                <!-- FAQ 2 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">What is a church school?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">A church school is a legal covering for homeschooling families. Parents teach their children at home while remaining enrolled in a church school that helps maintain records, provides support and help with accountability.</div>
+                </details>
+
+                <!-- FAQ 3 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Do I need a teaching certificate to homeschool?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">No. Parents do not need a teaching certificate to homeschool through a church school in Alabama.</div>
+                </details>
+
+                <!-- FAQ 4 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">What subjects am I required to teach?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Alabama law does not require or mandate what you teach. At SCS we are very accommodating for what your student needs. High school transcripts and college may require certain high school subjects. It is good practice for the core academic areas. Most homeschool families teach: Math, English/Language Arts, Science, Social Studies/History, Reading, and Electives such as art, music, foreign language, life skills, and more.</div>
+                </details>
+
+                <!-- FAQ 5 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">How many days do I have to homeschool?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Alabama requires 180 instructional days each school year in public school. The state does not mandate this. However SCS advises you to do at least 140-160 days.</div>
+                </details>
+
+                <!-- FAQ 6 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Do homeschool students receive grades?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">That is up to the parent. Many families keep grades and records, while others use alternative methods to track progress. How you choose to grade your students k-8th is up to you but in high school, letter grades and percentages are important for transcripts for college, military or workforce.</div>
+                </details>
+
+                <!-- FAQ 7 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Can homeschool students earn a diploma?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Yes. Students enrolled in SCS receive a physical diploma upon meeting graduation requirements. We also host complete graduation commencement ceremonies for students graduating from Pre-K, Kindergarten, and High School. Our high school diplomas are recognized as official and accepted by all 2-year and 4-year colleges and universities, as well as all branches of the military.</div>
+                </details>
+
+                <!-- FAQ 8 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Can homeschool students go to college?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Absolutely! Homeschool graduates regularly attend colleges, universities, trade schools, military programs, and workforce training programs.</div>
+                </details>
+
+                <!-- FAQ 9 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Can homeschool students participate in sports and extracurricular activities?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Yes! Homeschool students can participate in a variety of opportunities, including church leagues, community sports, co-ops, clubs, theater, scouting, art classes, and more.</div>
+                </details>
+
+                <!-- FAQ 10 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Do I have to follow public school hours?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">No. One of the benefits of homeschooling is flexibility. Families can create a schedule that works best for their children.</div>
+                </details>
+
+                <!-- FAQ 11 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">How much does homeschooling cost?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Costs vary widely depending on curriculum choices, activities, and resources. Many families homeschool on a modest budget, while others choose more extensive programs.</div>
+                </details>
+
+                <!-- FAQ 12 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Do homeschool students have to take standardized tests?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Alabama does not require annual standardized testing for homeschooled students and neither does Summit Church School, though some families choose testing to monitor progress.</div>
+                </details>
+
+                <!-- FAQ 13 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">What records should I keep?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">It’s a good idea to keep: Attendance records, Grades (if applicable), Samples of student work for yourself, Reading lists, and High school transcripts for older students.</div>
+                </details>
+
+                <!-- FAQ 14 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Can my child return to public school later?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Yes. Placement decisions are made by the receiving school, so keeping good records can help make transitions easier. SCS keeps records and works with the school.</div>
+                </details>
+
+                <!-- FAQ 15 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">Is homeschooling only for certain types of families?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Not at all! Homeschooling families come from all backgrounds and choose to homeschool for many different reasons. Every family’s journey looks a little different.</div>
+                </details>
+
+                <!-- FAQ 16 -->
+                <details class="faq-item group bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <summary class="text-lg">What are the benefits of homeschooling?<span class="chevron text-xl">⌄</span></summary>
+                    <div class="faq-answer text-[15.2px]">Many families appreciate: Flexible schedules, Individualized learning, Strong family relationships, Freedom to tailor education to a child’s needs and interests, and Opportunities for hands-on learning and real-world experiences.</div>
+                </details>
+            </div>
+
+            <!-- Closing note from user file -->
+            <div class="mt-10 bg-cream border border-gold/20 rounded-3xl p-8 text-center">
+                <p class="text-slate-700 leading-relaxed">
+                    At Summit Church School, we believe homeschooling is more than education—it’s a lifestyle of learning, growth, and family connection. Whether you’re just beginning your homeschool journey or have been homeschooling for years, we’re here to encourage, support, and walk alongside your family.
+                </p>
+                <p class="mt-5 text-navy font-medium italic">
+                    “Train up a child in the way he should go, and when he is old he will not depart from it.” — Proverbs 22:6
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. ENROLLMENT -->
+    <section id="enrollment" class="py-16 bg-navy text-white">
+        <div class="tail-container">
+            <div class="max-w-3xl mx-auto text-center mb-12">
+                <div class="inline px-3.5 py-1 rounded-full bg-white/10 text-gold text-xs tracking-[2px] font-semibold">SIMPLE PROCESS • START TODAY</div>
+                <h2 class="heading-serif text-5xl tracking-tighter mt-4">Ready to Join Our Community?</h2>
+                <p class="mt-4 text-xl text-white/80">Four simple steps to give your family the structure and support you’ve been looking for.</p>
+            </div>
+
+            <!-- Steps -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-6xl mx-auto mb-14">
+                <div class="bg-white/5 rounded-3xl p-7 border border-white/10">
+                    <div class="step-number w-9 h-9 flex items-center justify-center rounded-2xl text-xl mb-5">1</div>
+                    <h4 class="font-semibold text-xl tracking-tight">Review &amp; Pray</h4>
+                    <p class="mt-2 text-white/80 text-[15px]">Read through our information and enrollment packet. Ask the Lord for wisdom as you consider this partnership.</p>
+                </div>
+                <div class="bg-white/5 rounded-3xl p-7 border border-white/10">
+                    <div class="step-number w-9 h-9 flex items-center justify-center rounded-2xl text-xl mb-5">2</div>
+                    <h4 class="font-semibold text-xl tracking-tight">Complete Paperwork</h4>
+                    <p class="mt-2 text-white/80 text-[15px]">Complete the Enrollment Application. We keep the process straightforward and respectful of your time.</p>
+                </div>
+                <div class="bg-white/5 rounded-3xl p-7 border border-white/10">
+                    <div class="step-number w-9 h-9 flex items-center justify-center rounded-2xl text-xl mb-5">3</div>
+                    <h4 class="font-semibold text-xl tracking-tight">Submit Application</h4>
+                    <p class="mt-2 text-white/80 text-[15px]">Submit your completed Enrollment Application. We’ll review it and notify you once approved before tuition payment is due.</p>
+                </div>
+                <div class="bg-white/5 rounded-3xl p-7 border border-white/10">
+                    <div class="step-number w-9 h-9 flex items-center justify-center rounded-2xl text-xl mb-5">4</div>
+                    <h4 class="font-semibold text-xl tracking-tight">Pay Tuition &amp; Welcome</h4>
+                    <p class="mt-2 text-white/80 text-[15px]">After approval, submit your tuition. You’ll then receive your welcome packet, attendance templates, and access to our parent community.</p>
+                </div>
+            </div>
+
+            <!-- Paperwork + Payment -->
+            <div class="max-w-5xl mx-auto grid md:grid-cols-2 gap-8">
+                <!-- Enrollment Form -->
+                <div class="bg-white rounded-3xl p-8 md:p-9 text-navy">
+                    <div class="flex items-center gap-x-3 mb-6">
+                        <div class="bg-cream p-2.5 rounded-2xl">
+                            <svg class="w-6 h-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-semibold tracking-tight">Enrollment Application</h3>
+                    </div>
+                    
+                    <p class="text-sm text-slate-600 mb-6">
+                        Complete our secure online Enrollment Application. 
+                        This form includes everything needed to apply.
+                    </p>
+                    
+                    <!-- DOCUSEAL ENROLL LINK - Update this URL after migrating DocuSeal to Railway (or when changing the subdomain) -->
+                    <a href="https://enroll.summitchurchschool.org/d/hepTZVXKSzmTVE" 
+                       target="_blank"
+                       class="flex items-center justify-center w-full px-8 py-4 bg-navy hover:bg-navy-light text-white font-semibold rounded-2xl transition-all active:scale-[0.985] text-center">
+                        Start Online Enrollment Application
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M14 5l7 7m0 0l-7 7m7-7V3"></path>
+                        </svg>
+                    </a>
+                    
+                    <p class="text-xs text-slate-500 mt-5 text-center">
+                        Opens a secure online form (you can save and return later).
+                    </p>
+                </div>
+
+                <!-- Pay Tuition -->
+                <div class="bg-white rounded-3xl p-8 md:p-9 text-navy">
+                    <div class="flex items-center gap-x-3 mb-6">
+                        <div class="bg-cream p-2.5 rounded-2xl">
+                            <svg class="w-6 h-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-semibold tracking-tight">Pay Tuition</h3>
+                    </div>
+                    
+                    <p class="text-sm text-slate-600 mb-6">Please do not submit payment until your application has been approved. Once approved, you may use one of the payment options below.</p>
+                    
+                    <div class="space-y-3">
+                        <!-- PayPal -->
+                        <div class="payment-btn relative flex items-center gap-x-4 w-full px-6 py-[17px] bg-[#00457C] opacity-75 text-white rounded-2xl font-semibold text-base cursor-not-allowed">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944 3.72a.641.641 0 01.632-.54h7.662c3.417 0 5.79 1.97 5.79 5.28 0 3.55-2.74 6.27-6.48 6.27H9.85l-1.3 6.607zM9.85 9.48h2.3c1.48 0 2.38-.75 2.38-2.1 0-1.35-.9-2.1-2.38-2.1H8.8L9.85 9.48z"/></svg>
+                            <span>Pay with PayPal</span>
+                            
+                            <!-- Coming Soon Badge -->
+                            <span class="absolute -top-1.5 -right-1 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                                Coming Soon
+                            </span>
+                        </div>
+                        
+                        <!-- Cash App -->
+                        <a href="https://cash.app/$SummitExplorers" target="_blank"
+                           class="payment-btn flex items-center gap-x-4 w-full px-6 py-[17px] bg-[#00D54B] hover:bg-[#00c043] text-black rounded-2xl font-semibold text-base">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 14.59L12 18l-1.41-1.41L8.17 15l1.42-1.41 1.41 1.41 3.54-3.54 1.41 1.41-4.54 4.13z"/></svg>
+                            <span>Pay with Cash App • $SummitExplorers</span>
+                        </a>
+                    </div>
+                    
+                    <div class="mt-6 text-xs text-slate-500 leading-relaxed">
+                        Current tuition rates and sibling discounts are listed in the enrollment packet. Questions about tuition? Just ask.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7. RESOURCES -->
+    <section id="resources" class="py-16 bg-ivory">
+        <div class="tail-container max-w-3xl mx-auto text-center">
+            <h2 class="heading-serif text-5xl text-navy tracking-tighter">Connect With Our Community</h2>
+            <p class="mt-4 text-xl text-slate-600">Stay encouraged and informed through our active online spaces.</p>
+            
+            <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                <a href="https://www.facebook.com/SummitChurchSchool" target="_blank" 
+                   class="group flex items-center gap-x-5 bg-white border border-slate-200 hover:border-gold/30 rounded-3xl p-7 transition-all hover:shadow-md">
+                    <div class="w-12 h-12 flex-shrink-0 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center">
+                        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"></path></svg>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold text-xl text-navy tracking-tight group-hover:text-gold transition">Facebook Page</div>
+                        <div class="text-slate-600 text-sm mt-0.5">News, events &amp; encouragement</div>
+                    </div>
+                </a>
+                
+                <a href="https://www.facebook.com/groups/summitchurchschool/" target="_blank"
+                   class="group flex items-center gap-x-5 bg-white border border-slate-200 hover:border-gold/30 rounded-3xl p-7 transition-all hover:shadow-md">
+                    <div class="w-12 h-12 flex-shrink-0 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center">
+                        <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"></path></svg>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold text-xl text-navy tracking-tight group-hover:text-gold transition">Private Parent Group</div>
+                        <div class="text-slate-600 text-sm mt-0.5">For enrolled families &amp; friends</div>
+                    </div>
+                </a>
+            </div>
+            
+            <p class="mt-8 text-sm text-slate-500">Request to join the group after enrolling or message us on the page.</p>
+        </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section id="contact" class="py-16 bg-white border-t border-slate-100">
+        <div class="tail-container max-w-5xl mx-auto">
+            <div class="grid md:grid-cols-5 gap-x-12 gap-y-12">
+                <!-- Contact Info -->
+                <div class="md:col-span-2">
+                    <h2 class="heading-serif text-4xl text-navy tracking-tight">Let’s Talk</h2>
+                    <p class="mt-4 text-lg text-slate-600">We would love to hear from you and answer any questions you have about joining Summit Church School.</p>
+                    
+                    <div class="mt-8 space-y-5 text-sm">
+                        <div>
+                            <div class="font-semibold text-navy">Location</div>
+                            <div class="text-slate-600 mt-1">
+                                3225 Rainbow Dr #246<br>
+                                Rainbow City, AL 35906
+                            </div>
+                            <a href="https://maps.app.goo.gl/WYN42Fgr3cbXKYTU7" 
+                               target="_blank" 
+                               class="text-sage hover:text-navy underline decoration-sage/30 text-xs block mt-1">
+                                View on Google Maps
+                            </a>
+                            <div class="text-slate-600 text-xs mt-1">Serving families across the entire state</div>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-navy">Email</div>
+                            <a href="mailto:info@summitchurchschool.org" class="text-sage hover:text-navy underline decoration-sage/30">info@summitchurchschool.org</a>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-navy">Best Way to Reach Us</div>
+                            <div class="text-slate-600 mt-1">Send a message using the form or reach out via our Facebook page or group. We typically respond within 24–48 hours.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Form -->
+                <div class="md:col-span-3">
+                    <form id="contact-form" action="https://formspree.io/f/mojbzrla" method="POST" class="space-y-5">
+                        <!-- Sets a consistent subject for all incoming emails -->
+                        <input type="hidden" name="_subject" value="New message from Summit Church School website">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Your Name</label>
+                                <input type="text" name="name" required 
+                                       class="form-input w-full px-5 py-3.5 bg-white border border-slate-300 rounded-2xl text-base">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                                <input type="email" name="email" required 
+                                       class="form-input w-full px-5 py-3.5 bg-white border border-slate-300 rounded-2xl text-base">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">I’m interested in…</label>
+                            <select name="interest" class="form-input w-full px-5 py-3.5 bg-white border border-slate-300 rounded-2xl text-base">
+                                <option>Enrolling my child(ren)</option>
+                                <option>Learning more about the program</option>
+                                <option>High school / transcript questions</option>
+                                <option>Payment or tuition questions</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Message</label>
+                            <textarea name="message" rows="4" required 
+                                      class="form-input w-full px-5 py-3.5 bg-white border border-slate-300 rounded-3xl text-base resize-y min-h-[120px]"
+                                      placeholder="Tell us a little about your family or what questions you have..."></textarea>
+                        </div>
+                        
+                        <button type="submit" 
+                                class="btn-primary w-full md:w-auto px-10 py-4 text-base font-semibold rounded-2xl flex items-center justify-center gap-x-2">
+                            Send Message
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7-7 7"></path></svg>
+                        </button>
+                        
+                        <p class="text-xs text-slate-500">We respect your time and privacy. We’ll only use your information to respond to your inquiry.</p>
+                    </form>
+                    
+                    <!-- Success Message (hidden by default) -->
+                    <div id="form-success" class="hidden mt-5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl p-6">
+                        <div class="flex gap-x-3">
+                            <div class="text-emerald-500 mt-0.5">✓</div>
+                            <div>
+                                <p class="font-semibold">Thank you! Your message has been received.</p>
+                                <p class="text-sm mt-1">We’ll get back to you within 1–2 business days. We’re excited to connect with you.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-navy text-white/80 py-12 border-t border-white/10">
+        <div class="tail-container">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-y-8">
+                <div class="flex items-center gap-x-3">
+                    <div class="h-8 w-auto overflow-hidden ring-1 ring-white/30 rounded-lg">
+                        <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-8 w-auto object-contain">
+                    </div>
+                    <div>
+                        <div class="text-white font-semibold text-xl tracking-tight">Summit Church School</div>
+                        <div class="text-xs text-white/50">A Ministry of <a href="https://summitchurchrbc.com" target="_blank" rel="noopener noreferrer" class="hover:text-white underline transition">Summit Church</a> • Rainbow City, Alabama</div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-x-7 gap-y-2 text-sm">
+                    <a href="#about" class="hover:text-white transition">About</a>
+                    <a href="#faq" class="hover:text-white transition">FAQ</a>
+                    <a href="#enrollment" class="hover:text-white transition">Enroll</a>
+                    <a href="#resources" class="hover:text-white transition">Community</a>
+                    <a href="#contact" class="hover:text-white transition">Contact</a>
+                </div>
+
+                <div class="text-sm text-white/50">
+                    © <span id="year"></span> Summit Church School. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-navy text-white px-6 py-3.5 rounded-2xl shadow-xl text-sm flex items-center gap-x-3 z-[60]">
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+        // Tailwind script configuration
+        function initializeTailwind() {
+            document.documentElement.style.setProperty('--accent-gold', '#C9A227');
+            
+            // Optional: extend further if needed
+        }
+
+        // Mobile menu toggle
+        function initMobileMenu() {
+            const btn = document.getElementById('mobile-menu-btn');
+            const menu = document.getElementById('mobile-menu');
+            const icon = btn.querySelector('svg');
+            
+            btn.addEventListener('click', () => {
+                const isOpen = !menu.classList.contains('hidden');
+                
+                if (isOpen) {
+                    menu.classList.add('hidden');
+                    btn.setAttribute('aria-expanded', 'false');
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>';
+                } else {
+                    menu.classList.remove('hidden');
+                    btn.setAttribute('aria-expanded', 'true');
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M6 18L18 6M6 6l12 12"></path>';
+                }
+            });
+            
+            // Close mobile menu when clicking a link
+            document.querySelectorAll('.mobile-nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    menu.classList.add('hidden');
+                    btn.setAttribute('aria-expanded', 'false');
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>';
+                });
+            });
+        }
+
+        // Contact form handler
+        function initContactForm() {
+            const form = document.getElementById('contact-form');
+            const success = document.getElementById('form-success');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = 'Sending...';
+                
+                const formData = new FormData(form);
+                
+                // Send to Formspree (replace the endpoint with your real one)
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        form.style.display = 'none';
+                        success.classList.remove('hidden');
+                        success.classList.add('flex');
+                        
+                        // Reset form after a delay
+                        setTimeout(() => {
+                            if (!success.classList.contains('hidden')) {
+                                form.reset();
+                                form.style.display = 'block';
+                                success.classList.add('hidden');
+                                success.classList.remove('flex');
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalText;
+                            }
+                        }, 8500);
+                    } else {
+                        throw new Error('Form submission failed');
+                    }
+                })
+                .catch(error => {
+                    alert('Sorry, there was a problem sending your message. Please email us directly at info@summitchurchschool.org');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                    console.error(error);
+                });
+            });
+        }
+
+        // Smooth scroll enhancement for older browsers (optional)
+        function initSmoothScroll() {
+            // Already using CSS scroll-behavior: smooth;
+            // Add any anchor offset handling if needed for sticky nav height
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        // Account for sticky nav height
+                        const navHeight = 80;
+                        const elementPosition = target.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.pageYOffset - navHeight;
+                        
+                        window.scrollTo({
+                            top: offsetPosition,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+        }
+
+        // Set current year in footer
+        function setFooterYear() {
+            const yearEl = document.getElementById('year');
+            if (yearEl) yearEl.textContent = new Date().getFullYear();
+        }
+
+        // Keyboard accessibility for details elements (nice to have)
+        function enhanceAccordions() {
+            document.querySelectorAll('details.faq-item').forEach((details, index) => {
+                // Allow Escape key to close
+                details.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && details.open) {
+                        details.open = false;
+                        details.querySelector('summary').focus();
+                    }
+                });
+                
+                // Optional: Close other accordions when one opens (accordion behavior)
+                // Comment out if you prefer multiple open at once
+                details.addEventListener('toggle', () => {
+                    if (details.open) {
+                        document.querySelectorAll('details.faq-item').forEach(other => {
+                            if (other !== details && other.open) {
+                                other.open = false;
+                            }
+                        });
+                    }
+                });
+            });
+        }
+
+        // Easter egg: Logo click shows a nice message
+        function initLogoEasterEgg() {
+            const logos = document.querySelectorAll('img[src*="logo.png"]');
+            logos.forEach(logo => {
+                let clicks = 0;
+                logo.addEventListener('click', () => {
+                    clicks++;
+                    if (clicks === 5) {
+                        const toast = document.getElementById('toast');
+                        const msg = document.getElementById('toast-message');
+                        msg.textContent = 'Thank you for loving homeschool families. ❤️';
+                        toast.style.display = 'flex';
+                        setTimeout(() => {
+                            toast.style.display = 'none';
+                            clicks = 0;
+                        }, 2800);
+                    }
+                });
+            });
+        }
+
+        // Main initialization
+        function initializeWebsite() {
+            initializeTailwind();
+            initMobileMenu();
+            initContactForm();
+            initSmoothScroll();
+            setFooterYear();
+            enhanceAccordions();
+            initLogoEasterEgg();
+            
+            // Performance: Preload nothing extra needed
+            
+            // Accessibility: Announce to screen readers that site is ready
+            console.log('%c[Summit Church School] Website initialized successfully. All interactive elements ready.', 'color:#7C8F7E');
+        }
+
+        // Boot the site
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeWebsite);
+        } else {
+            initializeWebsite();
+        }
+
+        // Expose a couple helpers in case user wants to test in console
+        window.SummitSchool = {
+            scrollToEnrollment: () => document.getElementById('enrollment').scrollIntoView({ behavior: 'smooth' }),
+            showToast: (message) => {
+                const t = document.getElementById('toast');
+                document.getElementById('toast-message').textContent = message;
+                t.style.display = 'flex';
+                setTimeout(() => t.style.display = 'none', 3000);
+            }
+        };
+    </script>
+</body>
+</html>

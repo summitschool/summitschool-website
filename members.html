@@ -1,0 +1,2716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members Area • Summit Church School</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&amp;display=swap');
+        
+        :root {
+            --navy: #0A2540;
+            --gold: #C9A227;
+            --sage: #7C8F7E;
+        }
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+        
+        .heading-serif {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-weight: 700;
+        }
+
+        .bg-navy {
+            background-color: #0A2540;
+        }
+        .hover\:bg-\[\#0F3A5F\]:hover {
+            background-color: #0F3A5F;
+        }
+
+        /* Make file browse buttons always look active (not greyed out) */
+        #admin-doc-file::file-selector-button,
+        #admin-shared-file::file-selector-button {
+            background-color: #0A2540;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        #admin-doc-file::file-selector-button:hover,
+        #admin-shared-file::file-selector-button:hover {
+            background-color: #0F3A5F;
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-link:after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background-color: #C9A227;
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover:after {
+            width: 100%;
+        }
+
+        .member-card {
+            transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        
+        .member-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        .form-input {
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #C9A227;
+            box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
+        }
+
+        .section-header {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-weight: 700;
+            color: #0A2540;
+        }
+    </style>
+</head>
+<body class="bg-[#F8F6F1] text-slate-800">
+    <!-- Sticky Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
+        <div class="max-w-screen-2xl mx-auto px-6">
+            <div class="flex items-center justify-between h-20">
+                <!-- Logo -->
+                <a href="index.html" class="flex items-center">
+                    <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-14 w-auto object-contain rounded-2xl">
+                </a>
+
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center gap-x-9 text-sm font-medium">
+                    <a href="index.html#about" class="nav-link text-slate-700 hover:text-navy">About</a>
+                    <a href="index.html#why" class="nav-link text-slate-700 hover:text-navy">Why Summit</a>
+                    <a href="index.html#faq" class="nav-link text-slate-700 hover:text-navy">FAQ</a>
+                    <a href="index.html#enrollment" class="nav-link text-slate-700 hover:text-navy">Enrollment</a>
+                    <a href="index.html#resources" class="nav-link text-slate-700 hover:text-navy">Resources</a>
+                    <a href="members.html" class="nav-link text-navy font-semibold">Members</a>
+                </div>
+
+                <div class="hidden md:flex items-center gap-x-4">
+                    <button onclick="logout()" 
+                            id="logout-btn"
+                            class="hidden items-center gap-x-2 px-5 py-2 text-sm font-medium text-slate-600 hover:text-navy transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Log out</span>
+                    </button>
+                    <a href="index.html#enrollment" 
+                       class="inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985]">
+                        Enroll Now
+                    </a>
+                </div>
+
+                <!-- Mobile Hamburger -->
+                <button id="mobile-menu-btn"
+                        class="md:hidden w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
+                        aria-label="Open menu">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-slate-200">
+            <div class="max-w-screen-2xl mx-auto px-6 py-6 flex flex-col gap-y-1 text-base font-medium">
+                <a href="index.html#about" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">About</a>
+                <a href="index.html#why" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Why Summit</a>
+                <a href="index.html#faq" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">FAQ</a>
+                <a href="index.html#enrollment" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Enrollment</a>
+                <a href="index.html#resources" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Resources</a>
+                <a href="members.html" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-navy font-semibold">Members</a>
+                
+                <div class="pt-4 border-t border-slate-100 mt-2">
+                    <button onclick="logout()" 
+                            id="mobile-logout-btn"
+                            class="hidden w-full justify-center items-center gap-x-2 px-5 py-3 text-sm font-medium text-slate-600 hover:text-navy transition-colors border border-slate-200 rounded-2xl">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Log out</span>
+                    </button>
+                    <a href="index.html#enrollment" 
+                       class="block w-full text-center px-6 py-3.5 text-base font-semibold rounded-2xl bg-navy text-white mt-3">
+                        Enroll Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-5xl mx-auto px-6 py-12">
+        
+        <!-- Login / Signup View -->
+        <div id="login-view">
+            <div class="max-w-md mx-auto">
+                <div class="text-center mb-8">
+                    <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-16 w-auto mx-auto mb-5 rounded-2xl">
+                    <h1 class="heading-serif text-4xl text-navy tracking-tighter">Members Portal</h1>
+                    <p class="mt-2 text-slate-600">Access for currently enrolled Summit families.</p>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex border-b border-slate-200 mb-6">
+                    <button id="tab-login"
+                            class="flex-1 py-3 text-sm font-semibold border-b-2 border-navy text-navy">Sign In</button>
+                    <button id="tab-signup"
+                            class="flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-slate-700">Create Account</button>
+                </div>
+
+                <!-- Login Form -->
+                <div id="login-form-container">
+                    <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+                        <form id="login-form" class="space-y-5">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                                <input type="email" id="login-email" required 
+                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                       placeholder="you@family.com">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                                <input type="password" id="login-password" required 
+                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                       placeholder="Your password">
+                            </div>
+
+                            <button type="submit" 
+                                    class="w-full py-4 mt-2 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                Sign In
+                            </button>
+                        </form>
+
+                        <div class="mt-5 text-center">
+                            <a href="#" onclick="forgotPassword(); return false;" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signup Form -->
+                <div id="signup-form-container" class="hidden">
+                    <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+                        <form id="signup-form" class="space-y-5">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">First Name</label>
+                                    <input type="text" id="signup-first-name" required 
+                                           class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                           placeholder="Jane">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Last Name</label>
+                                    <input type="text" id="signup-last-name" required 
+                                           class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                           placeholder="Smith">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                                <input type="email" id="signup-email" required 
+                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                       placeholder="you@family.com">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Create Password</label>
+                                <input type="password" id="signup-password" required minlength="6"
+                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                       placeholder="Minimum 6 characters">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Confirm Password</label>
+                                <input type="password" id="signup-confirm-password" required minlength="6"
+                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                       placeholder="Re-enter password">
+                            </div>
+
+                            <button type="submit" 
+                                    class="w-full py-4 mt-2 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                Create Account &amp; Request Access
+                            </button>
+                        </form>
+
+                        <p class="text-xs text-center text-slate-500 mt-4">
+                            After you sign up, your account will be reviewed by our team. 
+                            You’ll be notified by email once approved.
+                        </p>
+                    </div>
+                </div>
+
+                <p class="text-center text-xs text-slate-500 mt-6">
+                    This area is for currently enrolled families only.<br>
+                    Need help? <a href="index.html#contact" class="underline">Contact us</a>
+                </p>
+
+                <div class="mt-6 text-center text-xs text-slate-500">
+                    After creating your account, check your email (including spam) and click the confirmation link.<br>
+                    You will not be able to sign in until your email is confirmed.
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Approval View -->
+        <div id="pending-view" class="hidden max-w-lg mx-auto text-center py-12">
+            <div class="bg-white border border-amber-200 rounded-3xl p-10">
+                <div class="mx-auto w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
+                    <i class="fas fa-hourglass-half text-3xl"></i>
+                </div>
+                <h2 class="heading-serif text-3xl text-navy">Account Pending Approval</h2>
+                <p class="mt-4 text-slate-600">Thank you for signing up. Your account has been created and is now awaiting review by our team.</p>
+                <p class="mt-2 text-slate-600">You will receive an email once your access has been approved. This usually takes 1–2 business days.</p>
+                
+                <div class="mt-8">
+                    <button onclick="logout()" 
+                            class="px-6 py-3 text-sm font-medium border border-slate-300 hover:bg-slate-50 rounded-2xl transition-colors">
+                        Return to Login
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="hidden">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h1 class="heading-serif text-4xl text-navy tracking-tighter">Members Area</h1>
+                    <p class="text-slate-600 mt-1" id="welcome-message">Welcome back</p>
+                </div>
+                <button onclick="logout()" 
+                        class="flex items-center gap-x-2 px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 rounded-2xl transition-colors">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Log out</span>
+                </button>
+            </div>
+
+            <!-- Dashboard Tabs -->
+            <div class="flex gap-2 border-b border-slate-200 mb-6">
+                <button onclick="showDashboardTab('my-tasks')" id="tab-my-tasks"
+                        class="px-4 py-2 text-sm font-medium border-b-2 border-navy text-navy whitespace-nowrap relative">My Tasks
+                    <span id="my-tasks-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 rounded-full">0</span>
+                </button>
+                <button onclick="showDashboardTab('my-documents')" id="tab-my-documents"
+                        class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">My Documents</button>
+                <button onclick="showDashboardTab('resources')" id="tab-resources"
+                        class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Resources</button>
+                <button onclick="showDashboardTab('admin')" id="tab-admin"
+                        class="hidden px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700">Admin</button>
+            </div>
+
+            <!-- My Documents Tab Content -->
+            <div id="dashboard-my-documents">
+                <!-- Member Banner (from admin) -->
+                <div id="member-banner" class="hidden mb-6 p-4 bg-amber-100 border border-amber-300 rounded-3xl text-amber-900">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1 pr-4">
+                            <strong class="block mb-1">Announcement</strong>
+                            <div id="member-banner-text" class="whitespace-pre-wrap"></div>
+                        </div>
+                        <button onclick="dismissBanner()" class="text-amber-700 hover:text-amber-900 text-xs font-medium">Dismiss</button>
+                    </div>
+                </div>
+
+                <h2 class="text-2xl font-semibold text-navy mb-4">My Documents</h2>
+                <p class="text-sm text-slate-600 mb-4">Personal documents and your signed DocuSeal forms (or other items added just for your family). Your admin adds these specifically for you. Signing links are temporary; after you sign, the admin will usually replace the link with the final signed PDF here. Documents are organized by school year for easy archiving.</p>
+                
+                <div id="my-documents" class="space-y-4">
+                    <!-- Dynamically populated from Supabase, grouped by school_year -->
+                    <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">
+                        Loading your documents...
+                    </div>
+                </div>
+
+                <!-- My ID subsection (under My Documents tab) -->
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold text-navy mb-3">My ID</h3>
+                    <div id="my-id-section" class="border border-slate-200 rounded-3xl p-6 bg-white">
+                        <!-- Populated by loadMyIDSection() after admin assign or on login -->
+                        <div class="text-slate-500 text-sm">
+                            No ID on file yet. Once your admin assigns your uploaded government ID here, it will appear below with a preview.
+                            <button onclick="contactAdminForID()" class="ml-2 text-navy underline text-xs">Contact admin to upload or update ID</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resources Tab Content -->
+            <div id="dashboard-resources" class="hidden">
+                <h2 class="text-2xl font-semibold text-navy mb-4">Resources</h2>
+                <p class="text-sm text-slate-600 mb-4">Resources and links available to all approved families (school calendar, handbook, general info, etc.).</p>
+                
+                <div id="shared-resources" class="grid md:grid-cols-2 gap-4">
+                    <!-- Dynamically loaded from Supabase shared_resources table -->
+                    <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">
+                        Loading shared resources...
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center text-sm text-slate-500">
+                    Questions about anything in the members area? <a href="index.html#contact" class="text-navy underline">Reach out anytime</a>.
+                </div>
+            </div>
+
+            <!-- My Tasks Tab Content (new; badge on tab) -->
+            <div id="dashboard-my-tasks" class="hidden">
+                <h2 class="text-2xl font-semibold text-navy mb-4">My Tasks</h2>
+                <p class="text-sm text-slate-600 mb-4">Complete these required tasks assigned by your admin (e.g. ID verification). Items here are separate from your permanent My Documents archive.</p>
+
+                <div id="my-tasks-list" class="space-y-4">
+                    <!-- Populated dynamically: standard tasks assigned to 'tasks' + special ID upload card -->
+                    <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">
+                        Loading your tasks...
+                    </div>
+                </div>
+
+                <div class="mt-6 text-xs text-slate-500">
+                    Completed or expired tasks may be archived by your admin. Contact support for questions.
+                </div>
+            </div>
+
+            <!-- Admin Tab Content (only for sjesimon@gmail.com) -->
+            <div id="dashboard-admin" class="hidden">
+                <div id="admin-upload-section" class="pt-2">
+                    <h2 class="text-2xl font-semibold text-navy mb-2">Admin: Upload Document for a Family (or add DocuSeal link)</h2>
+                    <p class="text-sm text-slate-600 mb-6">Personal / family-specific items appear only in that family's "My Documents". <strong>Best for DocuSeal:</strong> paste the signing link as a URL for one family → after they sign, delete the link entry (using the list below) and upload the completed signed PDF as a file for them. This keeps signing links private and removes them cleanly per family.</p>
+
+                    <div class="bg-white border border-slate-100 rounded-3xl p-8">
+                        <form id="admin-upload-form" class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
+                                <select id="admin-family-select" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="onAdminFamilyChange()">
+                                    <option value="">Loading families...</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Title</label>
+                                    <input type="text" id="admin-doc-title" required 
+                                           class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                           placeholder="e.g. 2026-2027 Enrollment Form">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
+                                    <input type="text" id="admin-doc-category" value="Document"
+                                           class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">School Year (for archive / organization)</label>
+                                <select id="admin-doc-school-year" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                    <!-- JS populated with recent years, defaults to current -->
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Description (optional)</label>
+                                <textarea id="admin-doc-description" rows="2"
+                                          class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y"
+                                          placeholder="Short note for the family"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">URL (e.g. DocuSeal signing link) or upload a file below</label>
+                                <input type="url" id="admin-doc-url" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="https://docuseal.co/s/... (leave blank if uploading file)">
+                                <p class="text-xs text-slate-500 mt-1">Use a URL for DocuSeal signing links or external resources you want only this family to see in My Documents.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Or upload file (signed PDF, report, etc.)</label>
+                                <input type="file" id="admin-doc-file"
+                                       class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-navy file:text-white hover:file:bg-[#0F3A5F]">
+                                <p class="text-xs text-slate-500 mt-1">Uploaded files are stored privately for this family only. After a family signs a DocuSeal form, upload the completed PDF here (and remove the signing URL entry below if desired).</p>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 text-sm font-medium">
+                                    <input type="checkbox" id="admin-personal-notify">
+                                    Notify this family by email
+                                </label>
+                            </div>
+
+                            <button type="submit" 
+                                    class="w-full py-4 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                Upload for Selected Family
+                            </button>
+                        </form>
+
+                        <div class="mt-3 pt-3 border-t border-slate-200">
+                            <h4 class="text-sm font-semibold text-navy mb-2">Assign Selected Standard Documents</h4>
+
+                            <!-- Destination choice for this batch of standards (per-family flexibility) -->
+                            <div class="flex items-center gap-4 mb-2 text-xs">
+                                <span class="text-slate-600">Send selected to:</span>
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="radio" name="standards-destination" value="documents" class="accent-navy"> My Documents
+                                </label>
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="radio" name="standards-destination" value="tasks" checked class="accent-navy"> My Tasks
+                                </label>
+                            </div>
+
+                            <div id="admin-standard-checkboxes" class="max-h-36 overflow-auto border border-slate-200 rounded-xl p-2 text-xs space-y-1 bg-white">
+                                Select a family above to choose which standard documents to assign (e.g. exclude graduation packets for non-seniors).
+                            </div>
+                            <button type="button" onclick="assignSelectedStandardsToFamily()"
+                                    class="mt-2 w-full py-2 border border-navy text-navy hover:bg-navy hover:text-white font-semibold rounded-2xl transition-all text-sm">
+                                Assign Selected Standards to Family
+                            </button>
+                            <p class="text-xs text-slate-500 mt-1 text-center">Choose destination for the selected standards. The "Upload Government Issued ID" standard shows a special camera+ack form when sent to My Tasks.</p>
+                        </div>
+
+                        <!-- Quick re-send ID task -->
+                        <div class="mt-2">
+                            <button type="button" onclick="reSendIDTask()"
+                                    class="w-full py-1.5 text-xs border border-amber-600 text-amber-700 hover:bg-amber-50 rounded-2xl transition-all">
+                                Re-send "Upload ID" Task to this family (to My Tasks)
+                            </button>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-200">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Current documents for selected family</label>
+                            <div id="admin-family-docs-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[60px]">
+                                Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.
+                            </div>
+                        </div>
+
+                        <!-- NEW: Admin Pending ID Uploads section (view + assign to family's My ID area) -->
+                        <div class="mt-6 pt-4 border-t border-slate-200">
+                            <h4 class="text-sm font-semibold text-navy mb-2">Pending ID Uploads (for review &amp; assignment)</h4>
+                            <div id="admin-pending-ids-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[80px] bg-white">
+                                Select a family or load pending IDs. Uploaded government IDs will appear here with preview. Use "Assign to Family" to move the photo into that family's My ID section under My Documents.
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Photos land in temp-ids/ until assigned. This list is a skeleton; full version will query the id_uploads table and generate signed previews.</p>
+                        </div>
+
+                        <div id="admin-upload-status" class="mt-4 text-sm hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Admin: Manage Standard Documents -->
+                <div class="mt-8">
+                    <h3 class="text-lg font-semibold text-navy mb-2">Manage Standard Documents</h3>
+                    <p class="text-xs text-slate-500 mb-4">Curate the set of documents/links that should be given to (almost) every family. After approving a new family in Supabase (profiles.approved=true), select them above in the Upload area and use the checkboxes + "Assign Selected Standards" button. You can exclude e.g. graduation info for families that don't need it. Documents go into that family's My Documents under the chosen school year.</p>
+
+                    <div class="bg-white border border-slate-100 rounded-3xl p-6">
+                        <form id="admin-standard-form" class="space-y-4" autocomplete="off">
+                            <input type="hidden" id="admin-standard-id">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                                <input type="text" id="admin-standard-title" required class="form-input w-full px-4 py-2 bg-white border border-slate-300 rounded-xl text-sm" placeholder="Standard Form Title">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">URL (or upload below)</label>
+                                <input type="url" id="admin-standard-url" class="form-input w-full px-4 py-2 bg-white border border-slate-300 rounded-xl text-sm" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Or Upload File</label>
+                                <input type="file" id="admin-standard-file" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-navy file:text-white">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                                    <input type="text" id="admin-standard-category" value="Standard" class="form-input w-full px-4 py-2 bg-white border border-slate-300 rounded-xl text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                                    <input type="text" id="admin-standard-description" class="form-input w-full px-4 py-2 bg-white border border-slate-300 rounded-xl text-sm" placeholder="optional">
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="submit" class="flex-1 py-2 bg-navy hover:bg-[#0F3A5F] text-white text-sm font-semibold rounded-xl">
+                                    <span id="admin-standard-submit-text">Add Standard</span>
+                                </button>
+                                <button type="button" onclick="cancelStandardEdit()" class="px-4 py-2 border border-slate-300 rounded-xl text-sm">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <h4 class="text-sm font-semibold text-navy mt-4 mb-2">Current Standards</h4>
+                    <div id="admin-standard-list" class="space-y-2 text-sm">
+                        <!-- JS populated -->
+                    </div>
+                </div>
+
+                <!-- Admin: Manage Shared Resources -->
+                <div class="mt-10 pt-8 border-t border-slate-200">
+                    <h2 class="text-2xl font-semibold text-navy mb-2">Manage Shared Resources</h2>
+                    <p class="text-sm text-slate-600 mb-6">Add, edit or remove resources that appear for all approved families in the "Shared Resources" section on the Documents tab.</p>
+
+                    <div class="bg-white border border-slate-100 rounded-3xl p-8 mb-6">
+                        <form id="admin-shared-form" class="space-y-5" autocomplete="off">
+                            <input type="hidden" id="admin-shared-id">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Title</label>
+                                <input type="text" id="admin-shared-title" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="e.g. 2025 School Calendar">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">URL (or upload file below)</label>
+                                <input type="url" id="admin-shared-url" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="https://... (leave blank if uploading file)">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Or Upload File (for all families)</label>
+                                <input type="file" id="admin-shared-file" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-navy file:text-white hover:file:bg-[#0F3A5F]">
+                                <p class="text-xs text-slate-500 mt-1">Uploaded files go into shared storage and will be visible to all approved families.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
+                                    <input type="text" id="admin-shared-category" value="General" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Display Order (lower = first)</label>
+                                    <input type="number" id="admin-shared-order" value="0" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Description (optional)</label>
+                                <textarea id="admin-shared-description" rows="2" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y" placeholder="Optional note"></textarea>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" id="admin-shared-visible" checked class="rounded border-slate-300">
+                                    Visible to families
+                                </label>
+                                <label class="flex items-center gap-2 text-sm ml-4">
+                                    <input type="checkbox" id="admin-shared-notify">
+                                    Notify all approved members by email
+                                </label>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button type="submit" class="flex-1 py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all">
+                                    <span id="admin-shared-submit-text">Add Shared Resource</span>
+                                </button>
+                                <button type="button" onclick="cancelSharedEdit()" class="px-5 py-3 border border-slate-300 rounded-2xl text-sm">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <h3 class="text-lg font-semibold text-navy mb-3">Current Shared Resources</h3>
+                    <div id="admin-shared-list" class="space-y-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Admin: Member Banner -->
+                <div class="mt-10 pt-8 border-t border-slate-200">
+                    <h2 class="text-2xl font-semibold text-navy mb-2">Member Banner / Announcement</h2>
+                    <p class="text-sm text-slate-600 mb-6">Publish a message that appears as a banner at the top of the Documents tab for all approved members. You can deactivate it anytime.</p>
+
+                    <div class="bg-white border border-slate-100 rounded-3xl p-8 mb-6">
+                        <form id="admin-banner-form" class="space-y-5" autocomplete="off">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Banner Message</label>
+                                <textarea id="admin-banner-message" rows="4" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y" placeholder="Enter the message to show to all members..."></textarea>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 text-sm font-medium">
+                                    <input type="checkbox" id="admin-banner-notify" class="rounded border-slate-300">
+                                    Notify all approved members by email
+                                </label>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button type="button" onclick="publishBanner()" class="flex-1 py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all">
+                                    Publish Banner
+                                </button>
+                                <button type="button" onclick="deactivateCurrentBanner()" class="px-5 py-3 border border-red-200 text-red-600 rounded-2xl text-sm hover:bg-red-50">Remove Current Banner</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="current-banner-preview" class="hidden bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm">
+                        <strong>Current Active Banner:</strong>
+                        <div id="current-banner-text" class="mt-1 whitespace-pre-wrap"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // =============================================
+        // SUPABASE CONFIGURATION - REPLACE THESE VALUES
+        // =============================================
+        const SUPABASE_URL = 'https://tajyrmydwqsijstyzsjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy'; // publishable key
+
+        let supabaseClient = null;
+
+        function initializeSupabase() {
+            if (SUPABASE_URL.includes('YOUR_') || SUPABASE_ANON_KEY.includes('YOUR_')) {
+                console.warn('Supabase not configured yet. Using demo mode.');
+                return null;
+            }
+            return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
+        // Initialize Supabase client
+        function initSupabaseClient() {
+            supabaseClient = initializeSupabase();
+        }
+
+        // Handle Supabase email confirmation / magic link / recovery redirects
+        // This ensures people land on a nice success message instead of an error page when clicking the link in their email.
+        function handleAuthRedirect() {
+            const hash = window.location.hash;
+            if (hash.includes('access_token') || hash.includes('type=') || hash.includes('error=')) {
+                // Supabase has put tokens or error in the hash
+                if (supabaseClient) {
+                    supabaseClient.auth.getSession().then(({ data }) => {
+                        // Clean the URL hash so it doesn't stay in the address bar
+                        history.replaceState(null, '', window.location.pathname + window.location.search);
+
+                        const loginView = document.getElementById('login-view');
+                        if (loginView && !data.session) {
+                            // Show a friendly confirmation message on the login form
+                            const firstChild = loginView.querySelector('.max-w-md');
+                            if (firstChild) {
+                                const existing = firstChild.querySelector('#confirmation-banner');
+                                if (existing) existing.remove();
+
+                                const banner = document.createElement('div');
+                                banner.id = 'confirmation-banner';
+                                banner.className = 'mb-6 p-4 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-2xl text-sm';
+
+                                if (hash.includes('error=')) {
+                                    banner.innerHTML = `<strong>There was a problem with the confirmation link.</strong><br>Please try signing in or request a new confirmation email.`;
+                                } else {
+                                    banner.innerHTML = `<strong>Email confirmed successfully!</strong><br>You can now sign in. Your account is still pending approval by our team.`;
+                                }
+
+                                firstChild.prepend(banner);
+                            }
+                        }
+
+                        // Refresh state in case they got logged in automatically
+                        checkLoginState();
+                    });
+                }
+            }
+        }
+
+        // Tab switching for login/signup
+        function showAuthTab(tab) {
+            const loginContainer = document.getElementById('login-form-container');
+            const signupContainer = document.getElementById('signup-form-container');
+            const tabLogin = document.getElementById('tab-login');
+            const tabSignup = document.getElementById('tab-signup');
+
+            if (!loginContainer || !signupContainer || !tabLogin || !tabSignup) {
+                console.error('Tab elements not found');
+                return;
+            }
+
+            if (tab === 'login') {
+                loginContainer.classList.remove('hidden');
+                signupContainer.classList.add('hidden');
+                tabLogin.classList.add('border-b-2', 'border-navy', 'text-navy');
+                tabLogin.classList.remove('text-slate-500');
+                tabSignup.classList.remove('border-b-2', 'border-navy', 'text-navy');
+                tabSignup.classList.add('text-slate-500');
+            } else {
+                loginContainer.classList.add('hidden');
+                signupContainer.classList.remove('hidden');
+                tabSignup.classList.add('border-b-2', 'border-navy', 'text-navy');
+                tabSignup.classList.remove('text-slate-500');
+                tabLogin.classList.remove('border-b-2', 'border-navy', 'text-navy');
+                tabLogin.classList.add('text-slate-500');
+            }
+        }
+
+        // Tab switching for the logged-in dashboard (My Documents / My Tasks / Resources / Admin)
+        function showDashboardTab(tab) {
+            const myDocsContent = document.getElementById('dashboard-my-documents');
+            const myTasksContent = document.getElementById('dashboard-my-tasks');
+            const resourcesContent = document.getElementById('dashboard-resources');
+            const adminContent = document.getElementById('dashboard-admin');
+            const tabMy = document.getElementById('tab-my-documents');
+            const tabTasks = document.getElementById('tab-my-tasks');
+            const tabRes = document.getElementById('tab-resources');
+            const tabAdmin = document.getElementById('tab-admin');
+
+            if (!myDocsContent || !myTasksContent || !resourcesContent || !adminContent || !tabMy || !tabTasks || !tabRes || !tabAdmin) return;
+
+            // hide all
+            myDocsContent.classList.add('hidden');
+            myTasksContent.classList.add('hidden');
+            resourcesContent.classList.add('hidden');
+            adminContent.classList.add('hidden');
+
+            // reset tab styles
+            [tabMy, tabTasks, tabRes, tabAdmin].forEach(t => {
+                t.classList.remove('border-b-2', 'border-navy', 'text-navy');
+                t.classList.add('text-slate-500');
+            });
+
+            if (tab === 'my-documents') {
+                myDocsContent.classList.remove('hidden');
+                tabMy.classList.add('border-b-2', 'border-navy', 'text-navy');
+                tabMy.classList.remove('text-slate-500');
+            } else if (tab === 'my-tasks') {
+                myTasksContent.classList.remove('hidden');
+                tabTasks.classList.add('border-b-2', 'border-navy', 'text-navy');
+                tabTasks.classList.remove('text-slate-500');
+                // Load tasks + update badge when tab is shown (placeholder for now)
+                if (typeof loadMyTasks === 'function') loadMyTasks();
+            } else if (tab === 'resources') {
+                resourcesContent.classList.remove('hidden');
+                tabRes.classList.add('border-b-2', 'border-navy', 'text-navy');
+                tabRes.classList.remove('text-slate-500');
+            } else if (tab === 'admin') {
+                adminContent.classList.remove('hidden');
+                tabAdmin.classList.add('border-b-2', 'border-navy', 'text-navy');
+                tabAdmin.classList.remove('text-slate-500');
+
+                // Reset admin forms when opening the tab to avoid stale data / persistence
+                const adminForm = document.getElementById('admin-upload-form');
+                if (adminForm) {
+                    adminForm.reset();
+                    const fileInput = document.getElementById('admin-doc-file');
+                    if (fileInput) fileInput.value = '';
+                }
+                const bannerForm = document.getElementById('admin-banner-form');
+                if (bannerForm) bannerForm.reset();
+            }
+        }
+
+        // My Tasks loader (now with real ID upload form for the special task).
+        // Badge shows pending count (hardcoded skeleton for Phase 1/2; will query tasks + id_uploads).
+        // ID task renders professional ack form + camera/gallery input + name validation (required).
+        // On submit: client upload to temp-ids/ in Family-Documents + metadata (simulated row for now; real table in DB step).
+        async function loadMyTasks() {
+            const list = document.getElementById('my-tasks-list');
+            const badge = document.getElementById('my-tasks-badge');
+            if (!list || !badge || !supabaseClient) return;
+
+            list.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">Loading your tasks...</div>';
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                list.innerHTML = '<div class="text-slate-500 text-sm p-4">Please log in to see tasks.</div>';
+                badge.classList.add('hidden');
+                return;
+            }
+
+            // Fetch items marked as tasks (standards assigned to My Tasks get ' (Task)' appended to category)
+            // ID verification standard gets special upload form when sent as a task.
+            const { data: taskDocs, error } = await supabaseClient
+                .from('family_documents')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                list.innerHTML = '<div class="text-red-500 text-sm p-4">Error loading tasks.</div>';
+                console.error(error);
+                return;
+            }
+
+            const tasks = (taskDocs || []).filter(d => {
+                const c = (d.category || '').toLowerCase();
+                return c.includes('(task)') || c.includes('task');  // support suffix we append + legacy
+            });
+
+            const pendingCount = tasks.length;
+            if (pendingCount > 0) {
+                badge.textContent = pendingCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            if (tasks.length === 0) {
+                list.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">No pending tasks.</div>';
+                return;
+            }
+
+            let html = '';
+            const ID_TASK_TITLE = 'Upload Government Issued ID (required)';
+
+            for (const task of tasks) {
+                const isIDTask = task.title && task.title.toLowerCase().includes('upload government issued id');
+
+                if (isIDTask) {
+                    // Special ID task: render the upload form (will be removed after submit)
+                    html += `
+                        <div class="border border-amber-300 bg-amber-50 rounded-3xl p-6" id="id-task-card">
+                            <div class="font-semibold text-navy mb-1">${task.title}</div>
+                            <p class="text-sm text-slate-700 mb-3">${task.description || 'Upload a clear, current photo of your valid driver\'s license or government-issued photo ID.'}</p>
+
+                            <form id="id-upload-form" onsubmit="submitIDUpload(event)" class="space-y-4">
+                                <!-- Professional acknowledgment -->
+                                <div>
+                                    <p class="text-sm text-slate-700 leading-relaxed">
+                                        I acknowledge and confirm that the photograph I am submitting is a true, accurate, and current image of my own valid government-issued photo identification document, and that I am the individual depicted in the photograph. I understand that providing false information may result in denial of enrollment or other consequences.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-600 mb-1">Type your full legal name to acknowledge (required)</label>
+                                    <input type="text" id="id-ack-name" required class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm" placeholder="Your full legal name as on the ID">
+                                    <div id="id-ack-error" class="hidden text-xs text-red-600 mt-1">Please type your full name to continue.</div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-600 mb-1">Photo of your ID (camera or gallery)</label>
+                                    <input type="file" id="id-photo" accept="image/*" capture="environment" required class="block w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-2xl file:border-0 file:text-sm file:font-semibold file:bg-navy file:text-white hover:file:bg-[#0F3A5F]">
+                                    <p class="text-[10px] text-slate-500 mt-1">Use your camera for a live photo or choose from your gallery. Image must be clear and legible.</p>
+                                </div>
+
+                                <button type="submit" id="id-submit-btn"
+                                        class="w-full py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985] text-sm">
+                                    Submit ID Photo &amp; Acknowledgment
+                                </button>
+                                <p class="text-[10px] text-center text-slate-500">Your photo will be uploaded to a secure temporary area for admin review and then moved to your permanent My ID section.</p>
+                            </form>
+                        </div>
+                    `;
+                } else {
+                    // Regular task standard: render as a card (viewable, perhaps mark complete later)
+                    let href = task.url || '#';
+                    let icon = 'fas fa-external-link-alt';
+                    if (task.url && !task.url.startsWith('http')) {
+                        const { data } = await supabaseClient
+                            .storage
+                            .from('Family-Documents')
+                            .createSignedUrl(task.url, 60 * 60 * 24);
+                        if (data?.signedUrl) href = data.signedUrl;
+                        icon = 'fas fa-download';
+                    }
+                    html += `
+                        <div class="member-card bg-white border border-amber-200 rounded-3xl p-6">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-lg text-navy">${task.title}</h4>
+                                    ${task.description ? `<p class="text-sm text-slate-600 mt-1">${task.description}</p>` : ''}
+                                    <div class="mt-3 text-xs text-emerald-600 font-medium">${new Date(task.created_at).toLocaleDateString()}</div>
+                                    <div class="text-[10px] text-amber-600 mt-1">This is a task item</div>
+                                </div>
+                                <a href="${href}" target="_blank" class="text-navy hover:text-gold transition ml-4">
+                                    <i class="${icon} text-xl"></i>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            list.innerHTML = html;
+        }
+
+        function contactAdminForID() {
+            alert('Please email the admin at the address listed on the main site contact page, or use the contact form. Reference your account email for faster help updating your ID.');
+        }
+
+        // Load / render My ID section (called from checkLoginState and after admin assign simulation).
+        // Query family_documents for items with category 'ID' for current user, show latest with signed image + ack info.
+        async function loadMyIDSection() {
+            const section = document.getElementById('my-id-section');
+            if (!section || !supabaseClient) return;
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                section.innerHTML = `<div class="text-slate-500 text-sm">Please log in to view your ID.</div>`;
+                return;
+            }
+
+            const { data: idDocs, error } = await supabaseClient
+                .from('family_documents')
+                .select('*')
+                .eq('user_id', user.id)
+                .ilike('category', '%ID%')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error || !idDocs || idDocs.length === 0) {
+                section.innerHTML = `
+                    <div class="text-slate-500 text-sm">
+                        No ID on file yet. Once your admin assigns your uploaded government ID here, it will appear below with a preview.
+                        <button onclick="contactAdminForID()" class="ml-2 text-navy underline text-xs">Contact admin to upload or update ID</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const idDoc = idDocs[0];
+            let href = idDoc.url || '#';
+            if (idDoc.url && !idDoc.url.startsWith('http')) {
+                const { data } = await supabaseClient
+                    .storage
+                    .from('Family-Documents')
+                    .createSignedUrl(idDoc.url, 60 * 60 * 24);
+                if (data?.signedUrl) href = data.signedUrl;
+            }
+
+            section.innerHTML = `
+                <div>
+                    <div class="text-xs uppercase tracking-widest text-emerald-600 font-semibold mb-1">On file (${idDoc.school_year || 'Current'})</div>
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden mb-3">
+                        <img src="${href}" alt="Your ID on file" class="w-full h-auto object-contain bg-white">
+                    </div>
+                    <div class="text-sm text-slate-700">${idDoc.description || 'ID on file'}</div>
+                    <div class="text-xs text-slate-500 mt-1">${new Date(idDoc.created_at).toLocaleDateString()}</div>
+                    <button onclick="contactAdminForID()" class="mt-3 text-xs text-navy underline">Request update / re-upload</button>
+                </div>
+            `;
+        }
+
+        // Submit handler for ID form (validation + simulated upload to temp + metadata)
+        async function submitIDUpload(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('id-ack-name');
+            const fileInput = document.getElementById('id-photo');
+            const errorDiv = document.getElementById('id-ack-error');
+            const btn = document.getElementById('id-submit-btn');
+
+            errorDiv.classList.add('hidden');
+
+            const ackName = (nameInput.value || '').trim();
+            if (!ackName) {
+                errorDiv.classList.remove('hidden');
+                nameInput.focus();
+                return;
+            }
+            if (!fileInput.files || !fileInput.files[0]) {
+                alert('Please select or capture a photo of your ID.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+
+            try {
+                // Upload to temp-ids/ folder in the Family-Documents bucket (client-side for now)
+                const storagePath = `temp-ids/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+                const { error: uploadErr } = await supabaseClient.storage
+                    .from('Family-Documents')
+                    .upload(storagePath, file, { upsert: false });
+
+                if (uploadErr) throw uploadErr;
+
+                // Delete the corresponding ID task row so it disappears from My Tasks (prevents multiples)
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) {
+                    await supabaseClient
+                        .from('family_documents')
+                        .delete()
+                        .eq('user_id', user.id)
+                        .ilike('title', '%Upload Government Issued ID%');
+                }
+
+                // Simulate DB row for id_uploads / ack (real table + Telegram trigger in later phases)
+                // In real: insert {user_id: currentUser.id, ack_name: ackName, storage_path: storagePath, school_year: '2026-2027', status: 'pending'}
+                console.log('[ID Upload] Temp path:', storagePath);
+                console.log('[ID Upload] Ack name:', ackName);
+                console.log('[ID Upload] Would trigger Telegram bot (new ID uploaded) + DB row in id_uploads.');
+
+                // Also optionally insert as pending ID in family_documents for My ID visibility (category 'ID')
+                if (user) {
+                    await supabaseClient.from('family_documents').insert({
+                        user_id: user.id,
+                        title: 'Government ID (Pending Admin Review)',
+                        description: `Acknowledged by: ${ackName}`,
+                        url: storagePath,
+                        category: 'ID',
+                        school_year: '2026-2027'
+                    });
+                }
+
+                // Success UI
+                const card = document.getElementById('id-task-card') || document.querySelector('#my-tasks-list > div');
+                if (card) {
+                    card.innerHTML = `
+                        <div class="text-emerald-700 font-semibold">Thank you — your ID photo has been submitted.</div>
+                        <p class="text-sm mt-1">It is now in a secure temporary area. Admin will review and move it to your My ID section shortly. You will receive confirmation once complete.</p>
+                        <div class="text-xs text-slate-500 mt-2">Reference: ${storagePath.split('/').pop()}</div>
+                    `;
+                }
+
+                // Refresh badge/tasks (now without the ID task)
+                if (typeof loadMyTasks === 'function') setTimeout(loadMyTasks, 800);
+
+            } catch (err) {
+                console.error(err);
+                alert('Upload failed: ' + (err.message || 'Please try again or contact admin.'));
+                btn.disabled = false;
+                btn.textContent = 'Submit ID Photo &amp; Acknowledgment';
+            }
+        }
+
+        // Check current auth state and approval
+        async function checkLoginState() {
+            const loginView = document.getElementById('login-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const pendingView = document.getElementById('pending-view');
+            const logoutBtn = document.getElementById('logout-btn');
+            const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
+
+            if (!supabaseClient) {
+                // Demo mode fallback
+                const loggedIn = localStorage.getItem('scsmembers_loggedin') === 'true';
+                if (loggedIn) {
+                    loginView.classList.add('hidden');
+                    pendingView.classList.add('hidden');
+                    dashboardView.classList.remove('hidden');
+                    if (logoutBtn) logoutBtn.classList.remove('hidden');
+                    if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
+                    loadMyDocumentsDemo();
+                } else {
+                    loginView.classList.remove('hidden');
+                    dashboardView.classList.add('hidden');
+                    pendingView.classList.add('hidden');
+                }
+                return;
+            }
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+
+            if (user) {
+                // User is logged in - check approval status
+                const { data: profile, error } = await supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                loginView.classList.add('hidden');
+
+                if (profile && profile.approved === true) {
+                    // Fully approved
+                    pendingView.classList.add('hidden');
+                    dashboardView.classList.remove('hidden');
+
+                    const welcome = document.getElementById('welcome-message');
+                    if (welcome) {
+                        let name = user.email.split('@')[0];
+                        if (profile.first_name && profile.last_name) {
+                            name = `${profile.first_name} ${profile.last_name}`;
+                        } else if (profile.full_name) {
+                            name = profile.full_name;
+                        }
+                        welcome.textContent = `Welcome back, ${name}`;
+                    }
+
+                    if (logoutBtn) logoutBtn.classList.remove('hidden');
+                    if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
+
+                    // Load personalized documents
+                    loadMyDocuments(user.id);
+
+                    // Load shared resources (visible to everyone)
+                    loadSharedResources();
+
+                    // Load member banner if active
+                    loadMemberBanner();
+
+                    // Load My Tasks (for badge + list)
+                    if (typeof loadMyTasks === 'function') loadMyTasks();
+
+                    // Load My ID section (under My Documents)
+                    if (typeof loadMyIDSection === 'function') loadMyIDSection();
+
+                    // Show admin tab button only for sjesimon@gmail.com
+                    if (user.email === 'sjesimon@gmail.com') {
+                        const adminTab = document.getElementById('tab-admin');
+                        if (adminTab) {
+                            adminTab.classList.remove('hidden');
+                        }
+                        loadAdminFamilies();
+                        loadAdminSharedResources();
+                        loadCurrentBannerForAdmin();
+                        // Standards list (and we will wire the setup in init)
+                        if (typeof loadAdminStandards === 'function') loadAdminStandards();
+                    }
+
+                    // Note: do NOT default the sub-tab here.
+                    // Default happens only on initial load (see below) so that
+                    // returning to the tab (e.g. after switching browser tabs)
+                    // does not reset the current view (My Documents / Resources / Admin).
+                } else {
+                    // Logged in but not yet approved
+                    dashboardView.classList.add('hidden');
+                    pendingView.classList.remove('hidden');
+
+                    if (logoutBtn) logoutBtn.classList.add('hidden');
+                    if (mobileLogoutBtn) mobileLogoutBtn.classList.add('hidden');
+                }
+            } else {
+                // Not logged in
+                loginView.classList.remove('hidden');
+                dashboardView.classList.add('hidden');
+                pendingView.classList.add('hidden');
+
+                if (logoutBtn) logoutBtn.classList.add('hidden');
+                if (mobileLogoutBtn) mobileLogoutBtn.classList.add('hidden');
+            }
+        }
+
+        // Load personalized documents for the logged-in user
+        async function loadMyDocuments(userId) {
+            const container = document.getElementById('my-documents');
+            if (!container || !supabaseClient) return;
+
+            container.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">Loading your documents...</div>';
+
+            const { data, error } = await supabaseClient
+                .from('family_documents')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                container.innerHTML = '<div class="text-red-500 text-sm p-4">Error loading documents. Please try again later.</div>';
+                console.error(error);
+                return;
+            }
+
+            // Filter out items assigned as tasks (they appear in My Tasks tab instead)
+            // Also filter ID items (they appear in the dedicated My ID subsection)
+            let docs = (data || []).filter(d => {
+                const cat = (d.category || '').toLowerCase();
+                return !cat.includes('task') && !cat.includes('id');
+            });
+
+            if (!docs || docs.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-2 text-slate-500 text-sm p-6 border border-dashed border-slate-300 rounded-3xl text-center">
+                        No personal documents yet. Your admin will upload files or add DocuSeal submission links here that only you can see.
+                    </div>
+                `;
+                return;
+            }
+
+            // Group by school_year for long-term families (newest first, Unassigned last)
+            const grouped = {};
+            docs.forEach(doc => {
+                const year = doc.school_year || 'Unassigned / Previous';
+                if (!grouped[year]) grouped[year] = [];
+                grouped[year].push(doc);
+            });
+
+            const yearKeys = Object.keys(grouped).sort((a, b) => {
+                if (a === 'Unassigned / Previous') return 1;
+                if (b === 'Unassigned / Previous') return -1;
+                return b.localeCompare(a); // string sort works for YYYY-YYYY
+            });
+
+            let html = '';
+            for (const year of yearKeys) {
+                const yearDocs = grouped[year];
+                const isFirst = year === yearKeys[0];
+                html += `
+                    <details class="border border-slate-200 rounded-3xl overflow-hidden" ${isFirst ? 'open' : ''}>
+                        <summary class="px-5 py-3 bg-slate-50 cursor-pointer flex items-center justify-between text-navy font-semibold hover:bg-slate-100 transition">
+                            <span>${year} <span class="font-normal text-sm text-slate-500">(${yearDocs.length} document${yearDocs.length !== 1 ? 's' : ''})</span></span>
+                            <span class="text-xs text-slate-400">toggle</span>
+                        </summary>
+                        <div class="p-5 grid md:grid-cols-2 gap-4 bg-white">
+                `;
+
+                for (const doc of yearDocs) {
+                    let href = doc.url || '#';
+                    let icon = 'fas fa-external-link-alt';
+
+                    if (doc.url && !doc.url.startsWith('http')) {
+                        // This is a path in Supabase Storage - generate a secure signed URL
+                        const { data } = await supabaseClient
+                            .storage
+                            .from('Family-Documents')
+                            .createSignedUrl(doc.url, 60 * 60 * 24); // valid for 24 hours
+
+                        if (data?.signedUrl) {
+                            href = data.signedUrl;
+                        }
+                        icon = 'fas fa-download';
+                    }
+
+                    html += `
+                        <div class="member-card bg-white border border-slate-100 rounded-3xl p-6">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-lg text-navy">${doc.title}</h4>
+                                    ${doc.description ? `<p class="text-sm text-slate-600 mt-1">${doc.description}</p>` : ''}
+                                    <div class="mt-3 text-xs text-emerald-600 font-medium">${new Date(doc.created_at).toLocaleDateString()}</div>
+                                </div>
+                                <a href="${href}" target="_blank" class="text-navy hover:text-gold transition ml-4">
+                                    <i class="${icon} text-xl"></i>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += `
+                        </div>
+                    </details>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Load shared resources visible to all approved families (controlled from Admin tab)
+        async function loadSharedResources() {
+            const container = document.getElementById('shared-resources');
+            if (!container || !supabaseClient) return;
+
+            container.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">Loading shared resources...</div>';
+
+            const { data: resources, error } = await supabaseClient
+                .from('shared_resources')
+                .select('*')
+                .eq('visible', true)
+                .order('display_order', { ascending: true })
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                container.innerHTML = '<div class="text-red-500 text-sm p-4">Error loading shared resources.</div>';
+                console.error(error);
+                return;
+            }
+
+            if (!resources || resources.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-2 text-slate-500 text-sm p-6 border border-dashed border-slate-300 rounded-3xl text-center">
+                        No shared resources yet. Your admin can add them from the Admin tab.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            for (const res of resources) {
+                let href = res.url || '#';
+                let icon = 'fas fa-external-link-alt';
+
+                if (res.url && !res.url.startsWith('http')) {
+                    // Storage file - generate signed URL (only visible because of login + RLS)
+                    const { data } = await supabaseClient
+                        .storage
+                        .from('Family-Documents')
+                        .createSignedUrl(res.url, 60 * 60 * 24); // 24 hours
+                    if (data?.signedUrl) {
+                        href = data.signedUrl;
+                    }
+                    icon = 'fas fa-download';
+                }
+
+                html += `
+                    <div class="member-card bg-white border border-slate-100 rounded-3xl p-6">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-lg text-navy">${res.title}</h4>
+                                ${res.description ? `<p class="text-sm text-slate-600 mt-1">${res.description}</p>` : ''}
+                            </div>
+                            <a href="${href}" target="_blank" class="text-navy hover:text-gold transition ml-4">
+                                <i class="${icon} text-xl"></i>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Demo version of load documents (for when Supabase not configured)
+        function loadMyDocumentsDemo() {
+            const container = document.getElementById('my-documents');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="member-card bg-white border border-slate-100 rounded-3xl p-6">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h4 class="font-semibold text-lg text-navy">Sample: Grade Submission 2024</h4>
+                            <p class="text-sm text-slate-600 mt-1">Your submitted form from last year.</p>
+                        </div>
+                        <a href="#" class="text-navy hover:text-gold transition">
+                            <i class="fas fa-external-link-alt text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="member-card bg-white border border-slate-100 rounded-3xl p-6">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h4 class="font-semibold text-lg text-navy">Sample: Transcript Request</h4>
+                            <p class="text-sm text-slate-600 mt-1">Example private document.</p>
+                        </div>
+                        <a href="#" class="text-navy hover:text-gold transition">
+                            <i class="fas fa-external-link-alt text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Admin-only: Load list of approved families for the upload dropdown
+        async function loadAdminFamilies() {
+            const select = document.getElementById('admin-family-select');
+            if (!select || !supabaseClient) return;
+
+            const { data: families, error } = await supabaseClient
+                .from('profiles')
+                .select('id, first_name, last_name, email')
+                .eq('approved', true)
+                .order('created_at', { ascending: false });
+
+            if (error || !families || families.length === 0) {
+                select.innerHTML = '<option value="">No approved families found</option>';
+                return;
+            }
+
+            let options = '<option value="">Select a family...</option>';
+            families.forEach(fam => {
+                const displayName = (fam.first_name && fam.last_name) 
+                    ? `${fam.first_name} ${fam.last_name}` 
+                    : (fam.email || 'Unknown');
+                options += `<option value="${fam.id}">${displayName} (${fam.email})</option>`;
+            });
+            select.innerHTML = options;
+        }
+
+        // Admin-only: Handle file upload for a specific family
+        async function setupAdminUpload() {
+            const form = document.getElementById('admin-upload-form');
+            const statusDiv = document.getElementById('admin-upload-status');
+            if (!form || !statusDiv) return;
+
+            // Populate school year select (defaults to current)
+            const yearSel = document.getElementById('admin-doc-school-year');
+            if (yearSel) {
+                const currentYear = '2026-2027';
+                const years = ['2026-2027', '2025-2026', '2024-2025', '2023-2024', '2022-2023', '2021-2022'];
+                yearSel.innerHTML = years.map(y => 
+                    `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`
+                ).join('');
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                statusDiv.classList.remove('hidden');
+                statusDiv.className = 'mt-4 text-sm text-slate-600';
+                statusDiv.textContent = 'Uploading...';
+
+                const userId = document.getElementById('admin-family-select').value;
+                const title = document.getElementById('admin-doc-title').value.trim();
+                const category = document.getElementById('admin-doc-category').value.trim() || 'Document';
+                const description = document.getElementById('admin-doc-description').value.trim();
+                const urlInput = (document.getElementById('admin-doc-url') || {}).value || '';
+                const finalUrlInput = urlInput.trim();
+                const fileInput = document.getElementById('admin-doc-file');
+                const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+                const schoolYear = document.getElementById('admin-doc-school-year') ? document.getElementById('admin-doc-school-year').value : '2026-2027';
+
+                if (!userId || !title || (!finalUrlInput && !file)) {
+                    statusDiv.textContent = 'Please select a family, enter a title, and provide either a URL or a file.';
+                    statusDiv.className = 'mt-4 text-sm text-red-600';
+                    return;
+                }
+
+                try {
+                    let finalUrl = finalUrlInput;
+
+                    if (file) {
+                        // Upload to Supabase Storage with path: userId/filename (private per family)
+                        const storagePath = `${userId}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+                        const { error: uploadError } = await supabaseClient
+                            .storage
+                            .from('Family-Documents')
+                            .upload(storagePath, file, { upsert: false });
+
+                        if (uploadError) throw uploadError;
+
+                        finalUrl = storagePath; // storage path; frontend will make signed URL
+                    }
+
+                    // Insert record into family_documents.
+                    // If finalUrl is http(s) it is treated as external link (e.g. DocuSeal).
+                    // If it's a storage path, loadMyDocuments will create a signed URL for download.
+                    const { error: insertError } = await supabaseClient
+                        .from('family_documents')
+                        .insert({
+                            user_id: userId,
+                            title: title,
+                            description: description || null,
+                            url: finalUrl,
+                            category: category,
+                            school_year: schoolYear
+                        });
+
+                    if (insertError) throw insertError;
+
+                    statusDiv.textContent = `Success! "${title}" uploaded for the selected family. They will see it the next time they load the members page.`;
+                    statusDiv.className = 'mt-4 text-sm text-emerald-600';
+
+                    const notify = document.getElementById('admin-personal-notify').checked;
+                    if (notify) {
+                        const select = document.getElementById('admin-family-select');
+                        const selectedText = select.options[select.selectedIndex].text;
+                        const match = selectedText.match(/\(([^)]+)\)/);
+                        const email = match ? [match[1]] : [];
+                        if (email.length > 0) {
+                            showNotificationPrompt(
+                                'New Document in Your Members Portal - Summit Church School',
+                                `Hello,\n\nYou have a new document available in your Members Area: "${title}".\n\nPlease log in to view it.\n\nBest,\nSummit Church School`,
+                                email
+                            );
+                        }
+                    }
+
+                    // Remember who we just uploaded for, then clear
+                    const justUploadedFor = userId;
+                    form.reset();
+
+                    // Refresh the current docs list for that same family + reload families list
+                    setTimeout(() => {
+                        loadAdminFamilies();
+                        // Try to keep the family selected and refresh their list so new item appears + old signing links are still manageable
+                        const sel = document.getElementById('admin-family-select');
+                        if (sel && justUploadedFor) {
+                            sel.value = justUploadedFor;
+                            loadAdminFamilyDocs();
+                        }
+                        statusDiv.textContent = '';
+                    }, 1200);
+
+                } catch (err) {
+                    console.error(err);
+                    statusDiv.textContent = 'Upload failed: ' + (err.message || 'Unknown error. Check console.');
+                    statusDiv.className = 'mt-4 text-sm text-red-600';
+                }
+            });
+        }
+
+        // Helper for family select in admin (loads docs list + standards checkboxes + pending ID list)
+        function onAdminFamilyChange() {
+            loadAdminFamilyDocs();
+            loadStandardCheckboxesForFamily();
+            loadPendingIDsForAdmin();  // new for ID review
+        }
+
+        let cachedStandards = [];
+
+        async function loadStandardCheckboxesForFamily() {
+            const container = document.getElementById('admin-standard-checkboxes');
+            const familySel = document.getElementById('admin-family-select');
+            if (!container || !familySel || !familySel.value) {
+                if (container) container.innerHTML = '<span class="text-slate-400">Select a family above to choose standards to assign.</span>';
+                return;
+            }
+            container.innerHTML = '<div class="text-slate-500">Loading standards...</div>';
+
+            const { data: standards, error } = await supabaseClient
+                .from('standard_documents')
+                .select('*')
+                .order('title');
+
+            if (error || !standards || !standards.length) {
+                container.innerHTML = '<span class="text-xs text-red-500">No standards defined yet.</span>';
+                return;
+            }
+
+            cachedStandards = standards;
+            container.innerHTML = '';
+            standards.forEach(s => {
+                const id = 'stdcb-' + s.id;
+                const div = document.createElement('div');
+                div.className = 'flex items-start gap-1.5';
+                div.innerHTML = `
+                    <input type="checkbox" id="${id}" value="${s.id}" checked class="mt-0.5 rounded border-slate-300">
+                    <label for="${id}" class="text-xs leading-tight cursor-pointer">
+                        ${s.title}
+                        ${s.description ? `<span class="block text-[10px] text-slate-500">${s.description}</span>` : ''}
+                    </label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function assignSelectedStandardsToFamily() {
+            const familySel = document.getElementById('admin-family-select');
+            const userId = familySel ? familySel.value : '';
+            if (!userId) {
+                alert('Please select a family first.');
+                return;
+            }
+            const checked = document.querySelectorAll('#admin-standard-checkboxes input[type="checkbox"]:checked');
+            if (!checked.length) {
+                alert('Please select at least one standard document to assign.');
+                return;
+            }
+
+            // Read chosen destination (batch for the selected standards).
+            // ID verification standard now fully respects the choice (special form only when sent to Tasks).
+            const destRadio = document.querySelector('input[name="standards-destination"]:checked');
+            const destination = (destRadio && destRadio.value) || 'tasks'; // 'documents' | 'tasks' (default to tasks)
+
+            const statusDiv = document.getElementById('admin-upload-status');
+            if (statusDiv) {
+                statusDiv.classList.remove('hidden');
+                statusDiv.className = 'mt-4 text-sm text-slate-600';
+                statusDiv.textContent = 'Assigning selected standards...';
+            }
+
+            const currentYear = '2026-2027';
+            let count = 0;
+            for (const cb of checked) {
+                const stdId = cb.value;
+                const std = cachedStandards.find(s => s.id === stdId);
+                if (!std) continue;
+
+                // Normalize category for the special ID verification standard so the
+                // destination radio fully controls whether it goes to Tasks (special form)
+                // or Documents. Prevents the base category name from forcing it into tasks.
+                let baseCategory = std.category || 'Standard';
+                if (std.title && std.title.toLowerCase().includes('upload government issued id')) {
+                    baseCategory = 'Verification';
+                }
+                const cat = baseCategory + (destination === 'tasks' ? ' (Task)' : '');
+                const { error: insErr } = await supabaseClient
+                    .from('family_documents')
+                    .insert({
+                        user_id: userId,
+                        title: std.title,
+                        description: std.description || null,
+                        url: std.url,
+                        category: cat,
+                        school_year: currentYear
+                    });
+                if (!insErr) count++;
+            }
+
+            if (statusDiv) {
+                statusDiv.className = (count > 0) ? 'mt-4 text-sm text-emerald-600' : 'mt-4 text-sm text-red-600';
+                let msg = `Assigned ${count} selected standard(s) to ${destination} for ${currentYear}.`;
+                if (count === 0) {
+                    msg += ' (0 succeeded — check browser console or RLS policies for family_documents allowing admin inserts for other users.)';
+                } else if (count < checked.length) {
+                    msg += ` (${checked.length - count} may have failed — see console.)`;
+                }
+                if (destination === 'tasks') msg += ' (Tasks appear in My Tasks tab with special form for ID.)';
+                statusDiv.textContent = msg;
+            }
+            setTimeout(() => {
+                loadAdminFamilyDocs();
+                if (statusDiv) statusDiv.textContent = '';
+            }, 800);
+        }
+
+        // Admin pending ID list stub (Phase 7). In full: query id_uploads (pending) + generate signed previews from temp-ids/.
+        async function loadPendingIDsForAdmin() {
+            const list = document.getElementById('admin-pending-ids-list');
+            if (!list) return;
+            list.innerHTML = `
+                <div class="text-xs">No pending ID uploads for this family yet (or demo data). 
+                When a member completes the ID task in My Tasks, entries will appear here with preview + "Assign to this family" button.</div>
+            `;
+            // TODO: real fetch from id_uploads table filtered by selected family or global pending + signed URL preview.
+        }
+
+        // Admin action to assign a viewed ID upload to the selected family's My ID area.
+        async function assignPendingIDToFamily(pendingIdOrPath) {
+            const familySel = document.getElementById('admin-family-select');
+            const userId = familySel ? familySel.value : '';
+            if (!userId) {
+                alert('Select the target family first.');
+                return;
+            }
+            // Skeleton: "move" by updating metadata / inserting family_documents row with type ID.
+            // Real: copy storage to userId/ids/... or update path, insert row with category='ID', school_year, then mark pending as assigned.
+            alert(`[Admin] Would assign pending ID ${pendingIdOrPath || '(demo)'} to family ${userId}'s My ID section (new family_documents row with document_type='id'). Temp file stays until manual cleanup.`);
+            loadAdminFamilyDocs(); // refresh current docs list
+            if (typeof loadMyIDSection === 'function') loadMyIDSection(); // demo refresh for the member view
+        }
+
+        // Re-send the Upload ID task to the selected family (to My Tasks)
+        async function reSendIDTask() {
+            const familySel = document.getElementById('admin-family-select');
+            const userId = familySel ? familySel.value : '';
+            if (!userId) {
+                alert('Select a family first.');
+                return;
+            }
+
+            const statusDiv = document.getElementById('admin-upload-status');
+            if (statusDiv) {
+                statusDiv.classList.remove('hidden');
+                statusDiv.textContent = 'Re-sending ID task...';
+            }
+
+            const currentYear = '2026-2027';
+            const ID_TITLE = 'Upload Government Issued ID (required)';
+
+            // Find the standard (may have been seeded)
+            const { data: stds } = await supabaseClient
+                .from('standard_documents')
+                .select('*')
+                .ilike('title', '%Upload Government Issued ID%')
+                .limit(1);
+
+            let std = stds && stds[0];
+            if (!std) {
+                // Fallback insert if not seeded
+                const { data: newStd } = await supabaseClient.from('standard_documents').insert({
+                    title: ID_TITLE,
+                    category: 'Verification',
+                    description: 'Upload a clear photo of your current valid driver\'s license or government-issued photo ID.'
+                }).select().single();
+                std = newStd;
+            }
+
+            let assigned = false;
+            if (std) {
+                const { error: insErr } = await supabaseClient.from('family_documents').insert({
+                    user_id: userId,
+                    title: std.title,
+                    description: std.description || null,
+                    url: std.url || '',
+                    category: (std.category || 'Standard') + ' (Task)',
+                    school_year: currentYear
+                });
+                if (insErr) {
+                    if (statusDiv) {
+                        statusDiv.className = 'mt-4 text-sm text-red-600';
+                        statusDiv.textContent = 'Failed to push ID task (possible RLS policy): ' + (insErr.message || insErr);
+                    }
+                    setTimeout(() => {
+                        loadAdminFamilyDocs();
+                        if (statusDiv) statusDiv.textContent = '';
+                    }, 2000);
+                    return;
+                }
+                assigned = true;
+            }
+
+            if (statusDiv) {
+                statusDiv.className = 'mt-4 text-sm text-emerald-600';
+                statusDiv.textContent = assigned
+                    ? 'ID Upload task pushed to My Tasks for this family.'
+                    : 'No standard definition found for ID task; nothing assigned.';
+            }
+            setTimeout(() => {
+                loadAdminFamilyDocs();
+                if (statusDiv) statusDiv.textContent = '';
+            }, 1000);
+        }
+
+        // Admin: load + allow delete of a selected family's existing personal (My Documents) entries.
+        // This is the key for "revoke the DocuSeal link after signing".
+        let currentAdminDocsUserId = null;
+
+        async function loadAdminFamilyDocs() {
+            const select = document.getElementById('admin-family-select');
+            const listEl = document.getElementById('admin-family-docs-list');
+            if (!select || !listEl || !supabaseClient) return;
+
+            const userId = select.value;
+            currentAdminDocsUserId = userId;
+
+            if (!userId) {
+                listEl.innerHTML = '<span class="text-slate-500">Select a family to view their current documents.</span>';
+                return;
+            }
+
+            listEl.innerHTML = '<div class="text-slate-500">Loading this family\'s documents...</div>';
+
+            const { data: docs, error } = await supabaseClient
+                .from('family_documents')
+                .select('id, title, url, created_at, category, school_year')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                listEl.innerHTML = '<div class="text-red-600 text-xs">Failed to load: ' + (error.message || error) + '</div>';
+                return;
+            }
+
+            if (!docs || docs.length === 0) {
+                listEl.innerHTML = '<div class="text-slate-500 text-xs italic">No documents yet for this family.</div>';
+                return;
+            }
+
+            const years = ['2026-2027', '2025-2026', '2024-2025', '2023-2024', '2022-2023', '2021-2022'];
+            let html = '<div class="space-y-1">';
+            docs.forEach(d => {
+                const shortUrl = d.url && d.url.length > 50 ? d.url.substring(0, 47) + '...' : (d.url || '');
+                const currentYear = d.school_year || '';
+                const yearOpts = years.map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('');
+                html += `
+                    <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-1 last:border-b-0 last:pb-0">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-medium text-navy truncate">${d.title}</div>
+                            <div class="flex items-center gap-1 mt-0.5">
+                                <select id="year-${d.id}" class="text-[9px] px-1 py-0 border border-slate-300 rounded bg-white">
+                                    ${yearOpts}
+                                </select>
+                                <button onclick="updateDocSchoolYear('${d.id}', this)" class="text-[9px] px-1.5 py-0 border border-navy text-navy rounded hover:bg-navy hover:text-white">Save Year</button>
+                            </div>
+                            <div class="text-[10px] text-slate-500 truncate">${d.category || ''} • ${new Date(d.created_at).toLocaleDateString()} ${shortUrl ? '• ' + shortUrl : ''}</div>
+                        </div>
+                        <button onclick="deleteAdminFamilyDoc('${d.id}', this)" class="text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 flex-shrink-0 self-start">Delete</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            listEl.innerHTML = html;
+        }
+
+        async function deleteAdminFamilyDoc(docId, btnEl) {
+            if (!confirm('Delete this document from the family\'s My Documents? This cannot be undone.')) return;
+            if (!supabaseClient) return;
+
+            const { error } = await supabaseClient
+                .from('family_documents')
+                .delete()
+                .eq('id', docId);
+
+            if (error) {
+                alert('Delete failed: ' + error.message);
+                return;
+            }
+
+            // Refresh the list for current family
+            if (btnEl && btnEl.parentElement && btnEl.parentElement.parentElement) {
+                // quick remove row
+                btnEl.parentElement.remove();
+            } else {
+                loadAdminFamilyDocs();
+            }
+        }
+
+        async function updateDocSchoolYear(docId, btnEl) {
+            const sel = document.getElementById(`year-${docId}`);
+            if (!sel || !supabaseClient) return;
+            const newYear = sel.value;
+            const { error } = await supabaseClient
+                .from('family_documents')
+                .update({ school_year: newYear })
+                .eq('id', docId);
+            if (error) {
+                alert('Update failed: ' + error.message);
+                return;
+            }
+            // Refresh the full list to confirm
+            loadAdminFamilyDocs();
+            // Optional: show quiet success
+            const origText = btnEl.textContent;
+            btnEl.textContent = 'Saved!';
+            setTimeout(() => { btnEl.textContent = origText; }, 1200);
+        }
+
+        // Admin shared resources management
+        let editingSharedId = null;
+
+        async function loadAdminSharedResources() {
+            const list = document.getElementById('admin-shared-list');
+            if (!list || !supabaseClient) return;
+
+            list.innerHTML = '<div class="text-sm text-slate-500 p-4">Loading...</div>';
+
+            const { data: resources, error } = await supabaseClient
+                .from('shared_resources')
+                .select('*')
+                .order('display_order', { ascending: true })
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                list.innerHTML = '<div class="text-red-500 text-sm p-2">Error loading.</div>';
+                return;
+            }
+
+            if (!resources || resources.length === 0) {
+                list.innerHTML = '<div class="text-sm text-slate-500 p-2">No shared resources yet.</div>';
+                return;
+            }
+
+            let html = '';
+            resources.forEach(r => {
+                const visibleBadge = r.visible 
+                    ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Visible</span>' 
+                    : '<span class="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded">Hidden</span>';
+                html += `
+                    <div class="border border-slate-200 rounded-2xl p-4 flex items-start justify-between">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-navy">${r.title}</span>
+                                ${visibleBadge}
+                            </div>
+                            <div class="text-xs text-slate-500 truncate">${r.url}</div>
+                            ${r.description ? `<div class="text-sm text-slate-600 mt-1">${r.description}</div>` : ''}
+                            <div class="text-xs text-slate-400 mt-1">Order: ${r.display_order} • Category: ${r.category}</div>
+                        </div>
+                        <div class="flex gap-2 ml-4 flex-shrink-0">
+                            <button onclick="editSharedResource('${r.id}')" class="text-xs px-3 py-1 border border-slate-300 rounded-xl hover:bg-slate-50">Edit</button>
+                            <button onclick="deleteSharedResource('${r.id}')" class="text-xs px-3 py-1 border border-red-200 text-red-600 rounded-xl hover:bg-red-50">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+        }
+
+        async function editSharedResource(id) {
+            const { data: res, error } = await supabaseClient
+                .from('shared_resources')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error || !res) return;
+
+            editingSharedId = id;
+
+            document.getElementById('admin-shared-id').value = id;
+            document.getElementById('admin-shared-title').value = res.title || '';
+            document.getElementById('admin-shared-url').value = res.url || '';
+            document.getElementById('admin-shared-category').value = res.category || 'General';
+            document.getElementById('admin-shared-order').value = res.display_order || 0;
+            document.getElementById('admin-shared-description').value = res.description || '';
+            document.getElementById('admin-shared-visible').checked = res.visible !== false;
+
+            document.getElementById('admin-shared-submit-text').textContent = 'Update Shared Resource';
+            document.getElementById('admin-shared-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelSharedEdit() {
+            editingSharedId = null;
+            const form = document.getElementById('admin-shared-form');
+            if (form) form.reset();
+            document.getElementById('admin-shared-id').value = '';
+            document.getElementById('admin-shared-submit-text').textContent = 'Add Shared Resource';
+        }
+
+        async function deleteSharedResource(id) {
+            if (!confirm('Delete this shared resource?')) return;
+
+            const { error } = await supabaseClient
+                .from('shared_resources')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert('Delete failed: ' + error.message);
+                return;
+            }
+
+            loadAdminSharedResources();
+            loadSharedResources(); // refresh the public view too
+        }
+
+        // Setup the shared resources form (add / edit)
+        function setupAdminSharedForm() {
+            const form = document.getElementById('admin-shared-form');
+            if (!form) return;
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const id = document.getElementById('admin-shared-id').value;
+                const title = document.getElementById('admin-shared-title').value.trim();
+                const urlInput = document.getElementById('admin-shared-url').value.trim();
+                const category = document.getElementById('admin-shared-category').value.trim() || 'General';
+                const order = parseInt(document.getElementById('admin-shared-order').value) || 0;
+                const description = document.getElementById('admin-shared-description').value.trim();
+                const visible = document.getElementById('admin-shared-visible').checked;
+                const fileInput = document.getElementById('admin-shared-file');
+                const file = fileInput ? fileInput.files[0] : null;
+
+                if (!title) {
+                    alert('Title is required.');
+                    return;
+                }
+
+                if (!urlInput && !file) {
+                    alert('Please provide a URL or select a file to upload.');
+                    return;
+                }
+
+                let finalUrl = urlInput;
+
+                try {
+                    if (file) {
+                        // Upload to shared/ folder in the Family-Documents bucket
+                        const storagePath = `shared/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+                        const { error: uploadError } = await supabaseClient
+                            .storage
+                            .from('Family-Documents')
+                            .upload(storagePath, file, { upsert: false });
+
+                        if (uploadError) throw uploadError;
+
+                        finalUrl = storagePath; // store path; frontend generates signed URL for families
+                    }
+
+                    const payload = {
+                        title,
+                        url: finalUrl,
+                        category,
+                        display_order: order,
+                        description: description || null,
+                        visible
+                    };
+
+                    let result;
+                    if (id) {
+                        result = await supabaseClient
+                            .from('shared_resources')
+                            .update(payload)
+                            .eq('id', id);
+                    } else {
+                        result = await supabaseClient
+                            .from('shared_resources')
+                            .insert(payload);
+                    }
+
+                    if (result.error) throw result.error;
+
+                    // Clear file input after success
+                    if (fileInput) fileInput.value = '';
+
+                    cancelSharedEdit();
+                    loadAdminSharedResources();
+                    loadSharedResources(); // refresh public view
+
+                    const notify = document.getElementById('admin-shared-notify').checked;
+                    if (notify) {
+                        showNotificationPrompt(
+                            'New Shared Resource Available - Summit Church School',
+                            `Hello,\n\nA new shared resource has been added: "${title}".\n\nPlease log in to the Members Area to view it.\n\nBest,\nSummit Church School`,
+                            null  // fetch all approved
+                        );
+                    }
+                    // No alert - success is shown in statusDiv if needed, but this form doesn't have one; user requested no popups for these actions.
+
+                } catch (err) {
+                    console.error(err);
+                    alert('Failed to save: ' + (err.message || err));
+                }
+            });
+        }
+
+        // =====================================================
+        // STANDARD DOCUMENTS (for auto-assign to families' My Documents)
+        // Fully implemented here so "certain documents" can be curated
+        // and pushed to selected (or future: new) families.
+        // =====================================================
+        let editingStandardId = null;
+
+        async function loadAdminStandards() {
+            const list = document.getElementById('admin-standard-list');
+            if (!list || !supabaseClient) return;
+
+            list.innerHTML = '<div class="text-xs text-slate-500 p-2">Loading standards...</div>';
+
+            const { data: standards, error } = await supabaseClient
+                .from('standard_documents')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                list.innerHTML = '<div class="text-xs text-red-600 p-2">Error loading standards list. (Create the table in Supabase first — see SQL below.)</div>';
+                console.error(error);
+                return;
+            }
+
+            if (!standards || standards.length === 0) {
+                list.innerHTML = '<div class="text-xs text-slate-500 p-2">No standard documents defined yet. Add some above to assign to families.</div>';
+                return;
+            }
+
+            let html = '';
+            standards.forEach(s => {
+                const u = s.url || '';
+                const short = u.length > 45 ? u.slice(0,42) + '...' : u;
+                html += `
+                    <div class="flex items-start justify-between gap-2 border border-slate-200 rounded-xl p-2 text-xs">
+                        <div class="min-w-0">
+                            <div class="font-medium text-navy">${s.title}</div>
+                            <div class="text-slate-500 truncate">${short}</div>
+                            ${s.description ? `<div class="text-slate-600 mt-0.5">${s.description}</div>` : ''}
+                        </div>
+                        <div class="flex gap-1 flex-shrink-0">
+                            <button onclick="editStandard('${s.id}')" class="px-2 py-0.5 border border-slate-300 rounded hover:bg-slate-50">Edit</button>
+                            <button onclick="deleteStandard('${s.id}')" class="px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50">Del</button>
+                        </div>
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+        }
+
+        async function editStandard(id) {
+            const { data: s, error } = await supabaseClient
+                .from('standard_documents')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error || !s) return;
+
+            editingStandardId = id;
+            document.getElementById('admin-standard-id').value = id;
+            document.getElementById('admin-standard-title').value = s.title || '';
+            document.getElementById('admin-standard-url').value = s.url || '';
+            document.getElementById('admin-standard-category').value = s.category || 'Standard';
+            document.getElementById('admin-standard-description').value = s.description || '';
+            document.getElementById('admin-standard-submit-text').textContent = 'Update Standard';
+            const form = document.getElementById('admin-standard-form');
+            if (form) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function cancelStandardEdit() {
+            editingStandardId = null;
+            const form = document.getElementById('admin-standard-form');
+            if (form) form.reset();
+            document.getElementById('admin-standard-id').value = '';
+            document.getElementById('admin-standard-submit-text').textContent = 'Add Standard';
+        }
+
+        async function deleteStandard(id) {
+            if (!confirm('Delete this standard document definition? (It will not remove copies already assigned to families.)')) return;
+
+            const { error } = await supabaseClient
+                .from('standard_documents')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert('Delete failed: ' + error.message);
+                return;
+            }
+            loadAdminStandards();
+        }
+
+        function setupAdminStandardForm() {
+            const form = document.getElementById('admin-standard-form');
+            if (!form || !supabaseClient) return;
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const id = document.getElementById('admin-standard-id').value;
+                const title = document.getElementById('admin-standard-title').value.trim();
+                const urlInput = (document.getElementById('admin-standard-url') || {}).value.trim();
+                const category = document.getElementById('admin-standard-category').value.trim() || 'Standard';
+                const description = document.getElementById('admin-standard-description').value.trim();
+                const fileInput = document.getElementById('admin-standard-file');
+                const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+                if (!title) {
+                    alert('Title is required for a standard document.');
+                    return;
+                }
+                if (!urlInput && !file) {
+                    alert('Provide a URL (DocuSeal or link) or upload a file for the standard.');
+                    return;
+                }
+
+                let finalUrl = urlInput;
+
+                try {
+                    if (file) {
+                        const storagePath = `standards/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+                        const { error: upErr } = await supabaseClient
+                            .storage
+                            .from('Family-Documents')
+                            .upload(storagePath, file, { upsert: false });
+                        if (upErr) throw upErr;
+                        finalUrl = storagePath;
+                    }
+
+                    const payload = {
+                        title,
+                        url: finalUrl,
+                        category,
+                        description: description || null
+                    };
+
+                    let res;
+                    if (id) {
+                        res = await supabaseClient.from('standard_documents').update(payload).eq('id', id);
+                    } else {
+                        res = await supabaseClient.from('standard_documents').insert(payload);
+                    }
+                    if (res.error) throw res.error;
+
+                    if (fileInput) fileInput.value = '';
+                    cancelStandardEdit();
+                    loadAdminStandards();
+
+                } catch (err) {
+                    console.error(err);
+                    alert('Failed to save standard: ' + (err.message || err));
+                }
+            });
+        }
+
+        // The function wired to the button in the personal upload card.
+        // Copies the current standards list into the chosen family's family_documents.
+        async function assignStandardsToSelectedFamily() {
+            const select = document.getElementById('admin-family-select');
+            const status = document.getElementById('admin-upload-status');
+            if (!select || !supabaseClient) return;
+
+            const userId = select.value;
+            if (!userId) {
+                alert('Please select a family first (from the dropdown above).');
+                return;
+            }
+
+            if (status) {
+                status.classList.remove('hidden');
+                status.className = 'mt-4 text-sm text-slate-600';
+                status.textContent = 'Assigning standards...';
+            }
+
+            // Load current standards
+            const { data: standards, error } = await supabaseClient
+                .from('standard_documents')
+                .select('*');
+
+            if (error) {
+                if (status) status.textContent = 'Failed to load standards: ' + error.message;
+                alert('Could not load standards. Make sure the standard_documents table exists.');
+                return;
+            }
+
+            if (!standards || standards.length === 0) {
+                if (status) status.textContent = 'No standards defined yet. Add some in "Manage Standard Documents" first.';
+                return;
+            }
+
+            // Insert copies for this user. (Duplicates possible on re-run; admin can delete dups via the Current documents list we added.)
+            let inserted = 0;
+            for (const s of standards) {
+                const { error: insErr } = await supabaseClient
+                    .from('family_documents')
+                    .insert({
+                        user_id: userId,
+                        title: s.title,
+                        description: s.description || null,
+                        url: s.url,
+                        category: s.category || 'Standard',
+                        school_year: '2026-2027'
+                    });
+                if (!insErr) inserted++;
+            }
+
+            const famText = select.options[select.selectedIndex] ? select.options[select.selectedIndex].text : 'family';
+            if (status) {
+                status.className = 'mt-4 text-sm text-emerald-600';
+                status.textContent = `Assigned ${inserted} standard document(s) to ${famText}. They will appear in the family's My Documents.`;
+            }
+
+            // Refresh the per-family list if visible
+            setTimeout(() => {
+                loadAdminFamilyDocs();
+            }, 600);
+
+            // Clear message later
+            setTimeout(() => {
+                if (status) status.textContent = '';
+            }, 6500);
+        }
+
+        // Member banner functions
+        async function loadMemberBanner() {
+            const bannerDiv = document.getElementById('member-banner');
+            const textDiv = document.getElementById('member-banner-text');
+            if (!bannerDiv || !textDiv || !supabaseClient) return;
+
+            const { data: banner, error } = await supabaseClient
+                .from('member_banners')
+                .select('message')
+                .eq('active', true)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (error || !banner) {
+                bannerDiv.classList.add('hidden');
+                return;
+            }
+
+            textDiv.textContent = banner.message;
+            bannerDiv.classList.remove('hidden');
+
+            // Optional: allow dismiss for this session
+            const dismissed = sessionStorage.getItem('banner_dismissed');
+            if (dismissed) {
+                bannerDiv.classList.add('hidden');
+            }
+        }
+
+        function dismissBanner() {
+            const bannerDiv = document.getElementById('member-banner');
+            if (bannerDiv) bannerDiv.classList.add('hidden');
+            sessionStorage.setItem('banner_dismissed', 'true');
+        }
+
+        async function loadCurrentBannerForAdmin() {
+            const preview = document.getElementById('current-banner-preview');
+            const textDiv = document.getElementById('current-banner-text');
+            if (!preview || !textDiv || !supabaseClient) return;
+
+            const { data: banner, error } = await supabaseClient
+                .from('member_banners')
+                .select('id, message')
+                .eq('active', true)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (error || !banner) {
+                preview.classList.add('hidden');
+                return;
+            }
+
+            textDiv.textContent = banner.message;
+            preview.classList.remove('hidden');
+            preview.dataset.bannerId = banner.id;
+        }
+
+        async function deactivateCurrentBanner() {
+            if (!confirm('Deactivate the current banner for all members?')) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('member_banners')
+                    .update({ active: false })
+                    .eq('active', true);
+
+                if (error) throw error;
+
+                loadCurrentBannerForAdmin();
+                loadMemberBanner();
+                alert('Banner deactivated.');
+            } catch (err) {
+                alert('Failed to deactivate: ' + (err.message || err));
+            }
+        }
+
+        async function publishBanner() {
+            const messageEl = document.getElementById('admin-banner-message');
+            const notifyEl = document.getElementById('admin-banner-notify');
+            const message = messageEl.value.trim();
+            const notify = notifyEl.checked;
+
+            if (!message) {
+                alert('Message is required.');
+                return;
+            }
+
+            try {
+                // Deactivate any existing
+                await supabaseClient
+                    .from('member_banners')
+                    .update({ active: false })
+                    .eq('active', true);
+
+                // Insert new active
+                const { error } = await supabaseClient
+                    .from('member_banners')
+                    .insert({
+                        message,
+                        active: true
+                    });
+
+                if (error) throw error;
+
+                messageEl.value = '';
+                notifyEl.checked = false;
+
+                loadCurrentBannerForAdmin();
+                loadMemberBanner();
+
+                alert('Banner published.');
+
+                if (notify) {
+                    showNotificationPrompt(
+                        'New Announcement from Summit Church School',
+                        message,
+                        null  // will fetch all approved
+                    );
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert('Failed to publish banner: ' + (err.message || err));
+            }
+        }
+
+        function setupAdminBannerForm() {
+            const form = document.getElementById('admin-banner-form');
+            if (!form) return;
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const message = document.getElementById('admin-banner-message').value.trim();
+                const notify = document.getElementById('admin-banner-notify').checked;
+
+                if (!message) {
+                    alert('Message is required.');
+                    return;
+                }
+
+                try {
+                    // Deactivate any existing
+                    await supabaseClient
+                        .from('member_banners')
+                        .update({ active: false })
+                        .eq('active', true);
+
+                    // Insert new active
+                    const { error } = await supabaseClient
+                        .from('member_banners')
+                        .insert({
+                            message,
+                            active: true
+                        });
+
+                    if (error) throw error;
+
+                    document.getElementById('admin-banner-message').value = '';
+                    document.getElementById('admin-banner-notify').checked = false;
+
+                    loadCurrentBannerForAdmin();
+                    loadMemberBanner();
+
+                    if (notify) {
+                        showNotificationPrompt(
+                            'New Announcement from Summit Church School',
+                            message,
+                            null  // will fetch all approved
+                        );
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    alert('Failed to publish banner: ' + (err.message || err));
+                }
+            });
+        }
+
+        // Reusable notification helper for admin actions
+        async function showNotificationPrompt(subject, body, specificEmails = null) {
+            let emails = specificEmails;
+
+            if (!emails) {
+                // Fetch all approved
+                const { data: profiles } = await supabaseClient
+                    .from('profiles')
+                    .select('email')
+                    .eq('approved', true);
+
+                emails = profiles ? profiles.map(p => p.email).filter(Boolean) : [];
+            }
+
+            if (!emails || emails.length === 0) {
+                alert('No members to notify.');
+                return;
+            }
+
+            const emailsList = emails.join(', ');
+
+            const promptHtml = `
+                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-3xl text-sm">
+                    <strong>Notification ready to send:</strong><br><br>
+                    <strong>Subject:</strong> ${subject}<br><br>
+                    <strong>Message:</strong><br>
+                    <textarea readonly class="w-full h-24 p-2 border rounded text-xs">${body}</textarea><br><br>
+                    <strong>To (copy these emails):</strong><br>
+                    <textarea readonly class="w-full h-16 p-2 border rounded text-xs">${emailsList}</textarea><br><br>
+                    <button onclick="this.parentElement.remove()" class="text-xs px-3 py-1 bg-blue-600 text-white rounded">Close</button>
+                    <button onclick="navigator.clipboard.writeText('${emailsList.replace(/'/g, "\\'")}'); this.textContent='Copied!'" class="ml-2 text-xs px-3 py-1 border border-blue-600 text-blue-600 rounded">Copy Emails</button>
+                </div>
+            `;
+
+            // Append to the admin tab or a status area
+            const adminTab = document.getElementById('dashboard-admin');
+            if (adminTab) {
+                const existing = adminTab.querySelector('.notification-prompt');
+                if (existing) existing.remove();
+
+                const div = document.createElement('div');
+                div.className = 'notification-prompt';
+                div.innerHTML = promptHtml;
+                adminTab.appendChild(div);
+            }
+        }
+
+        // Handle Sign In
+        async function handleLogin(e) {
+            e.preventDefault();
+
+            if (!supabaseClient) {
+                // Demo fallback
+                const email = document.getElementById('login-email').value.trim();
+                const password = document.getElementById('login-password').value;
+                if (email && password) {
+                    localStorage.setItem('scsmembers_loggedin', 'true');
+                    localStorage.setItem('scsmembers_email', email);
+                    location.reload();
+                }
+                return;
+            }
+
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            const submitBtn = document.querySelector('#login-form button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Signing in...';
+            }
+
+            const { data: signInData, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign In';
+                }
+                alert('Login failed: ' + error.message);
+                return;
+            }
+
+            // Success - reload the page to ensure a clean auth state with the new session.
+            // This is the most reliable way on a static site.
+            setTimeout(() => {
+                window.location.reload();
+            }, 150);
+        }
+
+        // Handle Sign Up (with admin approval flow)
+        async function handleSignup(e) {
+            e.preventDefault();
+
+            if (!supabaseClient) {
+                alert('Real signup is not yet connected. Please set up Supabase first.');
+                return;
+            }
+
+            // Make sure Supabase project has the 'profiles' table + trigger set up
+            // (see previous SQL instructions). Without the trigger, profiles won't be created automatically.
+
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
+            const firstName = document.getElementById('signup-first-name').value.trim();
+            const lastName = document.getElementById('signup-last-name').value.trim();
+
+            if (!email || !password || !confirmPassword || !firstName || !lastName) {
+                alert('Please fill out your first name, last name, email, and both password fields.');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alert('Passwords do not match. Please try again.');
+                return;
+            }
+
+            const fullName = `${firstName} ${lastName}`;
+
+            // Create the auth user
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        first_name: firstName,
+                        last_name: lastName,
+                        full_name: fullName
+                    }
+                }
+            });
+
+            if (error) {
+                if (error.message && error.message.toLowerCase().includes('rate limit')) {
+                    alert('Too many signup attempts from this IP address (common when testing a lot). Please wait about 60 minutes, or try from a different network (mobile hotspot), or create test users manually in the Supabase dashboard instead (see instructions below or ask me).');
+                } else {
+                    alert('Signup failed: ' + error.message);
+                }
+                return;
+            }
+
+            // Note: Profile row is now created automatically by database trigger (recommended).
+            // The client insert below is kept as fallback but may be skipped.
+
+            // Show success message (always on successful auth signup)
+            const signupCard = document.querySelector('#signup-form-container .bg-white');
+            if (signupCard) {
+                signupCard.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="text-emerald-600 text-3xl mb-3"><i class="fas fa-check-circle"></i></div>
+                        <h3 class="font-semibold text-lg text-navy">Account created!</h3>
+                        <p class="text-sm text-slate-600 mt-2">Check your email (including spam folder) for a confirmation link. You must confirm your email before you can sign in.</p>
+                        <p class="text-sm text-slate-600 mt-1">Once confirmed and your account is approved by our team, you will be able to access the members area.</p>
+                        <button onclick="showAuthTab('login'); location.reload();" 
+                                class="mt-4 px-6 py-2 bg-navy text-white text-sm font-semibold rounded-2xl">
+                            Go to Sign In
+                        </button>
+                    </div>
+                `;
+            } else {
+                alert('Account created! Please check your email for a confirmation link.');
+                showAuthTab('login');
+            }
+        }
+
+        // Forgot password
+        async function forgotPassword() {
+            if (!supabaseClient) {
+                alert('Password reset will be available once Supabase is connected.');
+                return;
+            }
+
+            const email = prompt('Please enter the email address associated with your account:');
+            if (!email) return;
+
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/members.html'
+            });
+
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                alert('Password reset email sent. Please check your inbox.');
+            }
+        }
+
+        // Logout
+        async function logout() {
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut();
+            } else {
+                localStorage.removeItem('scsmembers_loggedin');
+                localStorage.removeItem('scsmembers_email');
+            }
+            location.reload();
+        }
+
+        // Mobile menu
+        function setupMobileMenu() {
+            const btn = document.getElementById('mobile-menu-btn');
+            const menu = document.getElementById('mobile-menu');
+            
+            if (!btn || !menu) return;
+            
+            btn.addEventListener('click', () => {
+                menu.classList.toggle('hidden');
+            });
+            
+            const links = menu.querySelectorAll('a');
+            links.forEach(link => {
+                link.addEventListener('click', () => {
+                    menu.classList.add('hidden');
+                });
+            });
+        }
+
+        // Setup forms
+        function setupForms() {
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+
+            if (loginForm) loginForm.addEventListener('submit', handleLogin);
+            if (signupForm) signupForm.addEventListener('submit', handleSignup);
+        }
+
+        // Attach tab click handlers (more reliable than inline onclick)
+        function setupAuthTabs() {
+            const tabLogin = document.getElementById('tab-login');
+            const tabSignup = document.getElementById('tab-signup');
+
+            if (tabLogin) {
+                tabLogin.addEventListener('click', () => showAuthTab('login'));
+            }
+            if (tabSignup) {
+                tabSignup.addEventListener('click', () => showAuthTab('signup'));
+            }
+        }
+
+        // Initialize everything
+        async function init() {
+            initSupabaseClient();
+            setupForms();
+            setupAuthTabs();
+            setupMobileMenu();
+            setupAdminUpload();       // personal uploads (now supports URL for DocuSeal + file)
+            setupAdminSharedForm();   // shared resources management
+            setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
+            setupAdminBannerForm();   // banner management
+
+            // Set initial tab state
+            showAuthTab('login');
+
+            // Handle Supabase redirects from email confirmation links, etc.
+            // This must run early so people see a nice success message instead of an error on localhost.
+            handleAuthRedirect();
+
+            // Listen for auth state changes
+            if (supabaseClient) {
+                supabaseClient.auth.onAuthStateChange(() => {
+                    checkLoginState();
+                });
+            }
+
+            // Check current state on load
+            await checkLoginState();
+
+            // Default to My Tasks tab on initial load only (per requirement: tasks first).
+            // This is deliberately outside checkLoginState() so that
+            // visibility/focus events (e.g. switching browser tabs and back)
+            // do not force-reset the active sub-tab.
+            showDashboardTab('my-tasks');
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
