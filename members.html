@@ -86,6 +86,22 @@
 
     <!-- Main Content -->
     <div class="max-w-5xl mx-auto px-6 py-12">
+
+        <!-- Opening notice (visible on all members portal views) -->
+        <div id="members-opening-notice" class="mb-8 p-5 bg-navy/5 border border-navy/15 rounded-3xl">
+            <div class="flex gap-3 items-start">
+                <i class="fas fa-calendar-alt text-[#C9A227] mt-1 shrink-0" aria-hidden="true"></i>
+                <div>
+                    <p class="font-semibold text-navy">Members Area Opening — July 1, 2026</p>
+                    <p class="text-sm text-slate-600 mt-1.5 leading-relaxed">
+                        We are preparing our online members portal for enrolled Summit Church School families.
+                        You are welcome to create your account now, but membership approvals will begin once the
+                        members area officially opens on <strong>July 1, 2026</strong>. Thank you for your patience
+                        as we finalize this resource for our community.
+                    </p>
+                </div>
+            </div>
+        </div>
         
         <!-- Login / Signup View -->
         <div id="login-view">
@@ -181,8 +197,8 @@
                         </form>
 
                         <p class="text-xs text-center text-slate-500 mt-4">
-                            After you sign up, your account will be reviewed by our team. 
-                            You’ll be notified by email once approved.
+                            After you sign up, your account will be reviewed by our team.
+                            Approvals will begin when the members area opens on July 1, 2026.
                         </p>
                     </div>
                 </div>
@@ -207,7 +223,7 @@
                 </div>
                 <h2 class="heading-serif text-3xl text-navy" id="pending-title">Account Pending Approval</h2>
                 <p class="mt-4 text-slate-600" id="pending-message-primary">Thank you for signing up. Your account has been created and is now awaiting review by our team.</p>
-                <p class="mt-2 text-slate-600" id="pending-message-secondary">You will receive an email once your access has been approved. This usually takes 1–2 business days.</p>
+                <p class="mt-2 text-slate-600" id="pending-message-secondary">Membership approvals will begin when the members area opens on July 1, 2026. You will receive an email once your access has been approved.</p>
                 
                 <div class="mt-8">
                     <button onclick="logout()" 
@@ -323,18 +339,39 @@
 
             <!-- Admin Tab Content (only for sjesimon@gmail.com) -->
             <div id="dashboard-admin" class="hidden">
-                <!-- Pending family approvals -->
-                <div id="admin-approvals-section" class="mb-10 pb-8 border-b border-slate-200">
-                    <h2 class="text-2xl font-semibold text-navy mb-2">Pending Family Approvals</h2>
-                    <p class="text-sm text-slate-600 mb-4">Review new signups waiting for access to the members area. Approve to grant dashboard access, or deny to decline the application.</p>
-                    <div id="admin-pending-approvals-list" class="space-y-3">
-                        <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">Loading pending requests...</div>
+                <div class="mb-6">
+                    <h2 class="text-2xl font-semibold text-navy">Administration</h2>
+                    <p class="text-sm text-slate-600 mt-1">Manage member access, family documents, and site-wide content.</p>
+                </div>
+
+                <!-- Admin sub-navigation -->
+                <div class="flex flex-wrap gap-2 border-b border-slate-200 mb-6">
+                    <button type="button" onclick="showAdminSection('members')" id="admin-nav-members"
+                            class="admin-nav-btn px-4 py-2 text-sm font-medium border-b-2 border-navy text-navy whitespace-nowrap">Members</button>
+                    <button type="button" onclick="showAdminSection('families')" id="admin-nav-families"
+                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Families</button>
+                    <button type="button" onclick="showAdminSection('library')" id="admin-nav-library"
+                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Document Library</button>
+                    <button type="button" onclick="showAdminSection('site')" id="admin-nav-site"
+                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Site Content</button>
+                </div>
+
+                <!-- 1. Members: approvals -->
+                <div id="admin-section-members">
+                    <div id="admin-approvals-section">
+                        <h3 class="text-xl font-semibold text-navy mb-2">Pending Family Approvals</h3>
+                        <p class="text-sm text-slate-600 mb-4">Review new signups waiting for access to the members area. Approve to grant dashboard access, or deny to decline the application. Approvals are planned to begin July 1, 2026.</p>
+                        <div id="admin-pending-approvals-list" class="space-y-3">
+                            <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">Loading pending requests...</div>
+                        </div>
                     </div>
                 </div>
 
+                <!-- 2. Families: per-family document management -->
+                <div id="admin-section-families" class="hidden">
                 <div id="admin-upload-section" class="pt-2">
-                    <h2 class="text-2xl font-semibold text-navy mb-2">Admin: Upload Document for a Family (or add DocuSeal link)</h2>
-                    <p class="text-sm text-slate-600 mb-6">Personal / family-specific items appear only in that family's "My Documents". <strong>Best for DocuSeal:</strong> paste the signing link as a URL for one family → after they sign, delete the link entry (using the list below) and upload the completed signed PDF as a file for them. This keeps signing links private and removes them cleanly per family.</p>
+                    <h3 class="text-xl font-semibold text-navy mb-2">Family Documents &amp; Tasks</h3>
+                    <p class="text-sm text-slate-600 mb-6">Upload personal documents, assign standard forms, and manage each family's My Documents and My Tasks. Personal items appear only in that family's account. <strong>DocuSeal tip:</strong> paste a signing link for one family, then delete the link and upload the signed PDF once complete.</p>
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-8">
                         <form id="admin-upload-form" class="space-y-6">
@@ -450,11 +487,13 @@
                         <div id="admin-upload-status" class="mt-4 text-sm hidden"></div>
                     </div>
                 </div>
+                </div>
 
-                <!-- Admin: Manage Standard Documents -->
-                <div class="mt-8">
-                    <h3 class="text-lg font-semibold text-navy mb-2">Manage Standard Documents</h3>
-                    <p class="text-xs text-slate-500 mb-4">Curate the set of documents/links that should be given to (almost) every family. After approving a new family in Pending Family Approvals above, select them in the Upload area and use the checkboxes + "Assign Selected Standards" button. You can exclude e.g. graduation info for families that don't need it. Documents go into that family's My Documents under the chosen school year.</p>
+                <!-- 3. Document Library: standard templates -->
+                <div id="admin-section-library" class="hidden">
+                <div class="pt-2">
+                    <h3 class="text-xl font-semibold text-navy mb-2">Standard Document Templates</h3>
+                    <p class="text-xs text-slate-500 mb-4">Curate reusable documents and links for your families. After approving a member in the <strong>Members</strong> tab, assign templates from the <strong>Families</strong> tab. You can exclude items a family does not need (e.g. graduation packets for non-seniors).</p>
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-6">
                         <form id="admin-standard-form" class="space-y-4" autocomplete="off">
@@ -495,11 +534,13 @@
                         <!-- JS populated -->
                     </div>
                 </div>
+                </div>
 
-                <!-- Admin: Manage Shared Resources -->
-                <div class="mt-10 pt-8 border-t border-slate-200">
-                    <h2 class="text-2xl font-semibold text-navy mb-2">Manage Shared Resources</h2>
-                    <p class="text-sm text-slate-600 mb-6">Add, edit or remove resources that appear for all approved families in the "Shared Resources" section on the Documents tab.</p>
+                <!-- 4. Site Content: shared resources + announcements -->
+                <div id="admin-section-site" class="hidden">
+                <div class="pt-2">
+                    <h3 class="text-xl font-semibold text-navy mb-2">Shared Resources</h3>
+                    <p class="text-sm text-slate-600 mb-6">Add, edit, or remove resources that appear for all approved families in the Resources tab.</p>
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-8 mb-6">
                         <form id="admin-shared-form" class="space-y-5" autocomplete="off">
@@ -562,9 +603,8 @@
                     </div>
                 </div>
 
-                <!-- Admin: Member Banner -->
                 <div class="mt-10 pt-8 border-t border-slate-200">
-                    <h2 class="text-2xl font-semibold text-navy mb-2">Member Banner / Announcement</h2>
+                    <h3 class="text-xl font-semibold text-navy mb-2">Member Announcement Banner</h3>
                     <p class="text-sm text-slate-600 mb-6">Publish a message that appears as a banner at the top of the My Tasks tab for all approved members. You can deactivate it anytime.</p>
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-8 mb-6">
@@ -594,6 +634,7 @@
                         <strong>Current Active Banner:</strong>
                         <div id="current-banner-text" class="mt-1 whitespace-pre-wrap"></div>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -691,6 +732,51 @@
             }
         }
 
+        // Admin sub-section navigation
+        function showAdminSection(section) {
+            const sections = {
+                members: document.getElementById('admin-section-members'),
+                families: document.getElementById('admin-section-families'),
+                library: document.getElementById('admin-section-library'),
+                site: document.getElementById('admin-section-site')
+            };
+            const navButtons = {
+                members: document.getElementById('admin-nav-members'),
+                families: document.getElementById('admin-nav-families'),
+                library: document.getElementById('admin-nav-library'),
+                site: document.getElementById('admin-nav-site')
+            };
+
+            Object.values(sections).forEach(el => el?.classList.add('hidden'));
+            Object.values(navButtons).forEach(btn => {
+                if (!btn) return;
+                btn.classList.remove('border-b-2', 'border-navy', 'text-navy');
+                btn.classList.add('text-slate-500');
+            });
+
+            const activeSection = sections[section];
+            const activeButton = navButtons[section];
+            if (activeSection) activeSection.classList.remove('hidden');
+            if (activeButton) {
+                activeButton.classList.add('border-b-2', 'border-navy', 'text-navy');
+                activeButton.classList.remove('text-slate-500');
+            }
+
+            if (section === 'members' && typeof loadPendingApprovals === 'function') {
+                loadPendingApprovals();
+            }
+            if (section === 'families' && typeof loadAdminFamilies === 'function') {
+                loadAdminFamilies();
+            }
+            if (section === 'library' && typeof loadAdminStandards === 'function') {
+                loadAdminStandards();
+            }
+            if (section === 'site') {
+                if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
+                if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
+            }
+        }
+
         // Tab switching for the logged-in dashboard (My Documents / My Tasks / Resources / Admin)
         function showDashboardTab(tab) {
             const myDocsContent = document.getElementById('dashboard-my-documents');
@@ -745,7 +831,7 @@
                 const bannerForm = document.getElementById('admin-banner-form');
                 if (bannerForm) bannerForm.reset();
 
-                if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
+                showAdminSection('members');
             }
         }
 
@@ -1134,7 +1220,7 @@
                     const pendingSecondary = document.getElementById('pending-message-secondary');
                     if (pendingTitle) pendingTitle.textContent = 'Account Pending Approval';
                     if (pendingPrimary) pendingPrimary.textContent = 'Thank you for signing up. Your account has been created and is now awaiting review by our team.';
-                    if (pendingSecondary) pendingSecondary.textContent = 'You will receive an email once your access has been approved. This usually takes 1–2 business days.';
+                    if (pendingSecondary) pendingSecondary.textContent = 'Membership approvals will begin when the members area opens on July 1, 2026. You will receive an email once your access has been approved.';
 
                     if (logoutBtn) logoutBtn.classList.remove('hidden');
                     if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
