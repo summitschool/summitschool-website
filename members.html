@@ -481,7 +481,7 @@
                             <div id="admin-pending-ids-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[80px] bg-white">
                                 Select a family or load pending IDs. Uploaded government IDs will appear here with preview. Use "Assign to Family" to move the photo into that family's My ID section under My Documents.
                             </div>
-                            <p class="text-[10px] text-slate-500 mt-1">Photos land in temp-ids/ until assigned. This list is a skeleton; full version will query the id_uploads table and generate signed previews.</p>
+                            <p class="text-[10px] text-slate-500 mt-1">Shows all pending uploads, or only the selected family when one is chosen above. Approve to move the ID into the family's My ID section, or deny to remove the submission.</p>
                         </div>
 
                         <div id="admin-upload-status" class="mt-4 text-sm hidden"></div>
@@ -765,8 +765,9 @@
             if (section === 'members' && typeof loadPendingApprovals === 'function') {
                 loadPendingApprovals();
             }
-            if (section === 'families' && typeof loadAdminFamilies === 'function') {
-                loadAdminFamilies();
+            if (section === 'families') {
+                if (typeof loadAdminFamilies === 'function') loadAdminFamilies();
+                if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
             }
             if (section === 'library' && typeof loadAdminStandards === 'function') {
                 loadAdminStandards();
@@ -980,6 +981,7 @@
                 .select('*')
                 .eq('user_id', user.id)
                 .ilike('category', '%ID%')
+                .not('title', 'ilike', '%Pending Admin Review%')
                 .order('created_at', { ascending: false })
                 .limit(1);
 
@@ -1068,15 +1070,22 @@
                         .ilike('title', '%Upload Government Issued ID%');
                 }
 
-                // Simulate DB row for id_uploads / ack (real table + Telegram trigger in later phases)
-                // In real: insert {user_id: currentUser.id, ack_name: ackName, storage_path: storagePath, school_year: '2026-2027', status: 'pending'}
                 console.log('[ID Upload] Temp path:', storagePath);
                 console.log('[ID Upload] Ack name:', ackName);
-                console.log('[ID Upload] Would trigger Telegram bot (new ID uploaded) + DB row in id_uploads.');
 
-                // Also optionally insert as pending ID in family_documents for My ID visibility (category 'ID')
                 if (user) {
-                    await supabaseClient.from('family_documents').insert({
+                    const { error: idUploadErr } = await supabaseClient.from('id_uploads').insert({
+                        user_id: user.id,
+                        ack_name: ackName,
+                        storage_path: storagePath,
+                        school_year: '2026-2027',
+                        status: 'pending'
+                    });
+                    if (idUploadErr) {
+                        console.warn('[ID Upload] id_uploads insert skipped:', idUploadErr.message);
+                    }
+
+                    const { error: docInsertErr } = await supabaseClient.from('family_documents').insert({
                         user_id: user.id,
                         title: 'Government ID (Pending Admin Review)',
                         description: `Acknowledged by: ${ackName}`,
@@ -1084,6 +1093,10 @@
                         category: 'ID',
                         school_year: '2026-2027'
                     });
+                    if (docInsertErr) {
+                        console.error('[ID Upload] family_documents insert failed:', docInsertErr);
+                        throw docInsertErr;
+                    }
                 }
 
                 // Success UI
@@ -1433,6 +1446,14 @@
                     </div>
                 </div>
             `;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
         }
 
         function formatFamilyName(profile) {
@@ -1812,30 +1833,296 @@
             }, 800);
         }
 
-        // Admin pending ID list stub (Phase 7). In full: query id_uploads (pending) + generate signed previews from temp-ids/.
-        async function loadPendingIDsForAdmin() {
-            const list = document.getElementById('admin-pending-ids-list');
-            if (!list) return;
-            list.innerHTML = `
-                <div class="text-xs">No pending ID uploads for this family yet (or demo data). 
-                When a member completes the ID task in My Tasks, entries will appear here with preview + "Assign to this family" button.</div>
-            `;
-            // TODO: real fetch from id_uploads table filtered by selected family or global pending + signed URL preview.
+        async function getSignedStorageUrl(storagePath) {
+            if (!storagePath || storagePath.startsWith('http')) return storagePath;
+            const { data } = await supabaseClient.storage
+                .from('Family-Documents')
+                .createSignedUrl(storagePath, 60 * 60);
+            return data?.signedUrl || null;
         }
 
-        // Admin action to assign a viewed ID upload to the selected family's My ID area.
-        async function assignPendingIDToFamily(pendingIdOrPath) {
+        async function fetchPendingIDUploads(selectedFamilyId) {
+            const results = [];
+
+            let docQuery = supabaseClient
+                .from('family_documents')
+                .select('id, user_id, title, description, url, category, school_year, created_at')
+                .ilike('title', '%Pending Admin Review%')
+                .order('created_at', { ascending: false });
+
+            if (selectedFamilyId) {
+                docQuery = docQuery.eq('user_id', selectedFamilyId);
+            }
+
+            const { data: pendingDocs, error: docError } = await docQuery;
+
+            let tempDocsQuery = supabaseClient
+                .from('family_documents')
+                .select('id, user_id, title, description, url, category, school_year, created_at')
+                .ilike('url', 'temp-ids/%')
+                .not('title', 'ilike', '%on file%')
+                .order('created_at', { ascending: false });
+
+            if (selectedFamilyId) {
+                tempDocsQuery = tempDocsQuery.eq('user_id', selectedFamilyId);
+            }
+
+            const { data: tempDocs } = await tempDocsQuery;
+
+            const docRows = [...(pendingDocs || [])];
+            (tempDocs || []).forEach(doc => {
+                if (!docRows.some(existing => existing.id === doc.id)) {
+                    docRows.push(doc);
+                }
+            });
+
+            if (!docError && docRows.length) {
+                docRows.forEach(doc => {
+                    results.push({
+                        id: doc.id,
+                        source: 'family_documents',
+                        user_id: doc.user_id,
+                        ack_name: (doc.description || '').replace(/^Acknowledged by:\s*/i, ''),
+                        storage_path: doc.url,
+                        school_year: doc.school_year,
+                        created_at: doc.created_at
+                    });
+                });
+            }
+
+            let uploadsQuery = supabaseClient
+                .from('id_uploads')
+                .select('id, user_id, ack_name, storage_path, school_year, status, created_at')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+
+            if (selectedFamilyId) {
+                uploadsQuery = uploadsQuery.eq('user_id', selectedFamilyId);
+            }
+
+            const { data: idUploads, error: uploadsError } = await uploadsQuery;
+            if (!uploadsError && idUploads?.length) {
+                const existingPaths = new Set(results.map(r => r.storage_path));
+                idUploads.forEach(row => {
+                    if (!existingPaths.has(row.storage_path)) {
+                        results.push({
+                            id: row.id,
+                            source: 'id_uploads',
+                            user_id: row.user_id,
+                            ack_name: row.ack_name,
+                            storage_path: row.storage_path,
+                            school_year: row.school_year,
+                            created_at: row.created_at
+                        });
+                    }
+                });
+            }
+
+            results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            return results;
+        }
+
+        async function loadPendingIDsForAdmin() {
+            const list = document.getElementById('admin-pending-ids-list');
+            if (!list || !supabaseClient) return;
+
             const familySel = document.getElementById('admin-family-select');
-            const userId = familySel ? familySel.value : '';
-            if (!userId) {
-                alert('Select the target family first.');
+            const selectedFamilyId = familySel?.value || '';
+
+            list.innerHTML = '<div class="text-slate-500 text-xs">Loading pending ID uploads...</div>';
+
+            const pending = await fetchPendingIDUploads(selectedFamilyId);
+
+            if (!pending.length) {
+                list.innerHTML = `<div class="text-xs text-slate-500">No pending ID uploads${selectedFamilyId ? ' for the selected family' : ''}. When a member submits their ID task in My Tasks, it will appear here for review.</div>`;
                 return;
             }
-            // Skeleton: "move" by updating metadata / inserting family_documents row with type ID.
-            // Real: copy storage to userId/ids/... or update path, insert row with category='ID', school_year, then mark pending as assigned.
-            alert(`[Admin] Would assign pending ID ${pendingIdOrPath || '(demo)'} to family ${userId}'s My ID section (new family_documents row with document_type='id'). Temp file stays until manual cleanup.`);
-            loadAdminFamilyDocs(); // refresh current docs list
-            if (typeof loadMyIDSection === 'function') loadMyIDSection(); // demo refresh for the member view
+
+            const userIds = [...new Set(pending.map(p => p.user_id).filter(Boolean))];
+            const profileMap = {};
+
+            if (userIds.length) {
+                const { data: profiles } = await supabaseClient
+                    .from('profiles')
+                    .select('id, first_name, last_name, email')
+                    .in('id', userIds);
+
+                (profiles || []).forEach(profile => {
+                    profileMap[profile.id] = profile;
+                });
+            }
+
+            let html = '';
+            for (const item of pending) {
+                const profile = profileMap[item.user_id];
+                const familyName = escapeHtml(profile ? formatFamilyName(profile) : 'Unknown family');
+                const familyEmail = escapeHtml(profile?.email || '');
+                const ackName = escapeHtml(item.ack_name || '');
+                const signedUrl = await getSignedStorageUrl(item.storage_path);
+                const submittedAt = item.created_at
+                    ? new Date(item.created_at).toLocaleString()
+                    : 'Unknown date';
+
+                html += `
+                    <div class="border border-amber-200 bg-amber-50/40 rounded-2xl p-4 space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div>
+                                <div class="font-semibold text-navy">${familyName}</div>
+                                <div class="text-xs text-slate-600">${familyEmail}</div>
+                                <div class="text-xs text-slate-500 mt-1">Submitted: ${submittedAt}</div>
+                                ${ackName ? `<div class="text-xs text-slate-600 mt-1">Acknowledged by: <strong>${ackName}</strong></div>` : ''}
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <button type="button" data-doc-id="${item.id}" data-source="${item.source}" data-user-id="${item.user_id}" onclick="approvePendingID(this)"
+                                        class="px-3 py-1.5 bg-navy hover:bg-[#0F3A5F] text-white text-xs font-semibold rounded-lg transition-all">
+                                    Approve
+                                </button>
+                                <button type="button" data-doc-id="${item.id}" data-source="${item.source}" data-storage-path="${item.storage_path || ''}" onclick="denyPendingID(this)"
+                                        class="px-3 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-all">
+                                    Deny
+                                </button>
+                            </div>
+                        </div>
+                        ${signedUrl ? `
+                            <a href="${signedUrl}" target="_blank" rel="noopener noreferrer" class="block border border-slate-200 rounded-xl overflow-hidden bg-white">
+                                <img src="${signedUrl}" alt="Pending ID preview for ${familyName}" class="w-full max-h-48 object-contain">
+                            </a>
+                            <p class="text-[10px] text-slate-500">Click the preview to open full size in a new tab.</p>
+                        ` : `
+                            <p class="text-xs text-amber-700">Preview unavailable. Storage path: ${item.storage_path || 'unknown'}</p>
+                        `}
+                    </div>
+                `;
+            }
+
+            list.innerHTML = html;
+        }
+
+        async function approvePendingID(button) {
+            const docId = button.dataset.docId;
+            const source = button.dataset.source;
+            const userId = button.dataset.userId;
+
+            if (!docId || !supabaseClient) return;
+            if (!confirm('Approve this ID and add it to the family\'s My ID section?')) return;
+
+            button.disabled = true;
+
+            try {
+                if (source === 'family_documents') {
+                    const { error } = await supabaseClient
+                        .from('family_documents')
+                        .update({
+                            title: 'Government ID on File',
+                            category: 'ID'
+                        })
+                        .eq('id', docId);
+
+                    if (error) throw error;
+                } else if (source === 'id_uploads') {
+                    const { data: upload, error: fetchError } = await supabaseClient
+                        .from('id_uploads')
+                        .select('*')
+                        .eq('id', docId)
+                        .single();
+
+                    if (fetchError || !upload) throw fetchError || new Error('Upload not found');
+
+                    const { error: insertError } = await supabaseClient
+                        .from('family_documents')
+                        .insert({
+                            user_id: upload.user_id,
+                            title: 'Government ID on File',
+                            description: upload.ack_name ? `Acknowledged by: ${upload.ack_name}` : 'ID on file',
+                            url: upload.storage_path,
+                            category: 'ID',
+                            school_year: upload.school_year || '2026-2027'
+                        });
+
+                    if (insertError) throw insertError;
+
+                    await supabaseClient
+                        .from('id_uploads')
+                        .update({ status: 'approved' })
+                        .eq('id', docId);
+                }
+
+                const statusDiv = document.getElementById('admin-upload-status');
+                if (statusDiv) {
+                    statusDiv.classList.remove('hidden');
+                    statusDiv.className = 'mt-4 text-sm text-emerald-600';
+                    statusDiv.textContent = 'ID approved and added to the family\'s My ID section.';
+                    setTimeout(() => { statusDiv.textContent = ''; }, 5000);
+                }
+
+                if (familySelMatches(userId)) loadAdminFamilyDocs();
+                loadPendingIDsForAdmin();
+            } catch (err) {
+                console.error(err);
+                alert('Failed to approve ID: ' + (err.message || err));
+                button.disabled = false;
+            }
+        }
+
+        async function denyPendingID(button) {
+            const docId = button.dataset.docId;
+            const source = button.dataset.source;
+            const storagePath = button.dataset.storagePath;
+
+            if (!docId || !supabaseClient) return;
+            if (!confirm('Deny and permanently remove this ID submission?')) return;
+
+            button.disabled = true;
+
+            try {
+                if (source === 'family_documents') {
+                    const { error } = await supabaseClient
+                        .from('family_documents')
+                        .delete()
+                        .eq('id', docId);
+
+                    if (error) throw error;
+                } else if (source === 'id_uploads') {
+                    const { error } = await supabaseClient
+                        .from('id_uploads')
+                        .update({ status: 'denied' })
+                        .eq('id', docId);
+
+                    if (error) throw error;
+
+                    if (storagePath) {
+                        await supabaseClient
+                            .from('family_documents')
+                            .delete()
+                            .eq('url', storagePath);
+                    }
+                }
+
+                if (storagePath && !storagePath.startsWith('http')) {
+                    await supabaseClient.storage
+                        .from('Family-Documents')
+                        .remove([storagePath]);
+                }
+
+                const statusDiv = document.getElementById('admin-upload-status');
+                if (statusDiv) {
+                    statusDiv.classList.remove('hidden');
+                    statusDiv.className = 'mt-4 text-sm text-amber-700';
+                    statusDiv.textContent = 'ID submission denied and removed.';
+                    setTimeout(() => { statusDiv.textContent = ''; }, 5000);
+                }
+
+                loadPendingIDsForAdmin();
+            } catch (err) {
+                console.error(err);
+                alert('Failed to deny ID: ' + (err.message || err));
+                button.disabled = false;
+            }
+        }
+
+        function familySelMatches(userId) {
+            const familySel = document.getElementById('admin-family-select');
+            return familySel && familySel.value === userId;
         }
 
         // Re-send the Upload ID task to the selected family (to My Tasks)
