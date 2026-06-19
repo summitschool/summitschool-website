@@ -1,0 +1,10 @@
+{
+  "name": "summit-church-school-website",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./assets/input.css -o ./assets/styles.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

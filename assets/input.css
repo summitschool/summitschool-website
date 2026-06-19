@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --navy: #0A2540;
+    --gold: #C9A227;
+    --sage: #7C8F7E;
+    --accent-gold: #C9A227;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer components {
+  .tail-container {
+    @apply max-w-screen-xl mx-auto px-6;
+  }
+
+  .heading-serif {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .body-text {
+    font-family: Inter, system-ui, sans-serif;
+    line-height: 1.7;
+  }
+
+  .nav-link {
+    @apply relative;
+    transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: -2px;
+    left: 0;
+    background-color: #C9A227;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .nav-link:hover::after {
+    width: 100%;
+  }
+
+  .benefit-card {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .benefit-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+  }
+
+  .section-header {
+    @apply relative inline-block;
+  }
+
+  .section-header::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 48px;
+    height: 3px;
+    background: linear-gradient(to right, #C9A227, #E8D5A3);
+    border-radius: 3px;
+  }
+
+  details.faq-item {
+    transition: all 0.3s ease;
+  }
+
+  details.faq-item[open] {
+    background-color: #F8F4ED;
+  }
+
+  details.faq-item summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+    color: #0A2540;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  details.faq-item summary::-webkit-details-marker {
+    display: none;
+  }
+
+  details.faq-item summary .chevron {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #C9A227;
+    flex-shrink: 0;
+  }
+
+  details.faq-item[open] summary .chevron {
+    transform: rotate(180deg);
+  }
+
+  details.faq-item .faq-answer {
+    padding: 0 1.5rem 1.5rem 1.5rem;
+    color: #334155;
+    line-height: 1.75;
+  }
+
+  .btn-primary {
+    background-color: #0A2540;
+    color: white;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-primary:hover {
+    background-color: #1E3A5F;
+    transform: translateY(-1px);
+  }
+
+  .btn-gold {
+    background-color: #C9A227;
+    color: #0A2540;
+    font-weight: 600;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-gold:hover {
+    background-color: #E8D5A3;
+    transform: translateY(-1px);
+  }
+
+  .btn-outline {
+    background-color: transparent;
+    color: #0A2540;
+    border: 2px solid #0A2540;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-outline:hover {
+    background-color: #0A2540;
+    color: white;
+  }
+
+  .mobile-menu {
+    animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hero-overlay {
+    background: linear-gradient(
+      to bottom,
+      rgba(10, 37, 64, 0.45) 0%,
+      rgba(10, 37, 64, 0.65) 40%,
+      rgba(10, 37, 64, 0.78) 100%
+    );
+  }
+
+  .hero-bg {
+    background-color: #0A2540;
+  }
+
+  .payment-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .payment-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+
+  .form-input {
+    transition: all 0.2s ease;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: #C9A227;
+    box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
+  }
+
+  .step-number {
+    background: linear-gradient(135deg, #0A2540 0%, #1E3A5F 100%);
+    color: white;
+    font-weight: 700;
+  }
+}
+
+@layer utilities {
+  .border-gold {
+    border-color: #C9A227;
+  }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nav-link:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #C9A227;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .hero { min-height: auto !important; }
+}
