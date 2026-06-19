@@ -197,6 +197,35 @@
     color: white;
     font-weight: 700;
   }
+
+  /* Members portal */
+  .member-card {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .member-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+
+  #admin-doc-file::file-selector-button,
+  #admin-shared-file::file-selector-button {
+    background-color: #0A2540;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  #admin-doc-file::file-selector-button:hover,
+  #admin-shared-file::file-selector-button:hover {
+    background-color: #0F3A5F;
+  }
 }
 
 @layer utilities {

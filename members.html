@@ -4,100 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Members Area • Summit Church School</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Fonts + styles (blocking — eliminates runtime Tailwind FOUC) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
+    <link rel="stylesheet" href="assets/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&amp;display=swap');
-        
-        :root {
-            --navy: #0A2540;
-            --gold: #C9A227;
-            --sage: #7C8F7E;
-        }
-        
-        body {
-            font-family: 'Inter', system_ui, sans-serif;
-        }
-        
-        .heading-serif {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-weight: 700;
-        }
 
-        .bg-navy {
-            background-color: #0A2540;
-        }
-        .hover\:bg-\[\#0F3A5F\]:hover {
-            background-color: #0F3A5F;
-        }
-
-        /* Make file browse buttons always look active (not greyed out) */
-        #admin-doc-file::file-selector-button,
-        #admin-shared-file::file-selector-button {
-            background-color: #0A2540;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 0.875rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        #admin-doc-file::file-selector-button:hover,
-        #admin-shared-file::file-selector-button:hover {
-            background-color: #0F3A5F;
-        }
-
-        .nav-link {
-            position: relative;
-            transition: color 0.2s ease;
-        }
-        
-        .nav-link:after {
-            content: '';
-            position: absolute;
-            width: 0;
-            height: 2px;
-            bottom: -2px;
-            left: 0;
-            background-color: #C9A227;
-            transition: width 0.3s ease;
-        }
-        
-        .nav-link:hover:after {
-            width: 100%;
-        }
-
-        .member-card {
-            transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-        }
-        
-        .member-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-        }
-
-        .form-input {
-            transition: all 0.2s ease;
-        }
-        
-        .form-input:focus {
-            outline: none;
-            border-color: #C9A227;
-            box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
-        }
-
-        .section-header {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-weight: 700;
-            color: #0A2540;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-[#F8F6F1] text-slate-800">
+<body class="bg-[#F8F6F1] text-slate-800 body-text antialiased">
     <!-- Sticky Navigation -->
     <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
         <div class="max-w-screen-2xl mx-auto px-6">
