@@ -1,0 +1,3 @@
+# Static site — served by Caddy (Railpack staticfile provider)
+# Files live at the repo root: index.html, members.html, assets/, images/
+root: .

@@ -1,6 +1,7 @@
 {
   "name": "summit-church-school-website",
   "private": true,
+  "description": "Local dev tooling only — Railway deploys this repo as a static site (see Staticfile + railpack.json).",
   "scripts": {
     "build:css": "tailwindcss -i ./assets/input.css -o ./assets/styles.css --minify"
   },
