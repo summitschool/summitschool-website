@@ -313,12 +313,18 @@
                             <div class="text-slate-500 text-sm">Select a family above.</div>
                         </div>
                     </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-navy mb-3">Government ID</h3>
-                        <div id="viewer-records-id" class="border border-slate-200 rounded-3xl p-5 bg-white">
+                    <details id="viewer-records-id-panel" class="border border-slate-200 rounded-3xl bg-white overflow-hidden">
+                        <summary class="cursor-pointer px-5 py-4 flex items-center justify-between text-navy font-semibold list-none [&::-webkit-details-marker]:hidden">
+                            <span class="flex items-center gap-2">
+                                <i class="fas fa-id-card text-sage"></i>
+                                Government ID
+                            </span>
+                            <span id="viewer-records-id-hint" class="text-xs font-normal text-slate-500">Click to expand</span>
+                        </summary>
+                        <div id="viewer-records-id" class="px-5 pb-5 border-t border-slate-100 pt-4">
                             <div class="text-slate-500 text-sm">Select a family above.</div>
                         </div>
-                    </div>
+                    </details>
                 </div>
             </div>
 
@@ -390,7 +396,7 @@
                             class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Site Content</button>
                 </div>
 
-                <!-- 1. Members: approvals -->
+                <!-- 1. Members: approvals + ID review -->
                 <div id="admin-section-members">
                     <div id="admin-approvals-section">
                         <h3 class="text-xl font-semibold text-navy mb-2">Pending Family Approvals</h3>
@@ -398,6 +404,23 @@
                         <div id="admin-pending-approvals-list" class="space-y-3">
                             <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">Loading pending requests...</div>
                         </div>
+                    </div>
+
+                    <div class="mt-10 pt-8 border-t border-slate-200">
+                        <h3 class="text-xl font-semibold text-navy mb-2">Pending ID Uploads</h3>
+                        <p class="text-sm text-slate-600 mb-4">Review government ID photos submitted by families in My Tasks. Approve to add the ID to the family's My ID section, or deny to remove the submission.</p>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Filter by family (optional)</label>
+                            <select id="admin-pending-ids-family-filter" class="form-input w-full max-w-md px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="loadPendingIDsForAdmin()">
+                                <option value="">All families</option>
+                            </select>
+                        </div>
+
+                        <div id="admin-pending-ids-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[80px] bg-white">
+                            Loading pending ID uploads...
+                        </div>
+                        <div id="admin-pending-ids-status" class="mt-4 text-sm hidden"></div>
                     </div>
                 </div>
 
@@ -509,15 +532,6 @@
                             </div>
                         </div>
 
-                        <!-- NEW: Admin Pending ID Uploads section (view + assign to family's My ID area) -->
-                        <div class="mt-6 pt-4 border-t border-slate-200">
-                            <h4 class="text-sm font-semibold text-navy mb-2">Pending ID Uploads (for review &amp; assignment)</h4>
-                            <div id="admin-pending-ids-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[80px] bg-white">
-                                Select a family or load pending IDs. Uploaded government IDs will appear here with preview. Use "Assign to Family" to move the photo into that family's My ID section under My Documents.
-                            </div>
-                            <p class="text-[10px] text-slate-500 mt-1">Shows all pending uploads, or only the selected family when one is chosen above. Approve to move the ID into the family's My ID section, or deny to remove the submission.</p>
-                        </div>
-
                         <div id="admin-upload-status" class="mt-4 text-sm hidden"></div>
                     </div>
                 </div>
@@ -539,10 +553,16 @@
                                 <h4 class="text-sm font-semibold text-navy mb-3 uppercase tracking-wide">Documents</h4>
                                 <div id="admin-records-docs" class="space-y-4"></div>
                             </div>
-                            <div>
-                                <h4 class="text-sm font-semibold text-navy mb-3 uppercase tracking-wide">Government ID</h4>
-                                <div id="admin-records-id" class="border border-slate-200 rounded-2xl p-4 bg-slate-50/50"></div>
-                            </div>
+                            <details id="admin-records-id-panel" class="border border-slate-200 rounded-2xl bg-slate-50/50 overflow-hidden">
+                                <summary class="cursor-pointer px-4 py-3 flex items-center justify-between text-navy font-semibold text-sm uppercase tracking-wide list-none [&::-webkit-details-marker]:hidden">
+                                    <span class="flex items-center gap-2 normal-case tracking-normal">
+                                        <i class="fas fa-id-card text-sage"></i>
+                                        Government ID
+                                    </span>
+                                    <span id="admin-records-id-hint" class="text-[10px] font-normal text-slate-500 normal-case tracking-normal">Click to expand</span>
+                                </summary>
+                                <div id="admin-records-id" class="px-4 pb-4 border-t border-slate-200 pt-3"></div>
+                            </details>
                         </div>
                     </div>
                 </div>
@@ -888,12 +908,13 @@
                 activeButton.classList.remove('text-slate-500');
             }
 
-            if (section === 'members' && typeof loadPendingApprovals === 'function') {
-                loadPendingApprovals();
+            if (section === 'members') {
+                if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
+                if (typeof loadPendingIdsFamilyFilter === 'function') loadPendingIdsFamilyFilter();
+                if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
             }
             if (section === 'families') {
                 if (typeof loadAdminFamilies === 'function') loadAdminFamilies();
-                if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
             }
             if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
                 loadAdminRecordsFamilies();
@@ -1796,6 +1817,16 @@
             }
 
             idContainer.innerHTML = idHtml;
+
+            const idPrefix = idContainer.id.replace(/-id$/, '');
+            const panel = document.getElementById(`${idPrefix}-id-panel`);
+            const hint = document.getElementById(`${idPrefix}-id-hint`);
+            if (panel) panel.removeAttribute('open');
+            if (hint) {
+                if (approvedId) hint.textContent = 'On file — click to view';
+                else if (pendingId) hint.textContent = 'Pending — click to view';
+                else hint.textContent = 'Not on file';
+            }
         }
 
         async function loadAdminRecordsFamilies() {
@@ -2288,11 +2319,28 @@
             });
         }
 
-        // Helper for family select in admin (loads docs list + standards checkboxes + pending ID list)
+        // Helper for family select in admin (loads docs list + standards checkboxes)
         function onAdminFamilyChange() {
             loadAdminFamilyDocs();
             loadStandardCheckboxesForFamily();
-            loadPendingIDsForAdmin();  // new for ID review
+        }
+
+        async function loadPendingIdsFamilyFilter() {
+            const filter = document.getElementById('admin-pending-ids-family-filter');
+            if (!filter || !supabaseClient) return;
+
+            const currentValue = filter.value;
+            const families = await fetchApprovedFamilies();
+            let options = '<option value="">All families</option>';
+            families.forEach(fam => {
+                const displayName = formatFamilyName(fam);
+                const email = fam.email ? ` (${fam.email})` : '';
+                options += `<option value="${fam.id}">${escapeHtml(displayName)}${escapeHtml(email)}</option>`;
+            });
+            filter.innerHTML = options;
+            if (currentValue && families.some(f => f.id === currentValue)) {
+                filter.value = currentValue;
+            }
         }
 
         let cachedStandards = [];
@@ -2675,8 +2723,8 @@
             const list = document.getElementById('admin-pending-ids-list');
             if (!list || !supabaseClient) return;
 
-            const familySel = document.getElementById('admin-family-select');
-            const selectedFamilyId = familySel?.value || '';
+            const filterSel = document.getElementById('admin-pending-ids-family-filter');
+            const selectedFamilyId = filterSel?.value || '';
 
             list.innerHTML = '<div class="text-slate-500 text-xs">Loading pending ID uploads...</div>';
 
@@ -2829,14 +2877,14 @@
                     approveStorageMoved = storageMoved;
                 }
 
-                const statusDiv = document.getElementById('admin-upload-status');
+                const statusDiv = document.getElementById('admin-pending-ids-status');
                 if (statusDiv) {
                     statusDiv.classList.remove('hidden');
                     statusDiv.className = 'mt-4 text-sm text-emerald-600';
                     statusDiv.textContent = approveStorageMoved
                         ? 'ID approved and added to the family\'s My ID section.'
                         : 'ID approved. The file will finalize automatically when the family next opens My ID.';
-                    setTimeout(() => { statusDiv.textContent = ''; }, 5000);
+                    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.add('hidden'); }, 5000);
                 }
 
                 if (familySelMatches(userId)) loadAdminFamilyDocs();
@@ -2888,12 +2936,12 @@
                         .remove([storagePath]);
                 }
 
-                const statusDiv = document.getElementById('admin-upload-status');
+                const statusDiv = document.getElementById('admin-pending-ids-status');
                 if (statusDiv) {
                     statusDiv.classList.remove('hidden');
                     statusDiv.className = 'mt-4 text-sm text-amber-700';
                     statusDiv.textContent = 'ID submission denied and removed.';
-                    setTimeout(() => { statusDiv.textContent = ''; }, 5000);
+                    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.add('hidden'); }, 5000);
                 }
 
                 loadPendingIDsForAdmin();
