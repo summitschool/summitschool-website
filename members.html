@@ -205,9 +205,9 @@
                 <div class="mx-auto w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
                     <i class="fas fa-hourglass-half text-3xl"></i>
                 </div>
-                <h2 class="heading-serif text-3xl text-navy">Account Pending Approval</h2>
-                <p class="mt-4 text-slate-600">Thank you for signing up. Your account has been created and is now awaiting review by our team.</p>
-                <p class="mt-2 text-slate-600">You will receive an email once your access has been approved. This usually takes 1–2 business days.</p>
+                <h2 class="heading-serif text-3xl text-navy" id="pending-title">Account Pending Approval</h2>
+                <p class="mt-4 text-slate-600" id="pending-message-primary">Thank you for signing up. Your account has been created and is now awaiting review by our team.</p>
+                <p class="mt-2 text-slate-600" id="pending-message-secondary">You will receive an email once your access has been approved. This usually takes 1–2 business days.</p>
                 
                 <div class="mt-8">
                     <button onclick="logout()" 
@@ -247,18 +247,7 @@
             </div>
 
             <!-- My Documents Tab Content -->
-            <div id="dashboard-my-documents">
-                <!-- Member Banner (from admin) -->
-                <div id="member-banner" class="hidden mb-6 p-4 bg-amber-100 border border-amber-300 rounded-3xl text-amber-900">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1 pr-4">
-                            <strong class="block mb-1">Announcement</strong>
-                            <div id="member-banner-text" class="whitespace-pre-wrap"></div>
-                        </div>
-                        <button onclick="dismissBanner()" class="text-amber-700 hover:text-amber-900 text-xs font-medium">Dismiss</button>
-                    </div>
-                </div>
-
+            <div id="dashboard-my-documents" class="hidden">
                 <h2 class="text-2xl font-semibold text-navy mb-4">My Documents</h2>
                 <p class="text-sm text-slate-600 mb-4">Personal documents and your signed DocuSeal forms (or other items added just for your family). Your admin adds these specifically for you. Signing links are temporary; after you sign, the admin will usually replace the link with the final signed PDF here. Documents are organized by school year for easy archiving.</p>
                 
@@ -269,17 +258,22 @@
                     </div>
                 </div>
 
-                <!-- My ID subsection (under My Documents tab) -->
-                <div class="mt-8">
-                    <h3 class="text-xl font-semibold text-navy mb-3">My ID</h3>
-                    <div id="my-id-section" class="border border-slate-200 rounded-3xl p-6 bg-white">
-                        <!-- Populated by loadMyIDSection() after admin assign or on login -->
+                <!-- My ID subsection (collapsed by default) -->
+                <details id="my-id-panel" class="mt-8 border border-slate-200 rounded-3xl bg-white overflow-hidden">
+                    <summary id="my-id-summary" class="cursor-pointer px-6 py-4 flex items-center justify-between text-navy font-semibold list-none [&::-webkit-details-marker]:hidden">
+                        <span class="flex items-center gap-2">
+                            <i class="fas fa-id-card text-sage"></i>
+                            My ID
+                        </span>
+                        <span id="my-id-summary-hint" class="text-xs font-normal text-slate-500">Click to expand</span>
+                    </summary>
+                    <div id="my-id-section" class="px-6 pb-6 border-t border-slate-100 pt-4">
                         <div class="text-slate-500 text-sm">
                             No ID on file yet. Once your admin assigns your uploaded government ID here, it will appear below with a preview.
                             <button onclick="contactAdminForID()" class="ml-2 text-navy underline text-xs">Contact admin to upload or update ID</button>
                         </div>
                     </div>
-                </div>
+                </details>
             </div>
 
             <!-- Resources Tab Content -->
@@ -300,7 +294,18 @@
             </div>
 
             <!-- My Tasks Tab Content (new; badge on tab) -->
-            <div id="dashboard-my-tasks" class="hidden">
+            <div id="dashboard-my-tasks">
+                <!-- Member Banner (from admin) -->
+                <div id="member-banner" class="hidden mb-6 p-4 bg-amber-100 border border-amber-300 rounded-3xl text-amber-900">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1 pr-4">
+                            <strong class="block mb-1">Announcement</strong>
+                            <div id="member-banner-text" class="whitespace-pre-wrap"></div>
+                        </div>
+                        <button onclick="dismissBanner()" class="text-amber-700 hover:text-amber-900 text-xs font-medium">Dismiss</button>
+                    </div>
+                </div>
+
                 <h2 class="text-2xl font-semibold text-navy mb-4">My Tasks</h2>
                 <p class="text-sm text-slate-600 mb-4">Complete these required tasks assigned by your admin (e.g. ID verification). Items here are separate from your permanent My Documents archive.</p>
 
@@ -318,6 +323,15 @@
 
             <!-- Admin Tab Content (only for sjesimon@gmail.com) -->
             <div id="dashboard-admin" class="hidden">
+                <!-- Pending family approvals -->
+                <div id="admin-approvals-section" class="mb-10 pb-8 border-b border-slate-200">
+                    <h2 class="text-2xl font-semibold text-navy mb-2">Pending Family Approvals</h2>
+                    <p class="text-sm text-slate-600 mb-4">Review new signups waiting for access to the members area. Approve to grant dashboard access, or deny to decline the application.</p>
+                    <div id="admin-pending-approvals-list" class="space-y-3">
+                        <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">Loading pending requests...</div>
+                    </div>
+                </div>
+
                 <div id="admin-upload-section" class="pt-2">
                     <h2 class="text-2xl font-semibold text-navy mb-2">Admin: Upload Document for a Family (or add DocuSeal link)</h2>
                     <p class="text-sm text-slate-600 mb-6">Personal / family-specific items appear only in that family's "My Documents". <strong>Best for DocuSeal:</strong> paste the signing link as a URL for one family → after they sign, delete the link entry (using the list below) and upload the completed signed PDF as a file for them. This keeps signing links private and removes them cleanly per family.</p>
@@ -440,7 +454,7 @@
                 <!-- Admin: Manage Standard Documents -->
                 <div class="mt-8">
                     <h3 class="text-lg font-semibold text-navy mb-2">Manage Standard Documents</h3>
-                    <p class="text-xs text-slate-500 mb-4">Curate the set of documents/links that should be given to (almost) every family. After approving a new family in Supabase (profiles.approved=true), select them above in the Upload area and use the checkboxes + "Assign Selected Standards" button. You can exclude e.g. graduation info for families that don't need it. Documents go into that family's My Documents under the chosen school year.</p>
+                    <p class="text-xs text-slate-500 mb-4">Curate the set of documents/links that should be given to (almost) every family. After approving a new family in Pending Family Approvals above, select them in the Upload area and use the checkboxes + "Assign Selected Standards" button. You can exclude e.g. graduation info for families that don't need it. Documents go into that family's My Documents under the chosen school year.</p>
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-6">
                         <form id="admin-standard-form" class="space-y-4" autocomplete="off">
@@ -551,7 +565,7 @@
                 <!-- Admin: Member Banner -->
                 <div class="mt-10 pt-8 border-t border-slate-200">
                     <h2 class="text-2xl font-semibold text-navy mb-2">Member Banner / Announcement</h2>
-                    <p class="text-sm text-slate-600 mb-6">Publish a message that appears as a banner at the top of the Documents tab for all approved members. You can deactivate it anytime.</p>
+                    <p class="text-sm text-slate-600 mb-6">Publish a message that appears as a banner at the top of the My Tasks tab for all approved members. You can deactivate it anytime.</p>
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-8 mb-6">
                         <form id="admin-banner-form" class="space-y-5" autocomplete="off">
@@ -730,6 +744,8 @@
                 }
                 const bannerForm = document.getElementById('admin-banner-form');
                 if (bannerForm) bannerForm.reset();
+
+                if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
             }
         }
 
@@ -881,7 +897,12 @@
                 .order('created_at', { ascending: false })
                 .limit(1);
 
+            const hint = document.getElementById('my-id-summary-hint');
+            const panel = document.getElementById('my-id-panel');
+
             if (error || !idDocs || idDocs.length === 0) {
+                if (hint) hint.textContent = 'Not on file — click to expand';
+                if (panel) panel.removeAttribute('open');
                 section.innerHTML = `
                     <div class="text-slate-500 text-sm">
                         No ID on file yet. Once your admin assigns your uploaded government ID here, it will appear below with a preview.
@@ -892,6 +913,8 @@
             }
 
             const idDoc = idDocs[0];
+            if (hint) hint.textContent = 'On file — click to view';
+            if (panel) panel.removeAttribute('open');
             let href = idDoc.url || '#';
             if (idDoc.url && !idDoc.url.startsWith('http')) {
                 const { data } = await supabaseClient
@@ -904,6 +927,7 @@
             section.innerHTML = `
                 <div>
                     <div class="text-xs uppercase tracking-widest text-emerald-600 font-semibold mb-1">On file (${idDoc.school_year || 'Current'})</div>
+                    <p class="text-sm text-slate-600 mb-3">Your government ID is stored securely. Expand this section only when you need to view it.</p>
                     <div class="border border-slate-200 rounded-2xl overflow-hidden mb-3">
                         <img src="${href}" alt="Your ID on file" class="w-full h-auto object-contain bg-white">
                     </div>
@@ -1031,11 +1055,24 @@
                     .from('profiles')
                     .select('*')
                     .eq('id', user.id)
-                    .single();
+                    .maybeSingle();
 
                 loginView.classList.add('hidden');
 
-                if (profile && profile.approved === true) {
+                if (profile && profile.denied === true) {
+                    pendingView.classList.remove('hidden');
+                    dashboardView.classList.add('hidden');
+
+                    const pendingTitle = document.getElementById('pending-title');
+                    const pendingPrimary = document.getElementById('pending-message-primary');
+                    const pendingSecondary = document.getElementById('pending-message-secondary');
+                    if (pendingTitle) pendingTitle.textContent = 'Application Not Approved';
+                    if (pendingPrimary) pendingPrimary.textContent = 'Your membership request was not approved at this time.';
+                    if (pendingSecondary) pendingSecondary.textContent = 'If you believe this was a mistake, please contact us through the main site contact form.';
+
+                    if (logoutBtn) logoutBtn.classList.remove('hidden');
+                    if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
+                } else if (profile && profile.approved === true) {
                     // Fully approved
                     pendingView.classList.add('hidden');
                     dashboardView.classList.remove('hidden');
@@ -1078,6 +1115,7 @@
                         loadAdminFamilies();
                         loadAdminSharedResources();
                         loadCurrentBannerForAdmin();
+                        if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
                         // Standards list (and we will wire the setup in init)
                         if (typeof loadAdminStandards === 'function') loadAdminStandards();
                     }
@@ -1091,8 +1129,15 @@
                     dashboardView.classList.add('hidden');
                     pendingView.classList.remove('hidden');
 
-                    if (logoutBtn) logoutBtn.classList.add('hidden');
-                    if (mobileLogoutBtn) mobileLogoutBtn.classList.add('hidden');
+                    const pendingTitle = document.getElementById('pending-title');
+                    const pendingPrimary = document.getElementById('pending-message-primary');
+                    const pendingSecondary = document.getElementById('pending-message-secondary');
+                    if (pendingTitle) pendingTitle.textContent = 'Account Pending Approval';
+                    if (pendingPrimary) pendingPrimary.textContent = 'Thank you for signing up. Your account has been created and is now awaiting review by our team.';
+                    if (pendingSecondary) pendingSecondary.textContent = 'You will receive an email once your access has been approved. This usually takes 1–2 business days.';
+
+                    if (logoutBtn) logoutBtn.classList.remove('hidden');
+                    if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
                 }
             } else {
                 // Not logged in
@@ -1302,6 +1347,130 @@
                     </div>
                 </div>
             `;
+        }
+
+        function formatFamilyName(profile) {
+            if (profile.first_name && profile.last_name) {
+                return `${profile.first_name} ${profile.last_name}`;
+            }
+            if (profile.full_name) return profile.full_name;
+            return profile.email || 'Unknown family';
+        }
+
+        // Admin-only: families waiting for approval
+        async function loadPendingApprovals() {
+            const list = document.getElementById('admin-pending-approvals-list');
+            if (!list || !supabaseClient) return;
+
+            list.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">Loading pending requests...</div>';
+
+            let profiles = null;
+            let error = null;
+
+            ({ data: profiles, error } = await supabaseClient
+                .from('profiles')
+                .select('id, first_name, last_name, full_name, email, created_at, approved, denied')
+                .neq('approved', true)
+                .order('created_at', { ascending: false }));
+
+            if (error) {
+                ({ data: profiles, error } = await supabaseClient
+                    .from('profiles')
+                    .select('id, first_name, last_name, full_name, email, created_at, approved')
+                    .neq('approved', true)
+                    .order('created_at', { ascending: false }));
+            }
+
+            if (error) {
+                list.innerHTML = `<div class="text-red-600 text-sm p-4 border border-red-200 rounded-2xl">Error loading pending approvals: ${error.message}</div>`;
+                console.error(error);
+                return;
+            }
+
+            const waiting = (profiles || []).filter(p => p.denied !== true);
+
+            if (waiting.length === 0) {
+                list.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">No families waiting for approval.</div>';
+                return;
+            }
+
+            list.innerHTML = waiting.map(profile => {
+                const name = formatFamilyName(profile);
+                const signedUp = profile.created_at
+                    ? new Date(profile.created_at).toLocaleString()
+                    : 'Unknown date';
+
+                return `
+                    <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="font-semibold text-navy">${name}</div>
+                            <div class="text-sm text-slate-600">${profile.email || 'No email on file'}</div>
+                            <div class="text-xs text-slate-500 mt-1">Signed up: ${signedUp}</div>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button type="button" data-profile-id="${profile.id}" onclick="approveFamily(this.dataset.profileId)"
+                                    class="px-4 py-2 bg-navy hover:bg-[#0F3A5F] text-white text-sm font-semibold rounded-xl transition-all">
+                                Approve
+                            </button>
+                            <button type="button" data-profile-id="${profile.id}" data-profile-name="${name.replace(/"/g, '&quot;')}" onclick="denyFamily(this.dataset.profileId, this.dataset.profileName)"
+                                    class="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-xl transition-all">
+                                Deny
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function approveFamily(profileId) {
+            if (!supabaseClient) return;
+            if (!confirm('Approve this family for members area access?')) return;
+
+            const { error } = await supabaseClient
+                .from('profiles')
+                .update({ approved: true, denied: false })
+                .eq('id', profileId);
+
+            if (error) {
+                const { error: fallbackError } = await supabaseClient
+                    .from('profiles')
+                    .update({ approved: true })
+                    .eq('id', profileId);
+
+                if (fallbackError) {
+                    alert('Failed to approve family: ' + fallbackError.message);
+                    return;
+                }
+            }
+
+            loadPendingApprovals();
+            loadAdminFamilies();
+        }
+
+        async function denyFamily(profileId, displayName) {
+            if (!supabaseClient) return;
+            if (!confirm(`Deny access for ${displayName}? They will not be able to use the members area.`)) return;
+
+            const { error } = await supabaseClient
+                .from('profiles')
+                .update({ approved: false, denied: true })
+                .eq('id', profileId);
+
+            if (error) {
+                const { error: fallbackError } = await supabaseClient
+                    .from('profiles')
+                    .update({ approved: false })
+                    .eq('id', profileId);
+
+                if (fallbackError) {
+                    alert('Failed to deny family: ' + fallbackError.message);
+                    return;
+                }
+
+                alert('Family marked as not approved. If they still appear in this list, add a "denied" boolean column to the profiles table in Supabase.');
+            }
+
+            loadPendingApprovals();
         }
 
         // Admin-only: Load list of approved families for the upload dropdown
