@@ -628,16 +628,16 @@
                         This form includes everything needed to apply.
                     </p>
                     
-                    <!-- DOCUSEAL ENROLL FORM - Update data-src after migrating DocuSeal to Railway (or when changing the subdomain) -->
-                    <button type="button"
-                            onclick="showEnrollmentForm()"
-                            class="flex items-center justify-center w-full px-8 py-4 bg-navy hover:bg-navy-light text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                    <!-- DOCUSEAL ENROLL LINK - Update this URL after migrating DocuSeal to Railway (or when changing the subdomain) -->
+                    <a href="https://enroll.summitchurchschool.org/d/hepTZVXKSzmTVE" 
+                       target="_blank"
+                       class="flex items-center justify-center w-full px-8 py-4 bg-navy hover:bg-navy-light text-white font-semibold rounded-2xl transition-all active:scale-[0.985] text-center">
                         Start Online Enrollment Application
                         <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M14 5l7 7m0 0l-7 7m7-7V3"></path>
                         </svg>
-                    </button>
-
+                    </a>
+                    
                     <div class="mt-5 flex flex-col items-center gap-2.5">
                         <img src="images/ssl-trust-badge.png"
                              alt="SSL Secure — your enrollment information is protected"
@@ -648,13 +648,6 @@
                         <p class="text-xs text-slate-500 text-center leading-relaxed">
                             Opens a secure online form (you can save and return later).
                         </p>
-                    </div>
-
-                    <div id="enrollment-form" class="hidden mt-6 w-full max-w-2xl mx-auto">
-                        <script src="https://cdn.docuseal.com/js/form.js"></script>
-                        <docuseal-form
-                            data-src="https://enroll.summitchurchschool.org/d/hepTZVXKSzmTVE">
-                        </docuseal-form>
                     </div>
                 </div>
 
@@ -1001,12 +994,6 @@
                     }
                 });
             });
-        }
-
-        function showEnrollmentForm() {
-            const form = document.getElementById('enrollment-form');
-            form.classList.remove('hidden');
-            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         // Easter egg: Logo click shows a nice message
