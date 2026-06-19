@@ -1003,22 +1003,26 @@
             const idDoc = idDocs[0];
             if (hint) hint.textContent = 'On file — click to view';
             if (panel) panel.removeAttribute('open');
-            let href = idDoc.url || '#';
-            if (idDoc.url && !idDoc.url.startsWith('http')) {
-                const { data } = await supabaseClient
-                    .storage
-                    .from('Family-Documents')
-                    .createSignedUrl(idDoc.url, 60 * 60 * 24);
-                if (data?.signedUrl) href = data.signedUrl;
-            }
+
+            const storagePath = await ensurePermanentIdPath(idDoc);
+            const signedUrl = await getSignedStorageUrl(storagePath);
+
+            const previewHtml = signedUrl ? `
+                    <a href="${signedUrl}" target="_blank" rel="noopener noreferrer" class="block border border-slate-200 rounded-2xl overflow-hidden mb-3 bg-white">
+                        <img src="${signedUrl}" alt="Your ID on file" class="w-full h-auto object-contain bg-white" loading="lazy">
+                    </a>
+                    <p class="text-xs text-slate-500 mb-3">Click the image to open full size in a new tab.</p>
+                ` : `
+                    <div class="border border-amber-200 bg-amber-50 rounded-2xl p-4 mb-3 text-sm text-amber-800">
+                        Your ID is on file, but the preview could not be loaded right now. Please try again in a moment or contact the admin if this continues.
+                    </div>
+                `;
 
             section.innerHTML = `
                 <div>
                     <div class="text-xs uppercase tracking-widest text-emerald-600 font-semibold mb-1">On file (${idDoc.school_year || 'Current'})</div>
                     <p class="text-sm text-slate-600 mb-3">Your government ID is stored securely. Expand this section only when you need to view it.</p>
-                    <div class="border border-slate-200 rounded-2xl overflow-hidden mb-3">
-                        <img src="${href}" alt="Your ID on file" class="w-full h-auto object-contain bg-white">
-                    </div>
+                    ${previewHtml}
                     <div class="text-sm text-slate-700">${idDoc.description || 'ID on file'}</div>
                     <div class="text-xs text-slate-500 mt-1">${new Date(idDoc.created_at).toLocaleDateString()}</div>
                     <button onclick="contactAdminForID()" class="mt-3 text-xs text-navy underline">Request update / re-upload</button>
@@ -1833,12 +1837,74 @@
             }, 800);
         }
 
+        function normalizeStoragePath(storagePath) {
+            if (!storagePath) return storagePath;
+            return String(storagePath).replace(/^\/+/, '');
+        }
+
         async function getSignedStorageUrl(storagePath) {
-            if (!storagePath || storagePath.startsWith('http')) return storagePath;
-            const { data } = await supabaseClient.storage
+            const path = normalizeStoragePath(storagePath);
+            if (!path || path.startsWith('http')) return storagePath;
+            const { data, error } = await supabaseClient.storage
                 .from('Family-Documents')
-                .createSignedUrl(storagePath, 60 * 60);
+                .createSignedUrl(path, 60 * 60 * 24);
+            if (error) {
+                console.warn('[Storage] Signed URL failed for', path, error.message);
+                return null;
+            }
             return data?.signedUrl || null;
+        }
+
+        async function moveIdToPermanentStorage(userId, tempPath) {
+            const sourcePath = normalizeStoragePath(tempPath);
+            const fileName = sourcePath.split('/').pop() || `id-${Date.now()}.jpg`;
+            const permanentPath = `${userId}/ids/${fileName}`;
+
+            const { error: copyError } = await supabaseClient.storage
+                .from('Family-Documents')
+                .copy(sourcePath, permanentPath);
+
+            if (copyError) {
+                const { data: fileData, error: downloadError } = await supabaseClient.storage
+                    .from('Family-Documents')
+                    .download(sourcePath);
+
+                if (downloadError) throw downloadError;
+
+                const { error: uploadError } = await supabaseClient.storage
+                    .from('Family-Documents')
+                    .upload(permanentPath, fileData, { upsert: true, contentType: fileData.type || 'image/jpeg' });
+
+                if (uploadError) throw uploadError;
+            }
+
+            await supabaseClient.storage
+                .from('Family-Documents')
+                .remove([sourcePath]);
+
+            return permanentPath;
+        }
+
+        async function ensurePermanentIdPath(doc) {
+            const path = normalizeStoragePath(doc.url);
+            if (!path || !path.startsWith('temp-ids/')) return path;
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user || user.id !== doc.user_id) return path;
+
+            try {
+                const permanentPath = await moveIdToPermanentStorage(user.id, path);
+                const { error } = await supabaseClient
+                    .from('family_documents')
+                    .update({ url: permanentPath })
+                    .eq('id', doc.id);
+
+                if (error) throw error;
+                return permanentPath;
+            } catch (err) {
+                console.warn('[My ID] Could not move file to permanent storage:', err);
+                return path;
+            }
         }
 
         async function fetchPendingIDUploads(selectedFamilyId) {
@@ -2010,15 +2076,38 @@
 
             try {
                 if (source === 'family_documents') {
+                    const { data: doc, error: fetchError } = await supabaseClient
+                        .from('family_documents')
+                        .select('*')
+                        .eq('id', docId)
+                        .single();
+
+                    if (fetchError || !doc) throw fetchError || new Error('Document not found');
+
+                    let finalUrl = normalizeStoragePath(doc.url);
+                    if (finalUrl?.startsWith('temp-ids/')) {
+                        finalUrl = await moveIdToPermanentStorage(doc.user_id, finalUrl);
+                    }
+
                     const { error } = await supabaseClient
                         .from('family_documents')
                         .update({
                             title: 'Government ID on File',
-                            category: 'ID'
+                            category: 'ID',
+                            url: finalUrl
                         })
                         .eq('id', docId);
 
                     if (error) throw error;
+
+                    const { error: uploadSyncError } = await supabaseClient
+                        .from('id_uploads')
+                        .update({ status: 'approved' })
+                        .eq('user_id', doc.user_id)
+                        .eq('status', 'pending');
+                    if (uploadSyncError) {
+                        console.warn('[ID Approve] id_uploads sync skipped:', uploadSyncError.message);
+                    }
                 } else if (source === 'id_uploads') {
                     const { data: upload, error: fetchError } = await supabaseClient
                         .from('id_uploads')
@@ -2028,13 +2117,18 @@
 
                     if (fetchError || !upload) throw fetchError || new Error('Upload not found');
 
+                    let finalUrl = normalizeStoragePath(upload.storage_path);
+                    if (finalUrl?.startsWith('temp-ids/')) {
+                        finalUrl = await moveIdToPermanentStorage(upload.user_id, finalUrl);
+                    }
+
                     const { error: insertError } = await supabaseClient
                         .from('family_documents')
                         .insert({
                             user_id: upload.user_id,
                             title: 'Government ID on File',
                             description: upload.ack_name ? `Acknowledged by: ${upload.ack_name}` : 'ID on file',
-                            url: upload.storage_path,
+                            url: finalUrl,
                             category: 'ID',
                             school_year: upload.school_year || '2026-2027'
                         });
