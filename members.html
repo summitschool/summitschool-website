@@ -87,24 +87,24 @@
     <!-- Main Content -->
     <div class="max-w-5xl mx-auto px-6 py-12">
 
-        <!-- Opening notice (visible on all members portal views) -->
-        <div id="members-opening-notice" class="mb-8 p-5 bg-navy/5 border border-navy/15 rounded-3xl">
-            <div class="flex gap-3 items-start">
-                <i class="fas fa-calendar-alt text-[#C9A227] mt-1 shrink-0" aria-hidden="true"></i>
-                <div>
-                    <p class="font-semibold text-navy">Members Area Opening — July 1, 2026</p>
-                    <p class="text-sm text-slate-600 mt-1.5 leading-relaxed">
-                        We are preparing our online members portal for enrolled Summit Church School families.
-                        You are welcome to create your account now, but membership approvals will begin once the
-                        members area officially opens on <strong>July 1, 2026</strong>. Thank you for your patience
-                        as we finalize this resource for our community.
-                    </p>
-                </div>
-            </div>
-        </div>
-        
         <!-- Login / Signup View -->
         <div id="login-view">
+            <!-- Opening notice (login / create account only) -->
+            <div id="members-opening-notice" class="mb-8 p-5 bg-amber-100 border-2 border-amber-400/70 rounded-3xl shadow-sm">
+                <div class="flex gap-3 items-start">
+                    <i class="fas fa-calendar-alt text-amber-700 mt-1 shrink-0 text-lg" aria-hidden="true"></i>
+                    <div>
+                        <p class="font-semibold text-navy">Members Area Opening — July 1, 2026</p>
+                        <p class="text-sm text-slate-700 mt-1.5 leading-relaxed">
+                            We are preparing our online members portal for enrolled Summit Church School families.
+                            You are welcome to create your account now, but membership approvals will begin once the
+                            members area officially opens on <strong>July 1, 2026</strong>. Thank you for your patience
+                            as we finalize this resource for our community.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <div class="max-w-md mx-auto">
                 <div class="text-center mb-8">
                     <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-16 w-auto mx-auto mb-5 rounded-2xl">
@@ -238,7 +238,7 @@
         <div id="dashboard-view" class="hidden">
             <div class="flex items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-200/80">
                 <div class="flex items-center gap-4 min-w-0">
-                    <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-2xl shadow-sm border border-slate-100 bg-white shrink-0">
+                    <img src="images/hero-logo.png?v=20260615" alt="Summit Church School" class="h-14 sm:h-16 w-auto object-contain shrink-0">
                     <div class="min-w-0">
                         <h1 class="heading-serif text-2xl sm:text-3xl md:text-4xl text-navy tracking-tighter leading-tight">Members Area</h1>
                         <p class="text-slate-600 mt-0.5 text-sm sm:text-base truncate" id="welcome-message">Welcome back</p>
@@ -254,9 +254,9 @@
             <!-- Dashboard Tabs -->
             <div class="flex gap-2 border-b border-slate-200 mb-6">
                 <button onclick="showDashboardTab('my-tasks')" id="tab-my-tasks"
-                        class="px-4 py-2 text-sm font-medium border-b-2 border-navy text-navy whitespace-nowrap relative">My Tasks
-                    <span id="my-tasks-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full leading-none">0</span>
-                    <span id="my-tasks-overdue-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full leading-none">!</span>
+                        class="pl-4 pr-6 py-2 text-sm font-medium border-b-2 border-navy text-navy whitespace-nowrap relative">My Tasks
+                    <span id="my-tasks-badge" class="hidden absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 bg-red-500 text-white text-xs font-bold min-w-[1.35rem] h-5 px-1.5 inline-flex items-center justify-center rounded-full leading-none shadow-sm">0</span>
+                    <span id="my-tasks-overdue-badge" class="hidden absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 bg-red-600 text-white text-xs font-bold w-5 h-5 inline-flex items-center justify-center rounded-full leading-none shadow-sm">!</span>
                 </button>
                 <button onclick="showDashboardTab('my-documents')" id="tab-my-documents"
                         class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">My Documents</button>
@@ -341,7 +341,7 @@
             <!-- Resources Tab Content -->
             <div id="dashboard-resources" class="hidden">
                 <h2 class="text-2xl font-semibold text-navy mb-4">Resources</h2>
-                <p class="text-sm text-slate-600 mb-4">Resources and links available to all approved families.</p>
+                <p class="text-sm text-slate-600 mb-4">Resources and links available to all families.</p>
                 
                 <div id="shared-resources" class="grid md:grid-cols-2 gap-4">
                     <!-- Dynamically loaded from Supabase shared_resources table -->
