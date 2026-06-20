@@ -396,14 +396,14 @@
                             class="admin-nav-btn px-4 py-2 text-sm font-medium border-b-2 border-navy text-navy whitespace-nowrap">Members</button>
                     <button type="button" onclick="showAdminSection('families')" id="admin-nav-families"
                             class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Families</button>
-                    <button type="button" onclick="showAdminSection('records')" id="admin-nav-records"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Family Records</button>
-                    <button type="button" onclick="showAdminSection('access')" id="admin-nav-access"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Staff Access</button>
-                    <button type="button" onclick="showAdminSection('library')" id="admin-nav-library"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Document Library</button>
                     <button type="button" onclick="showAdminSection('site')" id="admin-nav-site"
                             class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Site Content</button>
+                    <button type="button" onclick="showAdminSection('access')" id="admin-nav-access"
+                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Staff Access</button>
+                    <button type="button" onclick="showAdminSection('records')" id="admin-nav-records"
+                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Family Records</button>
+                    <button type="button" onclick="showAdminSection('library')" id="admin-nav-library"
+                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Document Library</button>
                 </div>
 
                 <!-- 1. Members: approvals + ID review -->
@@ -419,13 +419,6 @@
                     <div class="mt-10 pt-8 border-t border-slate-200">
                         <h3 class="text-xl font-semibold text-navy mb-2">Pending ID Uploads</h3>
                         <p class="text-sm text-slate-600 mb-4">Review government ID photos submitted by families in My Tasks. Approve to add the ID to the family's My ID section, or deny to remove the submission.</p>
-
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Filter by family (optional)</label>
-                            <select id="admin-pending-ids-family-filter" class="form-input w-full max-w-md px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="loadPendingIDsForAdmin()">
-                                <option value="">All families</option>
-                            </select>
-                        </div>
 
                         <div id="admin-pending-ids-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[80px] bg-white">
                             Loading pending ID uploads...
@@ -921,7 +914,6 @@
 
             if (section === 'members') {
                 if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
-                if (typeof loadPendingIdsFamilyFilter === 'function') loadPendingIdsFamilyFilter();
                 if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
             }
             if (section === 'families') {
@@ -2422,24 +2414,6 @@
             loadStandardCheckboxesForFamily();
         }
 
-        async function loadPendingIdsFamilyFilter() {
-            const filter = document.getElementById('admin-pending-ids-family-filter');
-            if (!filter || !supabaseClient) return;
-
-            const currentValue = filter.value;
-            const families = await fetchApprovedFamilies();
-            let options = '<option value="">All families</option>';
-            families.forEach(fam => {
-                const displayName = formatFamilyName(fam);
-                const email = fam.email ? ` (${fam.email})` : '';
-                options += `<option value="${fam.id}">${escapeHtml(displayName)}${escapeHtml(email)}</option>`;
-            });
-            filter.innerHTML = options;
-            if (currentValue && families.some(f => f.id === currentValue)) {
-                filter.value = currentValue;
-            }
-        }
-
         let cachedStandards = [];
 
         async function loadStandardCheckboxesForFamily() {
@@ -2826,15 +2800,12 @@
             const list = document.getElementById('admin-pending-ids-list');
             if (!list || !supabaseClient) return;
 
-            const filterSel = document.getElementById('admin-pending-ids-family-filter');
-            const selectedFamilyId = filterSel?.value || '';
-
             list.innerHTML = '<div class="text-slate-500 text-xs">Loading pending ID uploads...</div>';
 
-            const pending = await fetchPendingIDUploads(selectedFamilyId);
+            const pending = await fetchPendingIDUploads('');
 
             if (!pending.length) {
-                list.innerHTML = `<div class="text-xs text-slate-500">No pending ID uploads${selectedFamilyId ? ' for the selected family' : ''}. When a member submits their ID task in My Tasks, it will appear here for review.</div>`;
+                list.innerHTML = `<div class="text-xs text-slate-500">No pending ID uploads. When a member submits their ID task in My Tasks, it will appear here for review.</div>`;
                 return;
             }
 
