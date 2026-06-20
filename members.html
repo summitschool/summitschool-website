@@ -34,29 +34,20 @@
                     <a href="members.html" class="nav-link text-navy font-semibold">Members</a>
                 </div>
 
-                <div class="hidden md:flex items-center gap-x-4">
-                    <button onclick="logout()" 
-                            id="logout-btn"
-                            class="hidden flex items-center gap-x-2 px-5 py-2 text-sm font-medium text-slate-600 hover:text-navy transition-colors">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Log out</span>
-                    </button>
-                    <a href="index.html#enrollment" 
-                       class="inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985]">
-                        Enroll Now
-                    </a>
-                </div>
-
-                <!-- Mobile Log out + Hamburger (log out replaces login when signed in) -->
-                <div class="flex items-center gap-x-2 md:hidden">
+                <!-- Auth + Enroll + Menu (same login/logout pattern on mobile and desktop) -->
+                <div class="flex items-center gap-x-2">
                     <button type="button" onclick="logout()"
-                            id="mobile-header-logout-btn"
-                            class="hidden flex items-center gap-x-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 bg-white rounded-full transition-all active:scale-[0.985] shadow-sm">
+                            id="header-logout-btn"
+                            class="hidden items-center gap-x-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 bg-white rounded-full transition-all active:scale-[0.985] shadow-sm">
                         <i class="fas fa-sign-out-alt text-[10px] sm:text-xs" aria-hidden="true"></i>
                         <span>Log out</span>
                     </button>
+                    <a href="index.html#enrollment"
+                       class="hidden md:inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985]">
+                        Enroll Now
+                    </a>
                     <button id="mobile-menu-btn"
-                            class="w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
+                            class="md:hidden w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
                             aria-label="Open menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>
@@ -246,11 +237,6 @@
                         <p class="text-slate-600 mt-0.5 text-sm sm:text-base truncate" id="welcome-message">Welcome back</p>
                     </div>
                 </div>
-                <button onclick="logout()" 
-                        class="hidden md:flex items-center gap-x-2 px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 rounded-2xl transition-colors shrink-0">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Log out</span>
-                </button>
             </div>
 
             <!-- Dashboard Tabs -->
@@ -1712,12 +1698,12 @@
             const loginView = document.getElementById('login-view');
             const dashboardView = document.getElementById('dashboard-view');
             const pendingView = document.getElementById('pending-view');
-            const logoutBtn = document.getElementById('logout-btn');
-            const mobileHeaderLogoutBtn = document.getElementById('mobile-header-logout-btn');
+            const headerLogoutBtn = document.getElementById('header-logout-btn');
 
             function setLogoutButtonsVisible(visible) {
-                if (logoutBtn) logoutBtn.classList.toggle('hidden', !visible);
-                if (mobileHeaderLogoutBtn) mobileHeaderLogoutBtn.classList.toggle('hidden', !visible);
+                if (!headerLogoutBtn) return;
+                headerLogoutBtn.classList.toggle('hidden', !visible);
+                headerLogoutBtn.classList.toggle('flex', visible);
             }
 
             if (!supabaseClient) {
@@ -1736,6 +1722,7 @@
                     loginView.classList.remove('hidden');
                     dashboardView.classList.add('hidden');
                     pendingView.classList.add('hidden');
+                    setLogoutButtonsVisible(false);
                 }
                 return;
             }

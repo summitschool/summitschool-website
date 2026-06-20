@@ -24,6 +24,9 @@
 
     <!-- Pre-compiled Tailwind + custom styles (blocking — eliminates runtime CDN FOUC) -->
     <link rel="stylesheet" href="assets/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-ivory text-slate-800 body-text antialiased">
     <!-- Sticky Navigation -->
@@ -46,23 +49,26 @@
                     <a href="#contact" class="nav-link text-slate-700 hover:text-navy">Contact</a>
                 </div>
 
-                <!-- Desktop CTA -->
-                <div class="hidden md:block">
-                    <a href="#enrollment" 
-                       class="inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold rounded-full bg-navy text-white hover:bg-navy-light transition-all active:scale-[0.985]">
-                        Enroll Now
-                    </a>
-                </div>
-
-                <!-- Mobile Login + Hamburger (visible only on mobile, placed nicely on the right) -->
-                <div class="flex items-center gap-x-2 md:hidden">
-                    <a href="members.html" 
-                       class="px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985] shadow-sm">
+                <!-- Auth + Enroll + Menu (same login/logout pattern on mobile and desktop) -->
+                <div class="flex items-center gap-x-2">
+                    <a href="members.html"
+                       id="header-login-btn"
+                       class="inline-flex items-center px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985] shadow-sm">
                         Login
                     </a>
-                    <!-- Mobile Hamburger -->
+                    <button type="button"
+                            id="header-logout-btn"
+                            onclick="handleSiteLogout()"
+                            class="hidden items-center gap-x-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 bg-white rounded-full transition-all active:scale-[0.985] shadow-sm">
+                        <i class="fas fa-sign-out-alt text-[10px] sm:text-xs" aria-hidden="true"></i>
+                        <span>Log out</span>
+                    </button>
+                    <a href="#enrollment"
+                       class="hidden md:inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold rounded-full bg-navy text-white hover:bg-navy-light transition-all active:scale-[0.985]">
+                        Enroll Now
+                    </a>
                     <button id="mobile-menu-btn"
-                            class="w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
+                            class="md:hidden w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
                             aria-label="Open menu"
                             aria-expanded="false">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -642,6 +648,55 @@
     </div>
 
     <script>
+        const SUPABASE_URL = 'https://tajyrmydwqsijstyzsjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy';
+        const MEMBER_ACTIVITY_KEY = 'members_last_activity';
+
+        let siteSupabaseClient = null;
+
+        function initSiteSupabase() {
+            if (!window.supabase || SUPABASE_URL.includes('YOUR_') || SUPABASE_ANON_KEY.includes('YOUR_')) {
+                return null;
+            }
+            return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    persistSession: true,
+                    storage: window.sessionStorage,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true
+                }
+            });
+        }
+
+        async function updateHeaderAuthState() {
+            const loginBtn = document.getElementById('header-login-btn');
+            const logoutBtn = document.getElementById('header-logout-btn');
+            if (!loginBtn || !logoutBtn) return;
+
+            let hasSession = false;
+            if (siteSupabaseClient) {
+                const { data: { session } } = await siteSupabaseClient.auth.getSession();
+                hasSession = !!session;
+            } else {
+                hasSession = sessionStorage.getItem('scsmembers_loggedin') === 'true';
+            }
+
+            loginBtn.classList.toggle('hidden', hasSession);
+            loginBtn.classList.toggle('inline-flex', !hasSession);
+            logoutBtn.classList.toggle('hidden', !hasSession);
+            logoutBtn.classList.toggle('flex', hasSession);
+        }
+
+        async function handleSiteLogout() {
+            if (siteSupabaseClient) {
+                await siteSupabaseClient.auth.signOut({ scope: 'local' });
+            }
+            sessionStorage.removeItem(MEMBER_ACTIVITY_KEY);
+            sessionStorage.removeItem('scsmembers_loggedin');
+            sessionStorage.removeItem('scsmembers_email');
+            await updateHeaderAuthState();
+        }
+
         const NAV_HEIGHT = 80;
         const MENU_ICON_OPEN = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>';
         const MENU_ICON_CLOSE = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M6 18L18 6M6 6l12 12"></path>';
@@ -786,7 +841,15 @@
             });
         }
 
-        function initializeWebsite() {
+        async function initializeWebsite() {
+            siteSupabaseClient = initSiteSupabase();
+            if (siteSupabaseClient) {
+                siteSupabaseClient.auth.onAuthStateChange(() => {
+                    updateHeaderAuthState();
+                });
+            }
+            await updateHeaderAuthState();
+
             initMobileMenu();
             initContactForm();
             initSmoothScroll();
