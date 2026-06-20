@@ -437,9 +437,15 @@
                         <form id="admin-upload-form" class="space-y-6">
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
-                                <select id="admin-family-select" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="onAdminFamilyChange()">
-                                    <option value="">Loading families...</option>
-                                </select>
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <select id="admin-family-select" required class="form-input flex-1 px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="onAdminFamilyChange()">
+                                        <option value="">Loading families...</option>
+                                    </select>
+                                    <button type="button" onclick="resetAdminFamilySelection()"
+                                            class="px-5 py-3 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm whitespace-nowrap">
+                                        Clear
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -490,10 +496,16 @@
                                 </label>
                             </div>
 
-                            <button type="submit" 
-                                    class="w-full py-4 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
-                                Upload for Selected Family
-                            </button>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <button type="submit" 
+                                        class="flex-1 py-4 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                    Upload for Selected Family
+                                </button>
+                                <button type="button" onclick="resetAdminUploadFormOnly()"
+                                        class="px-5 py-4 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm">
+                                    Clear Form
+                                </button>
+                            </div>
                         </form>
 
                         <div class="mt-3 pt-3 border-t border-slate-200">
@@ -555,9 +567,15 @@
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-6">
                         <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
-                        <select id="admin-records-family-select" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base mb-6" onchange="loadAdminFamilyRecords()">
-                            <option value="">Loading families...</option>
-                        </select>
+                        <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                            <select id="admin-records-family-select" class="form-input flex-1 px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="loadAdminFamilyRecords()">
+                                <option value="">Loading families...</option>
+                            </select>
+                            <button type="button" onclick="resetAdminRecordsSection()"
+                                    class="px-5 py-3 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm whitespace-nowrap">
+                                Clear
+                            </button>
+                        </div>
 
                         <div id="admin-records-content" class="hidden space-y-6">
                             <div>
@@ -597,6 +615,10 @@
                                 <button type="button" onclick="addStaffMember()"
                                         class="px-5 py-3 bg-navy hover:bg-[#0F3A5F] text-white text-sm font-semibold rounded-2xl transition-all whitespace-nowrap">
                                     Add Staff Member
+                                </button>
+                                <button type="button" onclick="resetAdminAccessSection()"
+                                        class="px-5 py-3 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm whitespace-nowrap">
+                                    Clear
                                 </button>
                             </div>
                             <p id="staff-access-status" class="mt-3 text-sm hidden"></p>
@@ -639,7 +661,7 @@
                                 <button type="submit" class="flex-1 py-2 bg-navy hover:bg-[#0F3A5F] text-white text-sm font-semibold rounded-xl">
                                     <span id="admin-standard-submit-text">Add Standard</span>
                                 </button>
-                                <button type="button" onclick="cancelStandardEdit()" class="px-4 py-2 border border-slate-300 rounded-xl text-sm">Cancel</button>
+                                <button type="button" onclick="cancelStandardEdit()" class="px-4 py-2 border border-slate-300 rounded-xl text-sm">Clear</button>
                             </div>
                         </form>
                     </div>
@@ -707,7 +729,7 @@
                                 <button type="submit" class="flex-1 py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all">
                                     <span id="admin-shared-submit-text">Add Shared Resource</span>
                                 </button>
-                                <button type="button" onclick="cancelSharedEdit()" class="px-5 py-3 border border-slate-300 rounded-2xl text-sm">Cancel</button>
+                                <button type="button" onclick="cancelSharedEdit()" class="px-5 py-3 border border-slate-300 rounded-2xl text-sm">Clear</button>
                             </div>
                         </form>
                     </div>
@@ -736,11 +758,12 @@
                                 </label>
                             </div>
 
-                            <div class="flex gap-3">
+                            <div class="flex flex-col sm:flex-row gap-3">
                                 <button type="button" onclick="publishBanner()" class="flex-1 py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all">
                                     Publish Banner
                                 </button>
-                                <button type="button" onclick="deactivateCurrentBanner()" class="px-5 py-3 border border-red-200 text-red-600 rounded-2xl text-sm hover:bg-red-50">Remove Current Banner</button>
+                                <button type="button" onclick="resetAdminBannerDraft()" class="px-5 py-3 border border-slate-300 text-slate-700 rounded-2xl text-sm hover:bg-slate-50">Clear draft</button>
+                                <button type="button" onclick="deactivateCurrentBanner()" class="px-5 py-3 border border-red-200 text-red-600 rounded-2xl text-sm hover:bg-red-50 whitespace-nowrap">Remove Current Banner</button>
                             </div>
                         </form>
                     </div>
@@ -770,6 +793,13 @@
             isFamilyViewer: false,
             staffAllFamilies: false
         };
+
+        let lastAdminSection = 'members';
+        let currentAdminSection = null;
+
+        const ADMIN_FAMILY_TASKS_PLACEHOLDER = 'Select a family above to view and manage task due dates.';
+        const ADMIN_FAMILY_DOCS_PLACEHOLDER = 'Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.';
+        const ADMIN_STANDARDS_PLACEHOLDER = 'Select a family above to choose which standard documents to assign (e.g. exclude graduation packets for non-seniors).';
 
         function initializeSupabase() {
             if (SUPABASE_URL.includes('YOUR_') || SUPABASE_ANON_KEY.includes('YOUR_')) {
@@ -878,8 +908,150 @@
             }
         }
 
+        function resetAdminFamilySelection() {
+            const familySelect = document.getElementById('admin-family-select');
+            if (familySelect) familySelect.value = '';
+
+            const tasksList = document.getElementById('admin-family-tasks-list');
+            if (tasksList) tasksList.innerHTML = ADMIN_FAMILY_TASKS_PLACEHOLDER;
+
+            const docsList = document.getElementById('admin-family-docs-list');
+            if (docsList) docsList.innerHTML = ADMIN_FAMILY_DOCS_PLACEHOLDER;
+
+            const stdCheckboxes = document.getElementById('admin-standard-checkboxes');
+            if (stdCheckboxes) stdCheckboxes.innerHTML = ADMIN_STANDARDS_PLACEHOLDER;
+
+            currentAdminDocsUserId = null;
+        }
+
+        function resetAdminUploadFormOnly() {
+            const form = document.getElementById('admin-upload-form');
+            if (form) form.reset();
+
+            const fileInput = document.getElementById('admin-doc-file');
+            if (fileInput) fileInput.value = '';
+
+            const category = document.getElementById('admin-doc-category');
+            if (category) category.value = 'Document';
+
+            const notify = document.getElementById('admin-personal-notify');
+            if (notify) notify.checked = false;
+
+            const statusDiv = document.getElementById('admin-upload-status');
+            if (statusDiv) {
+                statusDiv.textContent = '';
+                statusDiv.classList.add('hidden');
+            }
+
+            const tasksRadio = document.querySelector('input[name="standards-destination"][value="tasks"]');
+            if (tasksRadio) tasksRadio.checked = true;
+        }
+
+        function resetAdminFamiliesSection() {
+            resetAdminFamilySelection();
+            resetAdminUploadFormOnly();
+
+            const familySelect = document.getElementById('admin-family-select');
+            if (familySelect) {
+                familySelect.innerHTML = '<option value="">Select a family...</option>';
+            }
+        }
+
+        function resetAdminRecordsSection() {
+            const select = document.getElementById('admin-records-family-select');
+            if (select) select.value = '';
+
+            const content = document.getElementById('admin-records-content');
+            if (content) content.classList.add('hidden');
+
+            const docs = document.getElementById('admin-records-docs');
+            if (docs) docs.innerHTML = '';
+
+            const idContainer = document.getElementById('admin-records-id');
+            if (idContainer) idContainer.innerHTML = '';
+
+            const panel = document.getElementById('admin-records-id-panel');
+            if (panel) panel.removeAttribute('open');
+
+            const hint = document.getElementById('admin-records-id-hint');
+            if (hint) hint.textContent = 'Click to expand';
+        }
+
+        function resetAdminBannerDraft() {
+            const form = document.getElementById('admin-banner-form');
+            if (form) form.reset();
+        }
+
+        function resetAdminSiteSection() {
+            if (typeof cancelSharedEdit === 'function') cancelSharedEdit();
+
+            resetAdminBannerDraft();
+
+            const sharedFile = document.getElementById('admin-shared-file');
+            if (sharedFile) sharedFile.value = '';
+
+            const sharedNotify = document.getElementById('admin-shared-notify');
+            if (sharedNotify) sharedNotify.checked = false;
+        }
+
+        function resetAdminAccessSection() {
+            const addSelect = document.getElementById('staff-add-select');
+            if (addSelect) addSelect.value = '';
+
+            const statusDiv = document.getElementById('staff-access-status');
+            if (statusDiv) {
+                statusDiv.textContent = '';
+                statusDiv.classList.add('hidden');
+            }
+        }
+
+        function resetAdminLibrarySection() {
+            if (typeof cancelStandardEdit === 'function') cancelStandardEdit();
+
+            const fileInput = document.getElementById('admin-standard-file');
+            if (fileInput) fileInput.value = '';
+        }
+
+        function resetAdminMembersSection() {
+            const idsStatus = document.getElementById('admin-pending-ids-status');
+            if (idsStatus) {
+                idsStatus.textContent = '';
+                idsStatus.classList.add('hidden');
+            }
+        }
+
+        function resetAdminSectionState(section) {
+            if (!section) return;
+            switch (section) {
+                case 'families':
+                    resetAdminFamiliesSection();
+                    break;
+                case 'records':
+                    resetAdminRecordsSection();
+                    break;
+                case 'site':
+                    resetAdminSiteSection();
+                    break;
+                case 'access':
+                    resetAdminAccessSection();
+                    break;
+                case 'library':
+                    resetAdminLibrarySection();
+                    break;
+                case 'members':
+                    resetAdminMembersSection();
+                    break;
+            }
+        }
+
         // Admin sub-section navigation
         function showAdminSection(section) {
+            const isSwitching = currentAdminSection !== section;
+
+            if (currentAdminSection && isSwitching) {
+                resetAdminSectionState(currentAdminSection);
+            }
+
             const sections = {
                 members: document.getElementById('admin-section-members'),
                 families: document.getElementById('admin-section-families'),
@@ -912,26 +1084,31 @@
                 activeButton.classList.remove('text-slate-500');
             }
 
-            if (section === 'members') {
-                if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
-                if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
+            if (isSwitching) {
+                if (section === 'members') {
+                    if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
+                    if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
+                }
+                if (section === 'families' && typeof loadAdminFamilies === 'function') {
+                    loadAdminFamilies();
+                }
+                if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
+                    loadAdminRecordsFamilies();
+                }
+                if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
+                    loadStaffAccessPanel();
+                }
+                if (section === 'library' && typeof loadAdminStandards === 'function') {
+                    loadAdminStandards();
+                }
+                if (section === 'site') {
+                    if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
+                    if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
+                }
             }
-            if (section === 'families') {
-                if (typeof loadAdminFamilies === 'function') loadAdminFamilies();
-            }
-            if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
-                loadAdminRecordsFamilies();
-            }
-            if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
-                loadStaffAccessPanel();
-            }
-            if (section === 'library' && typeof loadAdminStandards === 'function') {
-                loadAdminStandards();
-            }
-            if (section === 'site') {
-                if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
-                if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
-            }
+
+            lastAdminSection = section;
+            currentAdminSection = section;
         }
 
         // Tab switching for the logged-in dashboard (My Documents / My Tasks / Resources / Family Records / Admin)
@@ -989,17 +1166,7 @@
                 tabAdmin.classList.add('border-b-2', 'border-navy', 'text-navy');
                 tabAdmin.classList.remove('text-slate-500');
 
-                // Reset admin forms when opening the tab to avoid stale data / persistence
-                const adminForm = document.getElementById('admin-upload-form');
-                if (adminForm) {
-                    adminForm.reset();
-                    const fileInput = document.getElementById('admin-doc-file');
-                    if (fileInput) fileInput.value = '';
-                }
-                const bannerForm = document.getElementById('admin-banner-form');
-                if (bannerForm) bannerForm.reset();
-
-                showAdminSection('members');
+                showAdminSection(lastAdminSection);
             }
         }
 
@@ -2269,7 +2436,7 @@
         }
 
         // Admin-only: Load list of approved families for the upload dropdown
-        async function loadAdminFamilies() {
+        async function loadAdminFamilies(preserveUserId = null) {
             const select = document.getElementById('admin-family-select');
             if (!select || !supabaseClient) return;
 
@@ -2292,6 +2459,13 @@
                 options += `<option value="${fam.id}">${displayName} (${fam.email})</option>`;
             });
             select.innerHTML = options;
+
+            if (preserveUserId) {
+                select.value = preserveUserId;
+                if (select.value === preserveUserId) {
+                    onAdminFamilyChange();
+                }
+            }
         }
 
         // Admin-only: Handle file upload for a specific family
@@ -2386,16 +2560,9 @@
                     const justUploadedFor = userId;
                     form.reset();
 
-                    // Refresh the current docs list for that same family + reload families list
-                    setTimeout(() => {
-                        loadAdminFamilies();
-                        // Try to keep the family selected and refresh their list so new item appears + old signing links are still manageable
-                        const sel = document.getElementById('admin-family-select');
-                        if (sel && justUploadedFor) {
-                            sel.value = justUploadedFor;
-                            loadAdminFamilyDocs();
-                            loadAdminFamilyTasks();
-                        }
+                    // Refresh families list, keep selection, and reload docs/tasks
+                    setTimeout(async () => {
+                        await loadAdminFamilies(justUploadedFor);
                         statusDiv.textContent = '';
                     }, 1200);
 
