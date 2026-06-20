@@ -4158,8 +4158,13 @@
             setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
             setupAdminBannerForm();   // banner management
 
-            // Set initial tab state
-            showAuthTab('login');
+            // Set initial tab state (support links from enrollment page)
+            const authTabHash = window.location.hash.toLowerCase();
+            if (authTabHash === '#signup' || authTabHash === '#create-account') {
+                showAuthTab('signup');
+            } else {
+                showAuthTab('login');
+            }
 
             // Handle Supabase redirects from email confirmation links, etc.
             // This must run early so people see a nice success message instead of an error on localhost.
