@@ -51,7 +51,7 @@
                 <div class="flex items-center gap-x-2 md:hidden">
                     <button type="button" onclick="logout()"
                             id="mobile-header-logout-btn"
-                            class="hidden flex items-center gap-x-1.5 px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985] shadow-sm">
+                            class="hidden flex items-center gap-x-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 bg-white rounded-full transition-all active:scale-[0.985] shadow-sm">
                         <i class="fas fa-sign-out-alt text-[10px] sm:text-xs" aria-hidden="true"></i>
                         <span>Log out</span>
                     </button>
@@ -789,6 +789,13 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy'; // publishable key
         const FULL_ADMIN_EMAIL = 'sjesimon@gmail.com';
 
+        // Session security: tab-scoped storage + 30 min inactivity (common portal default)
+        const MEMBER_SESSION_INACTIVITY_MS = 30 * 60 * 1000;
+        const MEMBER_ACTIVITY_KEY = 'members_last_activity';
+        const MEMBER_LOGOUT_REASON_KEY = 'members_logout_reason';
+        let memberActivityThrottleTimer = null;
+        let memberSessionCheckInterval = null;
+
         let supabaseClient = null;
         let currentUserAccess = {
             isFullAdmin: false,
@@ -808,11 +815,122 @@
                 console.warn('Supabase not configured yet. Using demo mode.');
                 return null;
             }
-            return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    persistSession: true,
+                    storage: window.sessionStorage,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true
+                }
+            });
+        }
+
+        function clearLegacyPersistentAuth() {
+            localStorage.removeItem('scsmembers_loggedin');
+            localStorage.removeItem('scsmembers_email');
+            Object.keys(localStorage).forEach((key) => {
+                if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                    localStorage.removeItem(key);
+                }
+            });
+        }
+
+        function recordMemberActivity() {
+            sessionStorage.setItem(MEMBER_ACTIVITY_KEY, String(Date.now()));
+        }
+
+        function getMemberIdleMs() {
+            const raw = sessionStorage.getItem(MEMBER_ACTIVITY_KEY);
+            if (!raw) return 0;
+            const last = parseInt(raw, 10);
+            return Number.isFinite(last) ? Date.now() - last : 0;
+        }
+
+        function clearMemberSessionTracking() {
+            sessionStorage.removeItem(MEMBER_ACTIVITY_KEY);
+        }
+
+        function bumpMemberActivityThrottled() {
+            if (memberActivityThrottleTimer) return;
+            recordMemberActivity();
+            memberActivityThrottleTimer = setTimeout(() => {
+                memberActivityThrottleTimer = null;
+            }, 30000);
+        }
+
+        async function logoutDueToInactivity() {
+            sessionStorage.setItem(MEMBER_LOGOUT_REASON_KEY, 'inactivity');
+            clearMemberSessionTracking();
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut({ scope: 'local' });
+            }
+            sessionStorage.removeItem('scsmembers_loggedin');
+            sessionStorage.removeItem('scsmembers_email');
+            location.reload();
+        }
+
+        async function enforceMemberSessionIfExpired() {
+            const idleMs = getMemberIdleMs();
+            if (!sessionStorage.getItem(MEMBER_ACTIVITY_KEY)) return;
+
+            if (idleMs <= MEMBER_SESSION_INACTIVITY_MS) return;
+
+            if (!supabaseClient) {
+                if (sessionStorage.getItem('scsmembers_loggedin') === 'true') {
+                    await logoutDueToInactivity();
+                }
+                return;
+            }
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                await logoutDueToInactivity();
+            } else {
+                clearMemberSessionTracking();
+            }
+        }
+
+        function setupMemberSessionGuards() {
+            ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach((evt) => {
+                document.addEventListener(evt, bumpMemberActivityThrottled, { passive: true });
+            });
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    enforceMemberSessionIfExpired();
+                }
+            });
+
+            if (memberSessionCheckInterval) clearInterval(memberSessionCheckInterval);
+            memberSessionCheckInterval = setInterval(enforceMemberSessionIfExpired, 60 * 1000);
+        }
+
+        function showSessionLogoutNotice() {
+            const reason = sessionStorage.getItem(MEMBER_LOGOUT_REASON_KEY);
+            if (!reason) return;
+            sessionStorage.removeItem(MEMBER_LOGOUT_REASON_KEY);
+
+            const loginView = document.getElementById('login-view');
+            if (!loginView || loginView.classList.contains('hidden')) return;
+
+            const firstChild = loginView.querySelector('.max-w-md');
+            if (!firstChild) return;
+
+            const existing = firstChild.querySelector('#session-security-banner');
+            if (existing) existing.remove();
+
+            const banner = document.createElement('div');
+            banner.id = 'session-security-banner';
+            banner.className = 'mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-sm';
+            banner.innerHTML = reason === 'inactivity'
+                ? '<strong>Signed out for your security.</strong> Your session ended after 30 minutes of inactivity. Please sign in again.'
+                : '<strong>Signed out for your security.</strong> Please sign in again to continue.';
+            firstChild.prepend(banner);
         }
 
         // Initialize Supabase client
         function initSupabaseClient() {
+            clearLegacyPersistentAuth();
             supabaseClient = initializeSupabase();
         }
 
@@ -1604,8 +1722,11 @@
 
             if (!supabaseClient) {
                 // Demo mode fallback
-                const loggedIn = localStorage.getItem('scsmembers_loggedin') === 'true';
+                const loggedIn = sessionStorage.getItem('scsmembers_loggedin') === 'true';
                 if (loggedIn) {
+                    if (!sessionStorage.getItem(MEMBER_ACTIVITY_KEY)) {
+                        recordMemberActivity();
+                    }
                     loginView.classList.add('hidden');
                     pendingView.classList.add('hidden');
                     dashboardView.classList.remove('hidden');
@@ -1622,6 +1743,10 @@
             const { data: { user } } = await supabaseClient.auth.getUser();
 
             if (user) {
+                if (!sessionStorage.getItem(MEMBER_ACTIVITY_KEY)) {
+                    recordMemberActivity();
+                }
+
                 // User is logged in - check approval status
                 const { data: profile, error } = await supabaseClient
                     .from('profiles')
@@ -4143,8 +4268,9 @@
                 const email = document.getElementById('login-email').value.trim();
                 const password = document.getElementById('login-password').value;
                 if (email && password) {
-                    localStorage.setItem('scsmembers_loggedin', 'true');
-                    localStorage.setItem('scsmembers_email', email);
+                    sessionStorage.setItem('scsmembers_loggedin', 'true');
+                    sessionStorage.setItem('scsmembers_email', email);
+                    recordMemberActivity();
                     location.reload();
                 }
                 return;
@@ -4276,12 +4402,13 @@
 
         // Logout
         async function logout() {
+            clearMemberSessionTracking();
+            sessionStorage.removeItem(MEMBER_LOGOUT_REASON_KEY);
             if (supabaseClient) {
-                await supabaseClient.auth.signOut();
-            } else {
-                localStorage.removeItem('scsmembers_loggedin');
-                localStorage.removeItem('scsmembers_email');
+                await supabaseClient.auth.signOut({ scope: 'local' });
             }
+            sessionStorage.removeItem('scsmembers_loggedin');
+            sessionStorage.removeItem('scsmembers_email');
             location.reload();
         }
 
@@ -4356,8 +4483,12 @@
                 });
             }
 
+            setupMemberSessionGuards();
+            await enforceMemberSessionIfExpired();
+
             // Check current state on load
             await checkLoginState();
+            showSessionLogoutNotice();
 
             // Default to My Tasks tab on initial load only (per requirement: tasks first).
             // This is deliberately outside checkLoginState() so that
