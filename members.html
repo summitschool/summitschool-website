@@ -47,14 +47,22 @@
                     </a>
                 </div>
 
-                <!-- Mobile Hamburger -->
-                <button id="mobile-menu-btn"
-                        class="md:hidden w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
-                        aria-label="Open menu">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </button>
+                <!-- Mobile Log out + Hamburger (log out replaces login when signed in) -->
+                <div class="flex items-center gap-x-2 md:hidden">
+                    <button type="button" onclick="logout()"
+                            id="mobile-header-logout-btn"
+                            class="hidden flex items-center gap-x-1.5 px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985] shadow-sm">
+                        <i class="fas fa-sign-out-alt text-[10px] sm:text-xs" aria-hidden="true"></i>
+                        <span>Log out</span>
+                    </button>
+                    <button id="mobile-menu-btn"
+                            class="w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
+                            aria-label="Open menu">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -69,14 +77,8 @@
                 <a href="members.html" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-navy font-semibold">Members</a>
                 
                 <div class="pt-4 border-t border-slate-100 mt-2">
-                    <button onclick="logout()" 
-                            id="mobile-logout-btn"
-                            class="hidden flex w-full justify-center items-center gap-x-2 px-5 py-3 text-sm font-medium text-slate-600 hover:text-navy transition-colors border border-slate-200 rounded-2xl">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Log out</span>
-                    </button>
                     <a href="index.html#enrollment" 
-                       class="block w-full text-center px-6 py-3.5 text-base font-semibold rounded-2xl bg-navy text-white mt-3">
+                       class="block w-full text-center px-6 py-3.5 text-base font-semibold rounded-2xl bg-navy text-white">
                         Enroll Now
                     </a>
                 </div>
@@ -245,7 +247,7 @@
                     </div>
                 </div>
                 <button onclick="logout()" 
-                        class="flex items-center gap-x-1.5 sm:gap-x-2 px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 rounded-2xl transition-colors shrink-0">
+                        class="hidden md:flex items-center gap-x-2 px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 rounded-2xl transition-colors shrink-0">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Log out</span>
                 </button>
@@ -1593,7 +1595,12 @@
             const dashboardView = document.getElementById('dashboard-view');
             const pendingView = document.getElementById('pending-view');
             const logoutBtn = document.getElementById('logout-btn');
-            const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
+            const mobileHeaderLogoutBtn = document.getElementById('mobile-header-logout-btn');
+
+            function setLogoutButtonsVisible(visible) {
+                if (logoutBtn) logoutBtn.classList.toggle('hidden', !visible);
+                if (mobileHeaderLogoutBtn) mobileHeaderLogoutBtn.classList.toggle('hidden', !visible);
+            }
 
             if (!supabaseClient) {
                 // Demo mode fallback
@@ -1602,8 +1609,7 @@
                     loginView.classList.add('hidden');
                     pendingView.classList.add('hidden');
                     dashboardView.classList.remove('hidden');
-                    if (logoutBtn) logoutBtn.classList.remove('hidden');
-                    if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
+                    setLogoutButtonsVisible(true);
                     loadMyDocumentsDemo();
                 } else {
                     loginView.classList.remove('hidden');
@@ -1636,8 +1642,7 @@
                     if (pendingPrimary) pendingPrimary.textContent = 'Your membership request was not approved at this time.';
                     if (pendingSecondary) pendingSecondary.textContent = 'If you believe this was a mistake, please contact us through the main site contact form.';
 
-                    if (logoutBtn) logoutBtn.classList.remove('hidden');
-                    if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
+                    setLogoutButtonsVisible(true);
                 } else if (profile && profile.approved === true) {
                     // Fully approved
                     pendingView.classList.add('hidden');
@@ -1654,8 +1659,7 @@
                         welcome.textContent = `Welcome back, ${name}`;
                     }
 
-                    if (logoutBtn) logoutBtn.classList.remove('hidden');
-                    if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
+                    setLogoutButtonsVisible(true);
 
                     // Load personalized documents
                     loadMyDocuments(user.id);
@@ -1711,8 +1715,7 @@
                     if (pendingPrimary) pendingPrimary.textContent = 'Thank you for signing up. Your account has been created and is now awaiting review by our team.';
                     if (pendingSecondary) pendingSecondary.textContent = 'Membership approvals will begin when the members area opens on July 1, 2026. You will receive an email once your access has been approved.';
 
-                    if (logoutBtn) logoutBtn.classList.remove('hidden');
-                    if (mobileLogoutBtn) mobileLogoutBtn.classList.remove('hidden');
+                    setLogoutButtonsVisible(true);
                 }
             } else {
                 // Not logged in
@@ -1720,8 +1723,7 @@
                 dashboardView.classList.add('hidden');
                 pendingView.classList.add('hidden');
 
-                if (logoutBtn) logoutBtn.classList.add('hidden');
-                if (mobileLogoutBtn) mobileLogoutBtn.classList.add('hidden');
+                setLogoutButtonsVisible(false);
             }
         }
 
