@@ -307,7 +307,7 @@
             <!-- Family Records Tab (staff viewers with delegated access — read-only) -->
             <div id="dashboard-family-records" class="hidden">
                 <h2 class="text-2xl font-semibold text-navy mb-2">Family Records</h2>
-                <p class="text-sm text-slate-600 mb-4">Read-only access to documents and government IDs for families assigned to you. You still have your own My Documents and My Tasks as a member — this tab is only for families you have been granted access to view.</p>
+                <p class="text-sm text-slate-600 mb-4">Read-only access to every family's documents and government IDs. You still have your own My Documents and My Tasks as a member.</p>
 
                 <div class="bg-white border border-slate-100 rounded-3xl p-6 mb-6">
                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
@@ -536,6 +536,14 @@
                         </div>
 
                         <div class="mt-6 pt-4 border-t border-slate-200">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Tasks for selected family</label>
+                            <p class="text-xs text-slate-500 mb-2">New tasks default to due one week from the day they are assigned. Edit due dates per task below.</p>
+                            <div id="admin-family-tasks-list" class="text-sm text-slate-600 border border-amber-200 rounded-2xl p-3 min-h-[60px] bg-amber-50/30">
+                                Select a family above to view and manage task due dates.
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-slate-200">
                             <label class="block text-sm font-medium text-slate-700 mb-1.5">Current documents for selected family</label>
                             <div id="admin-family-docs-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[60px]">
                                 Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.
@@ -577,33 +585,25 @@
                     </div>
                 </div>
 
-                <!-- 2c. Staff Access: grant read-only family access to members -->
+                <!-- 2c. Staff Access: staff view all families (read-only) -->
                 <div id="admin-section-access" class="hidden">
-                    <h3 class="text-xl font-semibold text-navy mb-2">Staff Family Access</h3>
-                    <p class="text-sm text-slate-600 mb-6">Give an approved member read-only access to specific families' documents and IDs — without full admin rights. They will see a <strong>Family Records</strong> tab in their dashboard for the families you assign.</p>
+                    <h3 class="text-xl font-semibold text-navy mb-2">Staff Access</h3>
+                    <p class="text-sm text-slate-600 mb-6">Add approved members as staff. Staff can view <strong>every</strong> family's documents and IDs in the <strong>Family Records</strong> tab — without full admin rights.</p>
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-6 space-y-6">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Staff Member</label>
-                            <select id="staff-viewer-select" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="loadStaffAccessAssignments()">
-                                <option value="">Loading members...</option>
-                            </select>
-                            <p class="text-xs text-slate-500 mt-1">Choose any approved member who should be able to view other families' records.</p>
-                        </div>
-
                         <div id="staff-access-list" class="border border-slate-200 rounded-2xl p-4 min-h-[80px] text-sm text-slate-600">
-                            Select a staff member above to see their current family access.
+                            Loading staff members...
                         </div>
 
                         <div class="pt-4 border-t border-slate-200">
-                            <h4 class="text-sm font-semibold text-navy mb-3">Grant Access to a Family</h4>
+                            <h4 class="text-sm font-semibold text-navy mb-3">Add Staff Member</h4>
                             <div class="flex flex-col sm:flex-row gap-3">
-                                <select id="staff-grant-family-select" class="form-input flex-1 px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
-                                    <option value="">Select family to grant...</option>
+                                <select id="staff-add-select" class="form-input flex-1 px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                    <option value="">Select member to add...</option>
                                 </select>
-                                <button type="button" onclick="grantStaffFamilyAccess()"
+                                <button type="button" onclick="addStaffMember()"
                                         class="px-5 py-3 bg-navy hover:bg-[#0F3A5F] text-white text-sm font-semibold rounded-2xl transition-all whitespace-nowrap">
-                                    Grant Access
+                                    Add Staff Member
                                 </button>
                             </div>
                             <p id="staff-access-status" class="mt-3 text-sm hidden"></p>
@@ -775,7 +775,7 @@
         let currentUserAccess = {
             isFullAdmin: false,
             isFamilyViewer: false,
-            viewerFamilyIds: []
+            staffAllFamilies: false
         };
 
         function initializeSupabase() {
@@ -868,19 +868,20 @@
             currentUserAccess = {
                 isFullAdmin: isFullAdminUser(user),
                 isFamilyViewer: false,
-                viewerFamilyIds: []
+                staffAllFamilies: false
             };
 
             if (!user || currentUserAccess.isFullAdmin || !supabaseClient) return;
 
-            const { data, error } = await supabaseClient
-                .from('family_viewer_access')
-                .select('family_user_id')
-                .eq('viewer_user_id', user.id);
+            const { data: staffMember, error } = await supabaseClient
+                .from('staff_members')
+                .select('id')
+                .eq('user_id', user.id)
+                .maybeSingle();
 
-            if (!error && data?.length) {
+            if (!error && staffMember) {
                 currentUserAccess.isFamilyViewer = true;
-                currentUserAccess.viewerFamilyIds = data.map(row => row.family_user_id);
+                currentUserAccess.staffAllFamilies = true;
             }
         }
 
@@ -1013,6 +1014,37 @@
         function isTaskDocument(doc) {
             const c = (doc.category || '').toLowerCase();
             return c.includes('(task)') || c.includes('task');
+        }
+
+        function getDefaultTaskDueDate() {
+            const d = new Date();
+            d.setDate(d.getDate() + 7);
+            return d.toISOString().split('T')[0];
+        }
+
+        function buildAdminTaskDueDatesHtml(task) {
+            const due1Value = task.due_date_1 ? String(task.due_date_1).split('T')[0] : '';
+            const due2Value = task.due_date_2 ? String(task.due_date_2).split('T')[0] : '';
+            return `
+                <div class="mt-2 p-3 bg-white border border-amber-200 rounded-xl space-y-2">
+                    <div class="text-[10px] font-semibold text-amber-800 uppercase tracking-wide">Due dates</div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-xs text-sky-700 font-medium whitespace-nowrap">1st / Due</label>
+                            <input type="date" id="due1-${task.id}" value="${due1Value}" class="text-xs px-2 py-1 border border-slate-300 rounded-lg bg-white">
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-xs text-violet-700 font-medium whitespace-nowrap">2nd (optional)</label>
+                            <input type="date" id="due2-${task.id}" value="${due2Value}" class="text-xs px-2 py-1 border border-slate-300 rounded-lg bg-white">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="saveTaskDueDates('${task.id}', this)" class="text-xs px-2.5 py-1 border border-navy text-navy rounded-lg hover:bg-navy hover:text-white">Save Due Dates</button>
+                        ${task.due_date_1 && !task.due_date_1_cleared ? `<button type="button" onclick="clearTaskDueDate1('${task.id}', this)" class="text-xs px-2.5 py-1 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50">Clear 1st Due Date</button>` : ''}
+                        ${task.due_date_1_cleared ? '<span class="text-xs text-slate-500 italic self-center">1st due date cleared</span>' : ''}
+                    </div>
+                </div>
+            `;
         }
 
         function formatTaskDueDate(dateValue) {
@@ -1964,21 +1996,15 @@
             const content = document.getElementById('viewer-records-content');
             if (!select || !supabaseClient) return;
 
-            if (!currentUserAccess.isFamilyViewer || !currentUserAccess.viewerFamilyIds.length) {
-                select.innerHTML = '<option value="">No families assigned to you</option>';
+            if (!currentUserAccess.isFamilyViewer) {
+                select.innerHTML = '<option value="">Staff access not enabled for your account</option>';
                 if (content) content.classList.add('hidden');
                 return;
             }
 
-            const { data: families, error } = await supabaseClient
-                .from('profiles')
-                .select('id, first_name, last_name, full_name, email')
-                .in('id', currentUserAccess.viewerFamilyIds)
-                .eq('approved', true)
-                .order('created_at', { ascending: false });
-
-            if (error || !families?.length) {
-                select.innerHTML = '<option value="">No accessible families found</option>';
+            const families = await fetchApprovedFamilies();
+            if (!families.length) {
+                select.innerHTML = '<option value="">No families found</option>';
                 if (content) content.classList.add('hidden');
                 return;
             }
@@ -2000,72 +2026,45 @@
                 return;
             }
 
-            if (!currentUserAccess.viewerFamilyIds.includes(familyUserId)) {
-                alert('You do not have access to view this family\'s records.');
-                select.value = '';
-                content.classList.add('hidden');
-                return;
-            }
-
             content.classList.remove('hidden');
             await renderFamilyRecordsView(docsContainer, idContainer, familyUserId);
         }
 
         async function loadStaffAccessPanel() {
-            const viewerSelect = document.getElementById('staff-viewer-select');
-            const grantSelect = document.getElementById('staff-grant-family-select');
+            const addSelect = document.getElementById('staff-add-select');
             const list = document.getElementById('staff-access-list');
-            if (!viewerSelect || !grantSelect || !list || !supabaseClient) return;
+            const statusDiv = document.getElementById('staff-access-status');
+            if (!addSelect || !list || !supabaseClient) return;
 
-            list.innerHTML = '<div class="text-slate-500">Loading...</div>';
+            list.innerHTML = '<div class="text-slate-500">Loading staff members...</div>';
 
-            const families = await fetchApprovedFamilies();
-            grantSelect.innerHTML = families.length
-                ? buildFamilySelectOptions(families, 'Select family to grant...')
-                : '<option value="">No families available</option>';
-
-            const staffCandidates = families.filter(f => f.email !== FULL_ADMIN_EMAIL);
-            viewerSelect.innerHTML = staffCandidates.length
-                ? buildFamilySelectOptions(staffCandidates, 'Select staff member...')
-                : '<option value="">No members available</option>';
-
-            list.innerHTML = 'Select a staff member above to see their current family access.';
-        }
-
-        async function loadStaffAccessAssignments() {
-            const viewerSelect = document.getElementById('staff-viewer-select');
-            const list = document.getElementById('staff-access-list');
-            if (!viewerSelect || !list || !supabaseClient) return;
-
-            const viewerUserId = viewerSelect.value;
-            if (!viewerUserId) {
-                list.innerHTML = 'Select a staff member above to see their current family access.';
-                return;
-            }
-
-            list.innerHTML = '<div class="text-slate-500">Loading assignments...</div>';
-
-            const { data: assignments, error } = await supabaseClient
-                .from('family_viewer_access')
-                .select('id, family_user_id, created_at')
-                .eq('viewer_user_id', viewerUserId)
+            const { data: staffRows, error } = await supabaseClient
+                .from('staff_members')
+                .select('id, user_id, created_at')
                 .order('created_at', { ascending: false });
 
             if (error) {
-                list.innerHTML = `<div class="text-red-600 text-xs">Failed to load access list. Run supabase/family-viewer-access.sql in Supabase if this table does not exist yet.<br>${escapeHtml(error.message)}</div>`;
+                list.innerHTML = `<div class="text-red-600 text-xs">Failed to load staff. Run supabase/staff-members.sql in Supabase SQL Editor first.<br>${escapeHtml(error.message)}</div>`;
                 return;
             }
 
-            if (!assignments?.length) {
-                list.innerHTML = '<div class="text-slate-500 text-xs italic">No family access granted yet for this member.</div>';
+            const staffIds = new Set((staffRows || []).map(row => row.user_id));
+            const families = await fetchApprovedFamilies();
+            const addCandidates = families.filter(f => f.email !== FULL_ADMIN_EMAIL && !staffIds.has(f.id));
+
+            addSelect.innerHTML = addCandidates.length
+                ? buildFamilySelectOptions(addCandidates, 'Select member to add...')
+                : '<option value="">No members available to add</option>';
+
+            if (!staffRows?.length) {
+                list.innerHTML = '<div class="text-slate-500 text-xs italic">No staff members yet. Add someone below — they will see every family in Family Records.</div>';
                 return;
             }
 
-            const familyIds = assignments.map(row => row.family_user_id);
             const { data: profiles } = await supabaseClient
                 .from('profiles')
                 .select('id, first_name, last_name, full_name, email')
-                .in('id', familyIds);
+                .in('id', staffRows.map(row => row.user_id));
 
             const profileMap = {};
             (profiles || []).forEach(profile => {
@@ -2073,69 +2072,63 @@
             });
 
             let html = '<div class="space-y-2">';
-            assignments.forEach(row => {
-                const profile = profileMap[row.family_user_id];
-                const familyName = escapeHtml(profile ? formatFamilyName(profile) : 'Unknown family');
-                const familyEmail = escapeHtml(profile?.email || '');
-                const grantedAt = row.created_at ? new Date(row.created_at).toLocaleDateString() : '';
+            staffRows.forEach(row => {
+                const profile = profileMap[row.user_id];
+                const name = escapeHtml(profile ? formatFamilyName(profile) : 'Unknown member');
+                const email = escapeHtml(profile?.email || '');
+                const addedAt = row.created_at ? new Date(row.created_at).toLocaleDateString() : '';
                 html += `
                     <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0">
                         <div class="min-w-0">
-                            <div class="font-medium text-navy">${familyName}</div>
-                            <div class="text-[10px] text-slate-500">${familyEmail}${grantedAt ? ` • granted ${grantedAt}` : ''}</div>
+                            <div class="font-medium text-navy">${name}</div>
+                            <div class="text-[10px] text-slate-500">${email}${addedAt ? ` • added ${addedAt}` : ''}</div>
+                            <div class="text-[10px] text-slate-400">Access: all families (read-only)</div>
                         </div>
-                        <button type="button" onclick="revokeStaffFamilyAccess('${row.id}')"
+                        <button type="button" onclick="removeStaffMember('${row.id}')"
                                 class="text-xs px-2 py-1 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0">
-                            Revoke
+                            Remove
                         </button>
                     </div>
                 `;
             });
             html += '</div>';
             list.innerHTML = html;
+
+            if (statusDiv) {
+                statusDiv.textContent = '';
+                statusDiv.classList.add('hidden');
+            }
         }
 
-        async function grantStaffFamilyAccess() {
-            const viewerSelect = document.getElementById('staff-viewer-select');
-            const grantSelect = document.getElementById('staff-grant-family-select');
+        async function addStaffMember() {
+            const addSelect = document.getElementById('staff-add-select');
             const statusDiv = document.getElementById('staff-access-status');
-            if (!viewerSelect || !grantSelect || !supabaseClient) return;
+            if (!addSelect || !supabaseClient) return;
 
-            const viewerUserId = viewerSelect.value;
-            const familyUserId = grantSelect.value;
-
-            if (!viewerUserId) {
-                alert('Select a staff member first.');
-                return;
-            }
-            if (!familyUserId) {
-                alert('Select a family to grant access to.');
-                return;
-            }
-            if (viewerUserId === familyUserId) {
-                alert('A member already has full access to their own documents in My Documents. Choose a different family.');
+            const userId = addSelect.value;
+            if (!userId) {
+                alert('Select a member to add as staff.');
                 return;
             }
 
             const { data: { user } } = await supabaseClient.auth.getUser();
             const { error } = await supabaseClient
-                .from('family_viewer_access')
+                .from('staff_members')
                 .insert({
-                    viewer_user_id: viewerUserId,
-                    family_user_id: familyUserId,
+                    user_id: userId,
                     created_by: user?.id || null
                 });
 
             if (error) {
-                const msg = error.message || 'Grant failed';
+                const msg = error.message || 'Add failed';
                 if (statusDiv) {
                     statusDiv.classList.remove('hidden');
                     statusDiv.className = 'mt-3 text-sm text-red-600';
-                    statusDiv.textContent = msg.includes('family_viewer_access')
-                        ? 'Setup required: run supabase/family-viewer-access.sql in the Supabase SQL Editor first.'
+                    statusDiv.textContent = msg.includes('staff_members')
+                        ? 'Setup required: run supabase/staff-members.sql in the Supabase SQL Editor first.'
                         : msg;
                 } else {
-                    alert('Failed to grant access: ' + msg);
+                    alert('Failed to add staff member: ' + msg);
                 }
                 return;
             }
@@ -2143,29 +2136,28 @@
             if (statusDiv) {
                 statusDiv.classList.remove('hidden');
                 statusDiv.className = 'mt-3 text-sm text-emerald-600';
-                statusDiv.textContent = 'Access granted. The member will see a Family Records tab after their next login.';
+                statusDiv.textContent = 'Staff member added. They will see the Family Records tab after their next login.';
                 setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.add('hidden'); }, 4000);
             }
 
-            grantSelect.value = '';
-            loadStaffAccessAssignments();
+            loadStaffAccessPanel();
         }
 
-        async function revokeStaffFamilyAccess(accessId) {
-            if (!accessId || !supabaseClient) return;
-            if (!confirm('Revoke this family access?')) return;
+        async function removeStaffMember(staffId) {
+            if (!staffId || !supabaseClient) return;
+            if (!confirm('Remove this staff member? They will lose access to Family Records.')) return;
 
             const { error } = await supabaseClient
-                .from('family_viewer_access')
+                .from('staff_members')
                 .delete()
-                .eq('id', accessId);
+                .eq('id', staffId);
 
             if (error) {
-                alert('Failed to revoke access: ' + (error.message || error));
+                alert('Failed to remove staff member: ' + (error.message || error));
                 return;
             }
 
-            loadStaffAccessAssignments();
+            loadStaffAccessPanel();
         }
 
         // Admin-only: families waiting for approval
@@ -2410,6 +2402,7 @@
                         if (sel && justUploadedFor) {
                             sel.value = justUploadedFor;
                             loadAdminFamilyDocs();
+                            loadAdminFamilyTasks();
                         }
                         statusDiv.textContent = '';
                     }, 1200);
@@ -2422,9 +2415,10 @@
             });
         }
 
-        // Helper for family select in admin (loads docs list + standards checkboxes)
+        // Helper for family select in admin (loads docs, tasks, standards checkboxes)
         function onAdminFamilyChange() {
             loadAdminFamilyDocs();
+            loadAdminFamilyTasks();
             loadStandardCheckboxesForFamily();
         }
 
@@ -2524,16 +2518,21 @@
                     baseCategory = 'Verification';
                 }
                 const cat = baseCategory + (destination === 'tasks' ? ' (Task)' : '');
+                const insertPayload = {
+                    user_id: userId,
+                    title: std.title,
+                    description: std.description || null,
+                    url: std.url,
+                    category: cat,
+                    school_year: currentYear
+                };
+                if (destination === 'tasks') {
+                    insertPayload.due_date_1 = getDefaultTaskDueDate();
+                    insertPayload.due_date_1_cleared = false;
+                }
                 const { error: insErr } = await supabaseClient
                     .from('family_documents')
-                    .insert({
-                        user_id: userId,
-                        title: std.title,
-                        description: std.description || null,
-                        url: std.url,
-                        category: cat,
-                        school_year: currentYear
-                    });
+                    .insert(insertPayload);
                 if (!insErr) count++;
             }
 
@@ -2550,6 +2549,7 @@
             }
             setTimeout(() => {
                 loadAdminFamilyDocs();
+                loadAdminFamilyTasks();
                 if (statusDiv) statusDiv.textContent = '';
             }, 800);
         }
@@ -2990,7 +2990,10 @@
                     setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.add('hidden'); }, 5000);
                 }
 
-                if (familySelMatches(userId)) loadAdminFamilyDocs();
+                if (familySelMatches(userId)) {
+                    loadAdminFamilyDocs();
+                    loadAdminFamilyTasks();
+                }
                 loadPendingIDsForAdmin();
             } catch (err) {
                 console.error(err);
@@ -3104,7 +3107,9 @@
                     description: std.description || null,
                     url: std.url || '',
                     category: (std.category || 'Standard') + ' (Task)',
-                    school_year: currentYear
+                    school_year: currentYear,
+                    due_date_1: getDefaultTaskDueDate(),
+                    due_date_1_cleared: false
                 });
                 if (insErr) {
                     if (statusDiv) {
@@ -3113,6 +3118,7 @@
                     }
                     setTimeout(() => {
                         loadAdminFamilyDocs();
+                        loadAdminFamilyTasks();
                         if (statusDiv) statusDiv.textContent = '';
                     }, 2000);
                     return;
@@ -3128,6 +3134,7 @@
             }
             setTimeout(() => {
                 loadAdminFamilyDocs();
+                loadAdminFamilyTasks();
                 if (statusDiv) statusDiv.textContent = '';
             }, 1000);
         }
@@ -3162,51 +3169,80 @@
                 return;
             }
 
-            if (!docs || docs.length === 0) {
-                listEl.innerHTML = '<div class="text-slate-500 text-xs italic">No documents yet for this family.</div>';
+            const archiveDocs = (docs || []).filter(d => !isTaskDocument(d));
+
+            if (!archiveDocs.length) {
+                listEl.innerHTML = '<div class="text-slate-500 text-xs italic">No archived documents yet for this family (tasks are listed above).</div>';
                 return;
             }
 
             const years = ['2026-2027', '2025-2026', '2024-2025', '2023-2024', '2022-2023', '2021-2022'];
             let html = '<div class="space-y-2">';
-            docs.forEach(d => {
+            archiveDocs.forEach(d => {
                 const shortUrl = d.url && d.url.length > 50 ? d.url.substring(0, 47) + '...' : (d.url || '');
                 const currentYear = d.school_year || '';
                 const yearOpts = years.map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('');
-                const isTask = isTaskDocument(d);
-                const due1Value = d.due_date_1 ? String(d.due_date_1).split('T')[0] : '';
-                const due2Value = d.due_date_2 ? String(d.due_date_2).split('T')[0] : '';
-                const dueDatesBlock = isTask ? `
-                            <div class="mt-2 p-2 bg-amber-50/60 border border-amber-100 rounded-lg space-y-1.5">
-                                <div class="text-[9px] font-semibold text-amber-800 uppercase tracking-wide">Task due dates</div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <label class="text-[9px] text-sky-700 font-medium">1st / Due</label>
-                                    <input type="date" id="due1-${d.id}" value="${due1Value}" class="text-[10px] px-1 py-0.5 border border-slate-300 rounded bg-white">
-                                    <label class="text-[9px] text-violet-700 font-medium">2nd (optional)</label>
-                                    <input type="date" id="due2-${d.id}" value="${due2Value}" class="text-[10px] px-1 py-0.5 border border-slate-300 rounded bg-white">
-                                </div>
-                                <div class="flex flex-wrap gap-1.5">
-                                    <button type="button" onclick="saveTaskDueDates('${d.id}', this)" class="text-[9px] px-2 py-0.5 border border-navy text-navy rounded hover:bg-navy hover:text-white">Save Due Dates</button>
-                                    ${d.due_date_1 && !d.due_date_1_cleared ? `<button type="button" onclick="clearTaskDueDate1('${d.id}', this)" class="text-[9px] px-2 py-0.5 border border-slate-300 text-slate-600 rounded hover:bg-slate-50">Clear 1st Due Date</button>` : ''}
-                                    ${d.due_date_1_cleared ? '<span class="text-[9px] text-slate-500 italic self-center">1st due date cleared</span>' : ''}
-                                </div>
-                            </div>
-                        ` : '';
 
                 html += `
                     <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0">
                         <div class="min-w-0 flex-1">
-                            <div class="font-medium text-navy truncate">${escapeHtml(d.title)}${isTask ? ' <span class="text-[9px] text-amber-700 font-normal">(Task)</span>' : ''}</div>
+                            <div class="font-medium text-navy truncate">${escapeHtml(d.title)}</div>
                             <div class="flex items-center gap-1 mt-0.5">
                                 <select id="year-${d.id}" class="text-[9px] px-1 py-0 border border-slate-300 rounded bg-white">
                                     ${yearOpts}
                                 </select>
                                 <button type="button" onclick="updateDocSchoolYear('${d.id}', this)" class="text-[9px] px-1.5 py-0 border border-navy text-navy rounded hover:bg-navy hover:text-white">Save Year</button>
                             </div>
-                            ${dueDatesBlock}
                             <div class="text-[10px] text-slate-500 truncate mt-0.5">${escapeHtml(d.category || '')} • ${new Date(d.created_at).toLocaleDateString()} ${shortUrl ? '• ' + escapeHtml(shortUrl) : ''}</div>
                         </div>
                         <button type="button" onclick="deleteAdminFamilyDoc('${d.id}', this)" class="text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 flex-shrink-0 self-start">Delete</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            listEl.innerHTML = html;
+        }
+
+        async function loadAdminFamilyTasks() {
+            const select = document.getElementById('admin-family-select');
+            const listEl = document.getElementById('admin-family-tasks-list');
+            if (!select || !listEl || !supabaseClient) return;
+
+            const userId = select.value;
+            if (!userId) {
+                listEl.innerHTML = '<span class="text-slate-500">Select a family to view and manage their tasks.</span>';
+                return;
+            }
+
+            listEl.innerHTML = '<div class="text-slate-500">Loading tasks...</div>';
+
+            const { data: docs, error } = await supabaseClient
+                .from('family_documents')
+                .select('id, title, url, created_at, category, school_year, due_date_1, due_date_2, due_date_1_cleared')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                listEl.innerHTML = '<div class="text-red-600 text-xs">Failed to load tasks: ' + escapeHtml(error.message || String(error)) + '</div>';
+                return;
+            }
+
+            const tasks = (docs || []).filter(isTaskDocument);
+            if (!tasks.length) {
+                listEl.innerHTML = '<div class="text-slate-500 text-xs italic">No active tasks for this family.</div>';
+                return;
+            }
+
+            let html = '<div class="space-y-3">';
+            tasks.forEach(task => {
+                html += `
+                    <div class="border border-amber-200/80 rounded-xl p-3 bg-white/80">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="font-medium text-navy text-sm">${escapeHtml(task.title)}</div>
+                            <button type="button" onclick="deleteAdminFamilyDoc('${task.id}', this)" class="text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0">Delete</button>
+                        </div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">Assigned ${new Date(task.created_at).toLocaleDateString()}</div>
+                        ${buildAdminTaskDueDatesHtml(task)}
                     </div>
                 `;
             });
@@ -3247,6 +3283,7 @@
                 setTimeout(() => { btnEl.textContent = orig; }, 1200);
             }
             loadAdminFamilyDocs();
+            loadAdminFamilyTasks();
         }
 
         async function clearTaskDueDate1(docId, btnEl) {
@@ -3269,6 +3306,7 @@
                 setTimeout(() => { btnEl.textContent = orig; }, 1200);
             }
             loadAdminFamilyDocs();
+            loadAdminFamilyTasks();
         }
 
         async function deleteAdminFamilyDoc(docId, btnEl) {
@@ -3291,6 +3329,7 @@
                 btnEl.parentElement.remove();
             } else {
                 loadAdminFamilyDocs();
+                loadAdminFamilyTasks();
             }
         }
 
