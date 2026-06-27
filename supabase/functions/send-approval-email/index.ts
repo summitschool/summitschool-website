@@ -130,7 +130,13 @@ serve(async (req) => {
   }
 
   if (!(await isAuthorized(req))) {
-    return new Response('Unauthorized', { status: 401 });
+    return new Response(JSON.stringify({
+      ok: false,
+      error: 'Unauthorized. Sign in as the admin account to send approval emails.',
+    }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   try {
