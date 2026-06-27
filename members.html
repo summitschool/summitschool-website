@@ -598,7 +598,7 @@
                 <!-- 2c. Staff Access: staff view all families (read-only) -->
                 <div id="admin-section-access" class="hidden">
                     <h3 class="text-xl font-semibold text-navy mb-2">Staff Access</h3>
-                    <p class="text-sm text-slate-600 mb-6">Add approved Family Hub users as staff. Staff can view <strong>every</strong> family's documents and IDs in the <strong>Family Records</strong> tab — without full admin rights.</p>
+                    <p class="text-sm text-slate-600 mb-6">Add approved Family Hub users as staff and choose which <strong>Admin</strong> sub-tabs they can use. Only you (full admin) can manage staff access.</p>
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-6 space-y-6">
                         <div id="staff-access-list" class="border border-slate-200 rounded-2xl p-4 min-h-[80px] text-sm text-slate-600">
@@ -619,6 +619,12 @@
                                         class="px-5 py-3 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm whitespace-nowrap">
                                     Clear
                                 </button>
+                            </div>
+                            <div class="mt-4">
+                                <p class="text-xs font-medium text-slate-600 mb-2">Admin sub-tabs this staff member can access:</p>
+                                <div id="staff-add-sections" class="flex flex-wrap gap-2">
+                                    <!-- Filled by renderStaffSectionCheckboxes on load -->
+                                </div>
                             </div>
                             <p id="staff-access-status" class="mt-3 text-sm hidden"></p>
                         </div>
@@ -807,8 +813,17 @@
         let currentUserAccess = {
             isFullAdmin: false,
             isFamilyViewer: false,
-            staffAllFamilies: false
+            staffAllFamilies: false,
+            staffAdminSections: []
         };
+
+        const STAFF_ASSIGNABLE_ADMIN_SECTIONS = [
+            { id: 'members', label: 'Signups' },
+            { id: 'families', label: 'Families' },
+            { id: 'records', label: 'Family Records' },
+            { id: 'site', label: 'Site Content' },
+            { id: 'library', label: 'Document Library' }
+        ];
 
         let lastAdminSection = 'members';
         let currentAdminSection = null;
@@ -1040,24 +1055,87 @@
             return user?.email === FULL_ADMIN_EMAIL;
         }
 
+        function normalizeStaffAdminSections(sections) {
+            if (!Array.isArray(sections) || sections.length === 0) {
+                return ['records'];
+            }
+            return sections.filter(section =>
+                STAFF_ASSIGNABLE_ADMIN_SECTIONS.some(def => def.id === section)
+            );
+        }
+
+        function getAllowedAdminSections() {
+            if (currentUserAccess.isFullAdmin) {
+                return STAFF_ASSIGNABLE_ADMIN_SECTIONS.map(section => section.id).concat(['access']);
+            }
+            return normalizeStaffAdminSections(currentUserAccess.staffAdminSections);
+        }
+
+        function staffHasAdminSection(section) {
+            return getAllowedAdminSections().includes(section);
+        }
+
+        function getFirstAllowedAdminSection() {
+            const order = ['members', 'families', 'site', 'records', 'library', 'access'];
+            const allowed = new Set(getAllowedAdminSections());
+            return order.find(section => allowed.has(section)) || 'records';
+        }
+
+        function applyStaffAdminNavVisibility() {
+            STAFF_ASSIGNABLE_ADMIN_SECTIONS.forEach(({ id }) => {
+                const btn = document.getElementById(`admin-nav-${id}`);
+                if (btn) btn.classList.toggle('hidden', !staffHasAdminSection(id));
+            });
+
+            const accessBtn = document.getElementById('admin-nav-access');
+            if (accessBtn) accessBtn.classList.toggle('hidden', !currentUserAccess.isFullAdmin);
+        }
+
+        function renderStaffSectionCheckboxes(selectedSections, namePrefix) {
+            const selected = new Set(normalizeStaffAdminSections(selectedSections));
+            return STAFF_ASSIGNABLE_ADMIN_SECTIONS.map(({ id, label }) => `
+                <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                    <input type="checkbox"
+                           class="staff-section-checkbox rounded border-slate-300"
+                           name="${escapeHtml(namePrefix)}-${escapeHtml(id)}"
+                           data-section="${escapeHtml(id)}"
+                           value="${escapeHtml(id)}"
+                           ${selected.has(id) ? 'checked' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>
+            `).join('');
+        }
+
+        function getStaffSectionCheckboxValues(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return [];
+
+            return Array.from(container.querySelectorAll('.staff-section-checkbox:checked'))
+                .map(input => input.value)
+                .filter(Boolean);
+        }
+
         async function loadUserAccess(user) {
             currentUserAccess = {
                 isFullAdmin: isFullAdminUser(user),
                 isFamilyViewer: false,
-                staffAllFamilies: false
+                staffAllFamilies: false,
+                staffAdminSections: []
             };
 
             if (!user || currentUserAccess.isFullAdmin || !supabaseClient) return;
 
             const { data: staffMember, error } = await supabaseClient
                 .from('staff_members')
-                .select('id')
+                .select('id, admin_sections')
                 .eq('user_id', user.id)
                 .maybeSingle();
 
             if (!error && staffMember) {
-                currentUserAccess.isFamilyViewer = true;
-                currentUserAccess.staffAllFamilies = true;
+                const sections = normalizeStaffAdminSections(staffMember.admin_sections);
+                currentUserAccess.staffAdminSections = sections;
+                currentUserAccess.isFamilyViewer = sections.includes('records');
+                currentUserAccess.staffAllFamilies = sections.includes('records');
             }
         }
 
@@ -1151,6 +1229,11 @@
             const addSelect = document.getElementById('staff-add-select');
             if (addSelect) addSelect.value = '';
 
+            const addSections = document.getElementById('staff-add-sections');
+            if (addSections) {
+                addSections.innerHTML = renderStaffSectionCheckboxes(['records'], 'staff-add');
+            }
+
             const statusDiv = document.getElementById('staff-access-status');
             if (statusDiv) {
                 statusDiv.textContent = '';
@@ -1199,6 +1282,10 @@
 
         // Admin sub-section navigation
         function showAdminSection(section) {
+            if (!staffHasAdminSection(section)) {
+                section = getFirstAllowedAdminSection();
+            }
+
             const isSwitching = currentAdminSection !== section;
 
             if (currentAdminSection && isSwitching) {
@@ -1319,7 +1406,11 @@
                 tabAdmin.classList.add('border-b-2', 'border-navy', 'text-navy');
                 tabAdmin.classList.remove('text-slate-500');
 
-                showAdminSection(lastAdminSection);
+                applyStaffAdminNavVisibility();
+                const allowedSection = staffHasAdminSection(lastAdminSection)
+                    ? lastAdminSection
+                    : getFirstAllowedAdminSection();
+                showAdminSection(allowedSection);
             }
         }
 
@@ -1840,18 +1931,28 @@
                     const adminTab = document.getElementById('tab-admin');
                     const familyRecordsTab = document.getElementById('tab-family-records');
 
-                    if (currentUserAccess.isFullAdmin) {
+                    const staffAdminSections = getAllowedAdminSections().filter(section => section !== 'access');
+                    const staffHasAdminTab = currentUserAccess.isFullAdmin || staffAdminSections.length > 0;
+                    const staffUsesAdminForRecords = !currentUserAccess.isFullAdmin
+                        && currentUserAccess.staffAdminSections.includes('records');
+
+                    if (staffHasAdminTab) {
                         if (adminTab) adminTab.classList.remove('hidden');
-                        loadAdminFamilies();
-                        loadAdminSharedResources();
-                        loadCurrentBannerForAdmin();
-                        if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
-                        if (typeof loadAdminStandards === 'function') loadAdminStandards();
+                        applyStaffAdminNavVisibility();
+                        lastAdminSection = getFirstAllowedAdminSection();
+
+                        if (currentUserAccess.isFullAdmin) {
+                            loadAdminFamilies();
+                            loadAdminSharedResources();
+                            loadCurrentBannerForAdmin();
+                            if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
+                            if (typeof loadAdminStandards === 'function') loadAdminStandards();
+                        }
                     } else if (adminTab) {
                         adminTab.classList.add('hidden');
                     }
 
-                    if (currentUserAccess.isFamilyViewer && !currentUserAccess.isFullAdmin) {
+                    if (currentUserAccess.isFamilyViewer && !currentUserAccess.isFullAdmin && !staffUsesAdminForRecords) {
                         if (familyRecordsTab) familyRecordsTab.classList.remove('hidden');
                         if (typeof loadViewerFamiliesForSelect === 'function') loadViewerFamiliesForSelect();
                     } else if (familyRecordsTab) {
@@ -2316,7 +2417,7 @@
             const content = document.getElementById('viewer-records-content');
             if (!select || !supabaseClient) return;
 
-            if (!currentUserAccess.isFamilyViewer) {
+            if (!currentUserAccess.isFamilyViewer && !staffHasAdminSection('records')) {
                 select.innerHTML = '<option value="">Staff access not enabled for your account</option>';
                 if (content) content.classList.add('hidden');
                 return;
@@ -2360,7 +2461,7 @@
 
             const { data: staffRows, error } = await supabaseClient
                 .from('staff_members')
-                .select('id, user_id, created_at')
+                .select('id, user_id, created_at, admin_sections')
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -2376,8 +2477,13 @@
                 ? buildFamilySelectOptions(addCandidates, 'Select user to add...')
                 : '<option value="">No users available to add</option>';
 
+            const addSections = document.getElementById('staff-add-sections');
+            if (addSections) {
+                addSections.innerHTML = renderStaffSectionCheckboxes(['records'], 'staff-add');
+            }
+
             if (!staffRows?.length) {
-                list.innerHTML = '<div class="text-slate-500 text-xs italic">No staff members yet. Add someone below — they will see every family in Family Records.</div>';
+                list.innerHTML = '<div class="text-slate-500 text-xs italic">No staff members yet. Add someone below and choose which Admin sub-tabs they can use.</div>';
                 return;
             }
 
@@ -2391,23 +2497,40 @@
                 profileMap[profile.id] = profile;
             });
 
-            let html = '<div class="space-y-2">';
+            let html = '<div class="space-y-4">';
             staffRows.forEach(row => {
                 const profile = profileMap[row.user_id];
                 const name = escapeHtml(profile ? formatFamilyName(profile) : 'Unknown user');
                 const email = escapeHtml(profile?.email || '');
                 const addedAt = row.created_at ? new Date(row.created_at).toLocaleDateString() : '';
+                const sections = normalizeStaffAdminSections(row.admin_sections);
+                const sectionLabels = sections.map(sectionId => {
+                    const def = STAFF_ASSIGNABLE_ADMIN_SECTIONS.find(item => item.id === sectionId);
+                    return def ? def.label : sectionId;
+                }).join(', ');
                 html += `
-                    <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0">
-                        <div class="min-w-0">
-                            <div class="font-medium text-navy">${name}</div>
-                            <div class="text-[10px] text-slate-500">${email}${addedAt ? ` • added ${addedAt}` : ''}</div>
-                            <div class="text-[10px] text-slate-400">Access: all families (read-only)</div>
+                    <div class="border border-slate-100 rounded-2xl p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="font-medium text-navy">${name}</div>
+                                <div class="text-[10px] text-slate-500">${email}${addedAt ? ` • added ${addedAt}` : ''}</div>
+                                <div class="text-[10px] text-slate-400 mt-1">Current access: ${escapeHtml(sectionLabels || 'None')}</div>
+                            </div>
+                            <button type="button" onclick="removeStaffMember('${row.id}')"
+                                    class="text-xs px-2 py-1 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0">
+                                Remove
+                            </button>
                         </div>
-                        <button type="button" onclick="removeStaffMember('${row.id}')"
-                                class="text-xs px-2 py-1 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0">
-                            Remove
-                        </button>
+                        <div class="mt-3">
+                            <p class="text-[10px] font-medium text-slate-600 mb-2">Admin sub-tabs</p>
+                            <div id="staff-sections-${row.id}" class="flex flex-wrap gap-2">
+                                ${renderStaffSectionCheckboxes(sections, `staff-edit-${row.id}`)}
+                            </div>
+                            <button type="button" onclick="updateStaffMemberSections('${row.id}')"
+                                    class="mt-3 text-xs px-3 py-1.5 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-lg transition-all">
+                                Save Access
+                            </button>
+                        </div>
                     </div>
                 `;
             });
@@ -2418,6 +2541,31 @@
                 statusDiv.textContent = '';
                 statusDiv.classList.add('hidden');
             }
+        }
+
+        async function updateStaffMemberSections(staffRowId) {
+            if (!staffRowId || !supabaseClient) return;
+
+            const sections = getStaffSectionCheckboxValues(`staff-sections-${staffRowId}`);
+            if (!sections.length) {
+                alert('Select at least one Admin sub-tab for this staff member.');
+                return;
+            }
+
+            const { error } = await supabaseClient
+                .from('staff_members')
+                .update({ admin_sections: sections })
+                .eq('id', staffRowId);
+
+            if (error) {
+                const msg = error.message || 'Save failed';
+                alert(msg.includes('admin_sections')
+                    ? 'Run supabase/staff-admin-sections.sql in the Supabase SQL Editor first.'
+                    : `Failed to save staff access: ${msg}`);
+                return;
+            }
+
+            loadStaffAccessPanel();
         }
 
         async function addStaffMember() {
@@ -2431,12 +2579,19 @@
                 return;
             }
 
+            const sections = getStaffSectionCheckboxValues('staff-add-sections');
+            if (!sections.length) {
+                alert('Select at least one Admin sub-tab for this staff member.');
+                return;
+            }
+
             const { data: { user } } = await supabaseClient.auth.getUser();
             const { error } = await supabaseClient
                 .from('staff_members')
                 .insert({
                     user_id: userId,
-                    created_by: user?.id || null
+                    created_by: user?.id || null,
+                    admin_sections: sections
                 });
 
             if (error) {
@@ -2456,7 +2611,7 @@
             if (statusDiv) {
                 statusDiv.classList.remove('hidden');
                 statusDiv.className = 'mt-3 text-sm text-emerald-600';
-                statusDiv.textContent = 'Staff member added. They will see the Family Records tab after their next login.';
+                statusDiv.textContent = 'Staff member added. They will see the Admin tab with the selected sub-tabs after their next login.';
                 setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.add('hidden'); }, 4000);
             }
 
@@ -2465,7 +2620,7 @@
 
         async function removeStaffMember(staffId) {
             if (!staffId || !supabaseClient) return;
-            if (!confirm('Remove this staff member? They will lose access to Family Records.')) return;
+            if (!confirm('Remove this staff member? They will lose all staff Admin access.')) return;
 
             const { error } = await supabaseClient
                 .from('staff_members')

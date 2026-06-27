@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS public.staff_members (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  admin_sections text[] NOT NULL DEFAULT ARRAY['records']::text[]
 );
 
 CREATE INDEX IF NOT EXISTS staff_members_user_idx ON public.staff_members (user_id);
