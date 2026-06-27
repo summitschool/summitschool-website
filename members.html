@@ -2541,7 +2541,7 @@
                     return;
                 }
 
-                alert('Family marked as not approved. If they still appear in this list, add a "denied" boolean column to the profiles table in Supabase.');
+                alert('Family marked as not approved, but the denied flag could not be saved. Run supabase/profiles-denied.sql in Supabase, then deny again to remove them from this list.');
             }
 
             loadPendingApprovals();
@@ -4317,9 +4317,17 @@
             }
 
             const fullName = `${firstName} ${lastName}`;
+            const submitBtn = document.querySelector('#signup-form button[type="submit"]');
+            const submitBtnLabel = submitBtn ? submitBtn.textContent : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Creating account...';
+            }
 
-            // Create the auth user
-            const { data, error } = await supabaseClient.auth.signUp({
+            let data;
+            let error;
+            try {
+                ({ data, error } = await supabaseClient.auth.signUp({
                 email,
                 password,
                 options: {
@@ -4329,16 +4337,41 @@
                         full_name: fullName
                     }
                 }
-            });
+                }));
+            } catch (signupErr) {
+                console.error('Signup exception:', signupErr);
+                alert('Signup failed unexpectedly. Please try again in a moment.');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = submitBtnLabel;
+                }
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = submitBtnLabel;
+            }
 
             if (error) {
-                const errText = error.message || error.msg || error.error_description || JSON.stringify(error);
-                if (errText.toLowerCase().includes('rate limit')) {
-                    alert('Too many signup attempts from this IP address (common when testing a lot). Please wait about 60 minutes, or try from a different network (mobile hotspot), or create test users manually in the Supabase dashboard instead (see instructions below or ask me).');
+                const errText = error.message || error.msg || error.error_description || error.code || JSON.stringify(error);
+                if (String(errText).toLowerCase().includes('rate limit')) {
+                    alert('Too many signup or confirmation emails have been sent recently. Please wait about an hour and try again, or contact us if you need help.');
                 } else {
                     alert('Signup failed: ' + errText);
                 }
                 console.error('Signup error:', error);
+                return;
+            }
+
+            if (data?.user?.identities?.length === 0) {
+                alert('An account with this email already exists. Try signing in, or use Forgot Password if needed.');
+                return;
+            }
+
+            if (!data?.user) {
+                alert('Signup could not be completed. Please try again, or contact us if the problem continues.');
+                console.warn('Signup returned no user and no error:', data);
                 return;
             }
 
