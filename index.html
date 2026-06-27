@@ -48,12 +48,13 @@
                     <a href="#contact" class="nav-link text-slate-700 hover:text-navy">Contact</a>
                 </div>
 
-                <!-- Auth + Enroll + Menu (same login/logout pattern on mobile and desktop) -->
+                <!-- Auth + Menu -->
                 <div class="flex items-center gap-x-2">
                     <a href="members.html"
                        id="header-login-btn"
-                       class="header-nav-btn px-3 py-1.5 text-xs bg-navy text-white hover:bg-[#0F3A5F]">
-                        Family Hub
+                       class="inline-flex items-center gap-x-1.5 px-4 py-2 text-xs sm:text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985] shadow-sm">
+                        <i class="fas fa-right-to-bracket text-[10px] sm:text-xs" aria-hidden="true"></i>
+                        <span>Family Hub Sign In</span>
                     </a>
                     <button type="button"
                             id="header-logout-btn"
@@ -62,10 +63,6 @@
                         <i class="fas fa-sign-out-alt text-[10px] sm:text-xs" aria-hidden="true"></i>
                         <span>Log out</span>
                     </button>
-                    <a href="#enrollment"
-                       class="header-nav-btn hidden md:inline-flex btn-gold">
-                        Enroll Now
-                    </a>
                     <button id="mobile-menu-btn"
                             class="md:hidden w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
                             aria-label="Open menu"

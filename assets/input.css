@@ -144,31 +144,6 @@
     transform: translateY(-1px);
   }
 
-  /* Main site header: Family Hub + Enroll Now (desktop matched size) */
-  .header-nav-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .header-nav-btn:active {
-    transform: scale(0.985);
-  }
-
-  @media (min-width: 768px) {
-    .header-nav-btn {
-      width: 12.5rem;
-      padding: 0.625rem 1.5rem;
-      font-size: 0.875rem;
-    }
-  }
-
   .btn-outline {
     background-color: transparent;
     color: #0A2540;
