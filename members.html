@@ -192,6 +192,7 @@
                             Approvals will begin when the members area opens on July 1, 2026.
                         </p>
                     </div>
+                    <div id="signup-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
                 </div>
 
                 <p class="text-center text-xs text-slate-500 mt-6">
@@ -779,6 +780,7 @@
         const MEMBER_LOGOUT_REASON_KEY = 'members_logout_reason';
         let memberActivityThrottleTimer = null;
         let memberSessionCheckInterval = null;
+        let signupInProgress = false;
 
         let supabaseClient = null;
         let currentUserAccess = {
@@ -958,6 +960,61 @@
             }
         }
 
+        function showSignupStatus(type, message) {
+            const statusEl = document.getElementById('signup-status');
+            if (!statusEl) return;
+
+            statusEl.classList.remove('hidden', 'bg-red-50', 'border-red-200', 'text-red-800', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-900', 'bg-amber-50', 'border-amber-200', 'text-amber-900');
+
+            if (type === 'success') {
+                statusEl.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+            } else if (type === 'warning') {
+                statusEl.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-900');
+            } else {
+                statusEl.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+            }
+
+            statusEl.textContent = message;
+            statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function clearSignupStatus() {
+            const statusEl = document.getElementById('signup-status');
+            if (!statusEl) return;
+            statusEl.textContent = '';
+            statusEl.className = 'hidden mt-4 p-4 rounded-2xl text-sm border';
+        }
+
+        function showSignupSuccessScreen() {
+            const loginView = document.getElementById('login-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const pendingView = document.getElementById('pending-view');
+
+            if (loginView) loginView.classList.remove('hidden');
+            if (dashboardView) dashboardView.classList.add('hidden');
+            if (pendingView) pendingView.classList.add('hidden');
+            showAuthTab('signup');
+
+            const signupCard = document.querySelector('#signup-form-container .bg-white');
+            if (signupCard) {
+                signupCard.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="text-emerald-600 text-3xl mb-3"><i class="fas fa-check-circle"></i></div>
+                        <h3 class="font-semibold text-lg text-navy">Account created!</h3>
+                        <p class="text-sm text-slate-600 mt-2">Check your email (including spam folder) for a confirmation link. You must confirm your email before you can sign in.</p>
+                        <p class="text-sm text-slate-600 mt-1">Once confirmed and your account is approved by our team, you will be able to access the members area.</p>
+                        <button type="button" onclick="showAuthTab('login')"
+                                class="mt-4 px-6 py-2 bg-navy text-white text-sm font-semibold rounded-2xl">
+                            Go to Sign In
+                        </button>
+                    </div>
+                `;
+                signupCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            showSignupStatus('success', 'Account created! Check your email for the confirmation link.');
+        }
+
         // Tab switching for login/signup
         function showAuthTab(tab) {
             const loginContainer = document.getElementById('login-form-container');
@@ -971,6 +1028,7 @@
             }
 
             if (tab === 'login') {
+                clearSignupStatus();
                 loginContainer.classList.remove('hidden');
                 signupContainer.classList.add('hidden');
                 tabLogin.classList.add('border-b-2', 'border-navy', 'text-navy');
@@ -4293,12 +4351,9 @@
             e.preventDefault();
 
             if (!supabaseClient) {
-                alert('Real signup is not yet connected. Please set up Supabase first.');
+                showSignupStatus('error', 'Signup is not connected yet. Please try again later.');
                 return;
             }
-
-            // Make sure Supabase project has the 'profiles' table + trigger set up
-            // (see previous SQL instructions). Without the trigger, profiles won't be created automatically.
 
             const email = document.getElementById('signup-email').value.trim();
             const password = document.getElementById('signup-password').value;
@@ -4307,18 +4362,22 @@
             const lastName = document.getElementById('signup-last-name').value.trim();
 
             if (!email || !password || !confirmPassword || !firstName || !lastName) {
-                alert('Please fill out your first name, last name, email, and both password fields.');
+                showSignupStatus('error', 'Please fill out your first name, last name, email, and both password fields.');
                 return;
             }
 
             if (password !== confirmPassword) {
-                alert('Passwords do not match. Please try again.');
+                showSignupStatus('error', 'Passwords do not match. Please try again.');
                 return;
             }
 
             const fullName = `${firstName} ${lastName}`;
             const submitBtn = document.querySelector('#signup-form button[type="submit"]');
             const submitBtnLabel = submitBtn ? submitBtn.textContent : '';
+
+            signupInProgress = true;
+            clearSignupStatus();
+
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'Creating account...';
@@ -4328,19 +4387,20 @@
             let error;
             try {
                 ({ data, error } = await supabaseClient.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        first_name: firstName,
-                        last_name: lastName,
-                        full_name: fullName
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            first_name: firstName,
+                            last_name: lastName,
+                            full_name: fullName
+                        }
                     }
-                }
                 }));
             } catch (signupErr) {
                 console.error('Signup exception:', signupErr);
-                alert('Signup failed unexpectedly. Please try again in a moment.');
+                showSignupStatus('error', 'Signup failed unexpectedly. Please try again in a moment.');
+                signupInProgress = false;
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.textContent = submitBtnLabel;
@@ -4356,47 +4416,37 @@
             if (error) {
                 const errText = error.message || error.msg || error.error_description || error.code || JSON.stringify(error);
                 if (String(errText).toLowerCase().includes('rate limit')) {
-                    alert('Too many signup or confirmation emails have been sent recently. Please wait about an hour and try again, or contact us if you need help.');
+                    showSignupStatus('warning', 'Too many signup or confirmation emails have been sent recently. Please wait about an hour and try again, or contact us if you need help.');
                 } else {
-                    alert('Signup failed: ' + errText);
+                    showSignupStatus('error', 'Signup failed: ' + errText);
                 }
                 console.error('Signup error:', error);
+                signupInProgress = false;
                 return;
             }
 
-            if (data?.user?.identities?.length === 0) {
-                alert('An account with this email already exists. Try signing in, or use Forgot Password if needed.');
+            const identities = data?.user?.identities;
+            if (Array.isArray(identities) && identities.length === 0) {
+                showSignupStatus('warning', 'An account with this email already exists. Try signing in, or use Forgot Password if needed.');
+                signupInProgress = false;
                 return;
             }
 
             if (!data?.user) {
-                alert('Signup could not be completed. Please try again, or contact us if the problem continues.');
+                showSignupStatus('error', 'Signup could not be completed. Please try again, or contact us if the problem continues.');
                 console.warn('Signup returned no user and no error:', data);
+                signupInProgress = false;
                 return;
             }
 
-            // Note: Profile row is now created automatically by database trigger (recommended).
-            // The client insert below is kept as fallback but may be skipped.
-
-            // Show success message (always on successful auth signup)
-            const signupCard = document.querySelector('#signup-form-container .bg-white');
-            if (signupCard) {
-                signupCard.innerHTML = `
-                    <div class="text-center py-4">
-                        <div class="text-emerald-600 text-3xl mb-3"><i class="fas fa-check-circle"></i></div>
-                        <h3 class="font-semibold text-lg text-navy">Account created!</h3>
-                        <p class="text-sm text-slate-600 mt-2">Check your email (including spam folder) for a confirmation link. You must confirm your email before you can sign in.</p>
-                        <p class="text-sm text-slate-600 mt-1">Once confirmed and your account is approved by our team, you will be able to access the members area.</p>
-                        <button onclick="showAuthTab('login'); location.reload();" 
-                                class="mt-4 px-6 py-2 bg-navy text-white text-sm font-semibold rounded-2xl">
-                            Go to Sign In
-                        </button>
-                    </div>
-                `;
-            } else {
-                alert('Account created! Please check your email for a confirmation link.');
-                showAuthTab('login');
+            // If Supabase auto-signed the user in, sign out locally so the success
+            // screen stays visible instead of jumping to the pending-approval view.
+            if (data.session) {
+                await supabaseClient.auth.signOut({ scope: 'local' });
             }
+
+            showSignupSuccessScreen();
+            signupInProgress = false;
         }
 
         // Forgot password
@@ -4499,6 +4549,7 @@
             // Listen for auth state changes
             if (supabaseClient) {
                 supabaseClient.auth.onAuthStateChange(() => {
+                    if (signupInProgress) return;
                     checkLoginState();
                 });
             }
