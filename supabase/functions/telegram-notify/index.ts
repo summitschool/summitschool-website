@@ -26,13 +26,13 @@ function formatMemberApprovalMessage(record: Record<string, unknown>) {
     : 'Unknown';
 
   return [
-    '<b>New MySummit signup awaiting approval</b>',
+    '<b>New Family Hub signup awaiting approval</b>',
     '',
     `<b>Name:</b> ${escapeHtml(name)}`,
     `<b>Email:</b> ${escapeHtml(email)}`,
     `<b>Signed up:</b> ${escapeHtml(signedUp)}`,
     '',
-    'Review in MySummit → Admin → Signups.',
+    'Review in Family Hub → Admin → Signups.',
   ].join('\n');
 }
 
@@ -50,7 +50,7 @@ function formatIdApprovalMessage(record: Record<string, unknown>) {
     `<b>Acknowledged by:</b> ${escapeHtml(ackName)}`,
     `<b>Submitted:</b> ${escapeHtml(submitted)}`,
     '',
-    'Review in MySummit → Admin → Signups → Pending ID Uploads.',
+    'Review in Family Hub → Admin → Signups → Pending ID Uploads.',
   ].join('\n');
 }
 
