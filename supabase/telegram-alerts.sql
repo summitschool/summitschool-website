@@ -6,7 +6,9 @@
 --      https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates
 --    Copy your chat "id" (personal chat or group).
 -- 3. Deploy the Edge Function from this repo:
---      supabase functions deploy telegram-notify
+--      supabase functions deploy telegram-notify --no-verify-jwt
+--    (--no-verify-jwt is required so database triggers can call the function;
+--     access is still protected by TELEGRAM_WEBHOOK_SECRET.)
 -- 4. Set Edge Function secrets (Supabase Dashboard → Edge Functions → telegram-notify → Secrets):
 --      TELEGRAM_BOT_TOKEN = your bot token
 --      TELEGRAM_CHAT_ID   = your chat id
