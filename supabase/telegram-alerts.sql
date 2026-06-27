@@ -72,21 +72,25 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF COALESCE(NEW.approved, false) = true OR COALESCE(NEW.denied, false) = true THEN
+  IF COALESCE(NEW.approved, false) = true THEN
     RETURN NEW;
   END IF;
 
-  PERFORM public.notify_telegram_alert(
-    'member_approval',
-    jsonb_build_object(
-      'id', NEW.id,
-      'first_name', NEW.first_name,
-      'last_name', NEW.last_name,
-      'full_name', NEW.full_name,
-      'email', NEW.email,
-      'created_at', NEW.created_at
-    )
-  );
+  BEGIN
+    PERFORM public.notify_telegram_alert(
+      'member_approval',
+      jsonb_build_object(
+        'id', NEW.id,
+        'first_name', NEW.first_name,
+        'last_name', NEW.last_name,
+        'full_name', NEW.full_name,
+        'email', NEW.email,
+        'created_at', NEW.created_at
+      )
+    );
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'telegram_notify_pending_member failed: %', SQLERRM;
+  END;
 
   RETURN NEW;
 END;
@@ -110,17 +114,21 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  PERFORM public.notify_telegram_alert(
-    'id_approval',
-    jsonb_build_object(
-      'id', NEW.id,
-      'user_id', NEW.user_id,
-      'ack_name', NEW.ack_name,
-      'storage_path', NEW.storage_path,
-      'school_year', NEW.school_year,
-      'created_at', NEW.created_at
-    )
-  );
+  BEGIN
+    PERFORM public.notify_telegram_alert(
+      'id_approval',
+      jsonb_build_object(
+        'id', NEW.id,
+        'user_id', NEW.user_id,
+        'ack_name', NEW.ack_name,
+        'storage_path', NEW.storage_path,
+        'school_year', NEW.school_year,
+        'created_at', NEW.created_at
+      )
+    );
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'telegram_notify_pending_id failed: %', SQLERRM;
+  END;
 
   RETURN NEW;
 END;

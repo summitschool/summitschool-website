@@ -4332,11 +4332,13 @@
             });
 
             if (error) {
-                if (error.message && error.message.toLowerCase().includes('rate limit')) {
+                const errText = error.message || error.msg || error.error_description || JSON.stringify(error);
+                if (errText.toLowerCase().includes('rate limit')) {
                     alert('Too many signup attempts from this IP address (common when testing a lot). Please wait about 60 minutes, or try from a different network (mobile hotspot), or create test users manually in the Supabase dashboard instead (see instructions below or ask me).');
                 } else {
-                    alert('Signup failed: ' + error.message);
+                    alert('Signup failed: ' + errText);
                 }
+                console.error('Signup error:', error);
                 return;
             }
 
