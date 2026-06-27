@@ -2541,6 +2541,27 @@
             }).join('');
         }
 
+        async function sendApprovalEmail(profile) {
+            const { data, error } = await supabaseClient.functions.invoke('send-approval-email', {
+                body: {
+                    email: profile.email,
+                    first_name: profile.first_name,
+                    last_name: profile.last_name,
+                    full_name: profile.full_name
+                }
+            });
+
+            if (error) {
+                throw new Error(error.message || 'Failed to send approval email');
+            }
+
+            if (data?.ok === false) {
+                throw new Error(data.error || 'Failed to send approval email');
+            }
+
+            return data;
+        }
+
         async function approveFamily(profileId) {
             if (!supabaseClient) return;
             if (!confirm('Approve this family for Family Hub access?')) return;
@@ -2578,6 +2599,16 @@
 
             if (!profile?.email) {
                 alert('Family approved, but no email is on file — they will not receive an approval email.');
+                return;
+            }
+
+            try {
+                await sendApprovalEmail(profile);
+                const name = formatFamilyName(profile);
+                alert(`Family approved! Approval email sent to ${name} at ${profile.email}.`);
+            } catch (emailErr) {
+                console.error('Approval email failed:', emailErr);
+                alert(`Family approved, but the approval email could not be sent to ${profile.email}: ${emailErr.message || emailErr}`);
             }
         }
 

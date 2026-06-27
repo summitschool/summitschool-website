@@ -1,9 +1,14 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const WEBHOOK_SECRET = Deno.env.get('APPROVAL_EMAIL_WEBHOOK_SECRET');
 const FROM_EMAIL = Deno.env.get('APPROVAL_FROM_EMAIL') || 'Summit Church School <info@summitchurchschool.org>';
 const FAMILY_HUB_URL = Deno.env.get('FAMILY_HUB_URL') || 'https://summitchurchschool.org/members.html';
+const ADMIN_EMAIL = (Deno.env.get('FULL_ADMIN_EMAIL') || 'sjesimon@gmail.com').toLowerCase();
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 type ApprovalPayload = {
   email?: string;
@@ -13,9 +18,12 @@ type ApprovalPayload = {
 };
 
 function formatFamilyName(record: ApprovalPayload) {
+  const fullName = String(record.full_name || '').trim();
+  if (fullName) return fullName;
+
   const fromParts = [record.first_name, record.last_name].filter(Boolean).join(' ').trim();
   if (fromParts) return fromParts;
-  if (record.full_name) return String(record.full_name).trim();
+
   return 'there';
 }
 
@@ -78,7 +86,32 @@ async function sendWithResend(to: string, subject: string, text: string, html: s
     throw new Error(result?.message || result?.error || 'Resend API request failed');
   }
 
+  console.log('Approval email sent', { to, resendId: result?.id });
   return result;
+}
+
+async function isAuthorized(req: Request) {
+  if (WEBHOOK_SECRET) {
+    const providedSecret = req.headers.get('x-webhook-secret');
+    if (providedSecret === WEBHOOK_SECRET) {
+      return true;
+    }
+  }
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return false;
+  }
+
+  const token = authHeader.replace('Bearer ', '').trim();
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user?.email) {
+    return false;
+  }
+
+  return user.email.toLowerCase() === ADMIN_EMAIL;
 }
 
 serve(async (req) => {
@@ -96,11 +129,8 @@ serve(async (req) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  if (WEBHOOK_SECRET) {
-    const providedSecret = req.headers.get('x-webhook-secret');
-    if (providedSecret !== WEBHOOK_SECRET) {
-      return new Response('Unauthorized', { status: 401 });
-    }
+  if (!(await isAuthorized(req))) {
+    return new Response('Unauthorized', { status: 401 });
   }
 
   try {
@@ -117,7 +147,7 @@ serve(async (req) => {
     const { subject, text, html } = buildEmail(payload);
     const result = await sendWithResend(email, subject, text, html);
 
-    return new Response(JSON.stringify({ ok: true, result }), {
+    return new Response(JSON.stringify({ ok: true, to: email, result }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

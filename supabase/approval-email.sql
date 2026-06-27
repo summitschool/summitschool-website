@@ -1,3 +1,7 @@
+-- DEPRECATED: Approval emails are now sent from the admin UI when you click Approve
+-- (members.html calls the send-approval-email Edge Function with the family's profile).
+-- This trigger is kept for reference only — do not re-enable unless you remove the UI send.
+--
 -- Automatic Family Hub approval emails via Resend.
 --
 -- SETUP (one-time):
