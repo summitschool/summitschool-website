@@ -2576,13 +2576,8 @@
             loadPendingApprovals();
             loadAdminFamilies();
 
-            if (profile?.email && confirm('Family approved! Open a ready-to-send approval email for this family?')) {
-                const name = formatFamilyName(profile);
-                showNotificationPrompt(
-                    'Your Summit Family Hub Access Has Been Approved - Summit Church School',
-                    `Hello ${name},\n\nGreat news! Your Summit Family Hub access has been approved.\n\nYou can now sign in at ${getAuthRedirectUrl('/members.html')} to view documents, tasks, and school resources.\n\nWelcome!\n\nSummit Church School`,
-                    [profile.email]
-                );
+            if (!profile?.email) {
+                alert('Family approved, but no email is on file — they will not receive an approval email.');
             }
         }
 

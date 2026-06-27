@@ -1,0 +1,134 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+const WEBHOOK_SECRET = Deno.env.get('APPROVAL_EMAIL_WEBHOOK_SECRET');
+const FROM_EMAIL = Deno.env.get('APPROVAL_FROM_EMAIL') || 'Summit Church School <info@summitchurchschool.org>';
+const FAMILY_HUB_URL = Deno.env.get('FAMILY_HUB_URL') || 'https://summitchurchschool.org/members.html';
+
+type ApprovalPayload = {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+};
+
+function formatFamilyName(record: ApprovalPayload) {
+  const fromParts = [record.first_name, record.last_name].filter(Boolean).join(' ').trim();
+  if (fromParts) return fromParts;
+  if (record.full_name) return String(record.full_name).trim();
+  return 'there';
+}
+
+function buildEmail(record: ApprovalPayload) {
+  const name = formatFamilyName(record);
+  const subject = 'Your Summit Family Hub Access Has Been Approved - Summit Church School';
+  const text = [
+    `Hello ${name},`,
+    '',
+    'Great news! Your Summit Family Hub access has been approved.',
+    '',
+    `You can now sign in at ${FAMILY_HUB_URL} to view documents, tasks, and school resources.`,
+    '',
+    'Welcome!',
+    '',
+    'Summit Church School',
+  ].join('\n');
+
+  const html = `
+    <p>Hello ${escapeHtml(name)},</p>
+    <p>Great news! Your <strong>Summit Family Hub</strong> access has been approved.</p>
+    <p>You can now sign in to view documents, tasks, and school resources:</p>
+    <p><a href="${escapeHtml(FAMILY_HUB_URL)}">${escapeHtml(FAMILY_HUB_URL)}</a></p>
+    <p>Welcome!<br>Summit Church School</p>
+  `.trim();
+
+  return { subject, text, html };
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function sendWithResend(to: string, subject: string, text: string, html: string) {
+  if (!RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY must be set on the Edge Function.');
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: [to],
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result?.message || result?.error || 'Resend API request failed');
+  }
+
+  return result;
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
+      },
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  if (WEBHOOK_SECRET) {
+    const providedSecret = req.headers.get('x-webhook-secret');
+    if (providedSecret !== WEBHOOK_SECRET) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+  }
+
+  try {
+    const payload = await req.json() as ApprovalPayload;
+    const email = String(payload.email || '').trim().toLowerCase();
+
+    if (!email) {
+      return new Response(JSON.stringify({ ok: false, error: 'Missing email' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { subject, text, html } = buildEmail(payload);
+    const result = await sendWithResend(email, subject, text, html);
+
+    return new Response(JSON.stringify({ ok: true, result }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('send-approval-email error:', error);
+    return new Response(JSON.stringify({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+});
