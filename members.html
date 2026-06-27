@@ -15,6 +15,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-[#F8F6F1] text-slate-800 body-text antialiased">
+    <script>
+        (function () {
+            var hash = window.location.hash;
+            if (hash && (hash.indexOf('access_token') !== -1 || hash.indexOf('type=') !== -1 || hash.indexOf('error=') !== -1)) {
+                window.location.replace('confirm-email.html' + hash + window.location.search);
+            }
+        })();
+    </script>
     <!-- Sticky Navigation -->
     <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
         <div class="max-w-screen-2xl mx-auto px-6">
@@ -773,6 +781,15 @@
         const SUPABASE_URL = 'https://tajyrmydwqsijstyzsjr.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy'; // publishable key
         const FULL_ADMIN_EMAIL = 'sjesimon@gmail.com';
+        const SITE_ORIGIN = 'https://summitchurchschool.org';
+
+        function getAuthRedirectUrl(path = '/confirm-email.html') {
+            const origin = window.location.origin;
+            if (origin && origin !== 'null' && !origin.startsWith('file:')) {
+                return origin + path;
+            }
+            return SITE_ORIGIN + path;
+        }
 
         // Session security: tab-scoped storage + 30 min inactivity (common portal default)
         const MEMBER_SESSION_INACTIVITY_MS = 30 * 60 * 1000;
@@ -920,44 +937,14 @@
             supabaseClient = initializeSupabase();
         }
 
-        // Handle Supabase email confirmation / magic link / recovery redirects
-        // This ensures people land on a nice success message instead of an error page when clicking the link in their email.
+        // Fallback if an auth email still lands on members.html instead of confirm-email.html.
         function handleAuthRedirect() {
             const hash = window.location.hash;
-            if (hash.includes('access_token') || hash.includes('type=') || hash.includes('error=')) {
-                // Supabase has put tokens or error in the hash
-                if (supabaseClient) {
-                    supabaseClient.auth.getSession().then(({ data }) => {
-                        // Clean the URL hash so it doesn't stay in the address bar
-                        history.replaceState(null, '', window.location.pathname + window.location.search);
+            const hasAuthHash = hash.includes('access_token') || hash.includes('type=') || hash.includes('error=');
+            if (!hasAuthHash) return;
 
-                        const loginView = document.getElementById('login-view');
-                        if (loginView && !data.session) {
-                            // Show a friendly confirmation message on the login form
-                            const firstChild = loginView.querySelector('.max-w-md');
-                            if (firstChild) {
-                                const existing = firstChild.querySelector('#confirmation-banner');
-                                if (existing) existing.remove();
-
-                                const banner = document.createElement('div');
-                                banner.id = 'confirmation-banner';
-                                banner.className = 'mb-6 p-4 bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-2xl text-sm';
-
-                                if (hash.includes('error=')) {
-                                    banner.innerHTML = `<strong>There was a problem with the confirmation link.</strong><br>Please try signing in or request a new confirmation email.`;
-                                } else {
-                                    banner.innerHTML = `<strong>Email confirmed successfully!</strong><br>You can now sign in. Your account is still pending approval by our team.`;
-                                }
-
-                                firstChild.prepend(banner);
-                            }
-                        }
-
-                        // Refresh state in case they got logged in automatically
-                        checkLoginState();
-                    });
-                }
-            }
+            const target = 'confirm-email.html' + hash + window.location.search;
+            window.location.replace(target);
         }
 
         function showSignupStatus(type, message) {
@@ -2558,6 +2545,17 @@
             if (!supabaseClient) return;
             if (!confirm('Approve this family for Family Hub access?')) return;
 
+            const { data: profile, error: profileError } = await supabaseClient
+                .from('profiles')
+                .select('id, first_name, last_name, full_name, email')
+                .eq('id', profileId)
+                .maybeSingle();
+
+            if (profileError) {
+                alert('Failed to load family details: ' + profileError.message);
+                return;
+            }
+
             const { error } = await supabaseClient
                 .from('profiles')
                 .update({ approved: true, denied: false })
@@ -2577,6 +2575,15 @@
 
             loadPendingApprovals();
             loadAdminFamilies();
+
+            if (profile?.email && confirm('Family approved! Open a ready-to-send approval email for this family?')) {
+                const name = formatFamilyName(profile);
+                showNotificationPrompt(
+                    'Your Summit Family Hub Access Has Been Approved - Summit Church School',
+                    `Hello ${name},\n\nGreat news! Your Summit Family Hub access has been approved.\n\nYou can now sign in at ${getAuthRedirectUrl('/members.html')} to view documents, tasks, and school resources.\n\nWelcome!\n\nSummit Church School`,
+                    [profile.email]
+                );
+            }
         }
 
         async function denyFamily(profileId, displayName) {
@@ -4390,6 +4397,7 @@
                     email,
                     password,
                     options: {
+                        emailRedirectTo: getAuthRedirectUrl('/confirm-email.html'),
                         data: {
                             first_name: firstName,
                             last_name: lastName,
@@ -4460,7 +4468,7 @@
             if (!email) return;
 
             const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + '/members.html'
+                redirectTo: getAuthRedirectUrl('/confirm-email.html')
             });
 
             if (error) {
@@ -4525,6 +4533,7 @@
 
         // Initialize everything
         async function init() {
+            handleAuthRedirect();
             initSupabaseClient();
             setupForms();
             setupAuthTabs();
@@ -4541,10 +4550,6 @@
             } else {
                 showAuthTab('login');
             }
-
-            // Handle Supabase redirects from email confirmation links, etc.
-            // This must run early so people see a nice success message instead of an error on localhost.
-            handleAuthRedirect();
 
             // Listen for auth state changes
             if (supabaseClient) {
