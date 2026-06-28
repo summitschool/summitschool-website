@@ -88,143 +88,129 @@
 
         <!-- Login / Signup View -->
         <div id="login-view">
-            <!-- Opening notice (login / create account only) -->
-            <div id="members-opening-notice" class="mb-8 p-5 bg-amber-100 border-2 border-amber-400/70 rounded-3xl shadow-sm">
-                <div class="flex gap-3 items-start">
-                    <i class="fas fa-calendar-alt text-amber-700 mt-1 shrink-0 text-lg" aria-hidden="true"></i>
-                    <div>
-                        <p class="font-semibold text-navy">Summit Family Hub Opening — July 1, 2026</p>
-                        <p class="text-sm text-slate-700 mt-1.5 leading-relaxed">
-                            We are preparing the Summit Family Hub for enrolled Summit Church School families.
-                            You are welcome to create your account now, but access approvals will begin once
-                            the Family Hub officially opens on <strong>July 1, 2026</strong>. Thank you for your patience
-                            as we finalize this resource for our community.
-                        </p>
+            <div class="auth-shell">
+                <div id="session-banner-anchor"></div>
+
+                <div class="auth-card">
+                    <div class="text-center px-8 pt-8 pb-5">
+                        <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-14 w-auto mx-auto mb-4 rounded-2xl">
+                        <h1 class="heading-serif text-3xl text-navy tracking-tighter">Family Hub</h1>
+                        <p class="mt-1.5 text-sm text-slate-600">Documents, tasks, and school resources — one secure place for your family.</p>
                     </div>
-                </div>
-            </div>
 
-            <div class="max-w-md mx-auto">
-                <div class="text-center mb-8">
-                    <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-16 w-auto mx-auto mb-5 rounded-2xl">
-                    <h1 class="heading-serif text-4xl text-navy tracking-tighter">Family Hub</h1>
-                    <p class="mt-2 text-slate-600">Your family's secure hub for documents, tasks, and school resources.</p>
-                </div>
-
-                <!-- Tabs -->
-                <div class="flex border-b border-slate-200 mb-6">
-                    <button id="tab-login"
-                            class="flex-1 py-3 text-sm font-semibold border-b-2 border-navy text-navy">Sign In</button>
-                    <button id="tab-signup"
-                            class="flex-1 py-3 text-sm font-semibold text-slate-500 hover:text-slate-700">Create Account</button>
-                </div>
-
-                <!-- Login Form -->
-                <div id="login-form-container">
-                    <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-                        <form id="login-form" class="space-y-5">
+                    <div id="members-opening-notice" class="mx-6 mb-5 p-4 bg-amber-50 border border-amber-200/80 rounded-2xl">
+                        <div class="flex gap-3 items-start">
+                            <i class="fas fa-calendar-alt text-amber-600 mt-0.5 shrink-0" aria-hidden="true"></i>
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
-                                <input type="email" id="login-email" required 
-                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
-                                       placeholder="you@family.com">
+                                <p class="text-sm font-semibold text-navy">Opening July 1, 2026</p>
+                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+                                    You may create your account now. Access approvals begin when the Family Hub officially opens on <strong>July 1, 2026</strong>.
+                                </p>
                             </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
-                                <input type="password" id="login-password" required 
-                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
-                                       placeholder="Your password">
-                            </div>
-
-                            <button type="submit" 
-                                    class="w-full py-4 mt-2 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
-                                Sign In
-                            </button>
-                        </form>
-
-                        <div class="mt-5 text-center">
-                            <a href="#" onclick="forgotPassword(); return false;" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
                         </div>
                     </div>
-                </div>
 
-                <!-- Signup Form -->
-                <div id="signup-form-container" class="hidden">
-                    <div class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-                        <form id="signup-form" class="space-y-5">
-                            <div class="grid grid-cols-2 gap-4">
+                    <div class="auth-tab-track mx-6 mb-6">
+                        <button id="tab-login" type="button"
+                                class="auth-tab-pill flex-1 is-active">Sign In</button>
+                        <button id="tab-signup" type="button"
+                                class="auth-tab-pill flex-1">Create Account</button>
+                    </div>
+
+                    <div class="px-8 pb-6">
+                        <div id="login-form-container">
+                            <form id="login-form" class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">First Name</label>
-                                    <input type="text" id="signup-first-name" required 
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                                    <input type="email" id="login-email" required
                                            class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
-                                           placeholder="Jane">
+                                           placeholder="you@family.com">
                                 </div>
+
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Last Name</label>
-                                    <input type="text" id="signup-last-name" required 
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                                    <input type="password" id="login-password" required
                                            class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
-                                           placeholder="Smith">
+                                           placeholder="Your password">
                                 </div>
-                            </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
-                                <input type="email" id="signup-email" required 
-                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
-                                       placeholder="you@family.com">
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Create Password</label>
-                                <input type="password" id="signup-password" required minlength="6"
-                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
-                                       placeholder="Minimum 6 characters">
-                            </div>
+                                <button type="submit"
+                                        class="w-full py-3.5 mt-1 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                    Sign In
+                                </button>
+                            </form>
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Confirm Password</label>
-                                <input type="password" id="signup-confirm-password" required minlength="6"
-                                       class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
-                                       placeholder="Re-enter password">
+                            <div class="mt-4 text-center">
+                                <a href="#" onclick="forgotPassword(); return false;" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
                             </div>
+                        </div>
 
-                            <button type="submit" 
-                                    class="w-full py-4 mt-2 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
-                                Create Account &amp; Request Access
-                            </button>
-                        </form>
+                        <div id="signup-form-container" class="hidden">
+                            <div id="signup-form-panel">
+                                <form id="signup-form" class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-1.5">First Name</label>
+                                            <input type="text" id="signup-first-name" required
+                                                   class="form-input w-full px-4 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                                   placeholder="Jane">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Last Name</label>
+                                            <input type="text" id="signup-last-name" required
+                                                   class="form-input w-full px-4 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                                   placeholder="Smith">
+                                        </div>
+                                    </div>
 
-                        <p class="text-xs text-center text-slate-500 mt-4">
-                            After you sign up, your account will be reviewed by our team.
-                            Approvals will begin when the Family Hub opens on July 1, 2026.
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                                        <input type="email" id="signup-email" required
+                                               class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                               placeholder="you@family.com">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Create Password</label>
+                                        <input type="password" id="signup-password" required minlength="6"
+                                               class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                               placeholder="Minimum 6 characters">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Confirm Password</label>
+                                        <input type="password" id="signup-confirm-password" required minlength="6"
+                                               class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                               placeholder="Re-enter password">
+                                    </div>
+
+                                    <button type="submit"
+                                            class="w-full py-3.5 mt-1 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                        Create Account &amp; Request Access
+                                    </button>
+                                </form>
+
+                                <p class="text-xs text-center text-slate-500 mt-4 leading-relaxed">
+                                    Your account will be reviewed by our team. Approvals begin July 1, 2026.
+                                </p>
+                            </div>
+                            <div id="signup-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
+                        </div>
+                    </div>
+
+                    <div class="auth-trust-strip px-8 py-5">
+                        <p class="text-xs text-center text-slate-500 leading-relaxed">
+                            For currently enrolled families only.
+                            <a href="index.html#contact" class="text-navy underline hover:text-sage transition">Contact us</a> for help.
                         </p>
-                    </div>
-                    <div id="signup-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
-                </div>
-
-                <p class="text-center text-xs text-slate-500 mt-6">
-                    The Summit Family Hub is for currently enrolled families only.<br>
-                    Need help? <a href="index.html#contact" class="underline">Contact us</a>
-                </p>
-
-                <div class="mt-6 text-center text-xs text-slate-500">
-                    After creating your account, check your email (including spam) and click the confirmation link.<br>
-                    You will not be able to sign in until your email is confirmed.
-                </div>
-
-                <div class="security-panel mt-6">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="fas fa-shield-halved text-sage" aria-hidden="true"></i>
-                        <p class="text-sm font-semibold text-navy">Built for family privacy</p>
-                    </div>
-                    <p class="text-xs text-slate-600 leading-relaxed">
-                        Sign-in credentials and family documents are protected with encrypted connections, private household access, and secure cloud storage. Only you and authorized school staff can reach your account.
-                    </p>
-                    <div class="flex flex-wrap gap-2 mt-3">
-                        <span class="security-badge"><i class="fas fa-lock" aria-hidden="true"></i> Encrypted sign-in</span>
-                        <span class="security-badge"><i class="fas fa-user-shield" aria-hidden="true"></i> Family-only access</span>
-                        <span class="security-badge"><i class="fas fa-clock" aria-hidden="true"></i> Auto sign-out after inactivity</span>
+                        <p class="text-xs text-center text-slate-500 mt-2 leading-relaxed">
+                            After signing up, confirm your email before you can sign in.
+                        </p>
+                        <div class="flex flex-wrap justify-center gap-2 mt-4">
+                            <span class="security-badge"><i class="fas fa-lock" aria-hidden="true"></i> Encrypted sign-in</span>
+                            <span class="security-badge"><i class="fas fa-user-shield" aria-hidden="true"></i> Family-only access</span>
+                            <span class="security-badge"><i class="fas fa-clock" aria-hidden="true"></i> Auto sign-out</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -290,40 +276,36 @@
                     </div>
                 </div>
 
-                <!-- My ID subsection (collapsed by default; status lines visible when collapsed) -->
+                <!-- My ID subsection (collapsed by default; status visible in summary when on file) -->
                 <div id="my-id-wrapper" class="mt-8">
-                    <div class="security-panel security-panel--id mb-4">
-                        <div class="flex items-start gap-3">
-                            <i class="fas fa-id-card-clip text-emerald-700 text-lg mt-0.5 shrink-0" aria-hidden="true"></i>
-                            <div>
-                                <p class="text-sm font-semibold text-navy">Government ID protection</p>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Photos of your ID are stored in encrypted, access-controlled storage — not on a public webpage. Only authorized Summit staff can review them for school records, and uploads use secure temporary review before being placed in your private My ID section.
-                                </p>
-                                <div class="flex flex-wrap gap-2 mt-3">
-                                    <span class="security-badge"><i class="fas fa-lock" aria-hidden="true"></i> Encrypted transfer</span>
-                                    <span class="security-badge"><i class="fas fa-eye-slash" aria-hidden="true"></i> Staff review only</span>
-                                    <span class="security-badge"><i class="fas fa-house-lock" aria-hidden="true"></i> Never shared publicly</span>
+                    <details id="my-id-panel" class="my-id-card">
+                        <summary id="my-id-summary">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="my-id-card-icon" aria-hidden="true">
+                                    <i class="fas fa-id-card"></i>
+                                </div>
+                                <div class="min-w-0 text-left">
+                                    <div class="font-semibold text-navy">My ID</div>
+                                    <div id="my-id-visible-summary" class="hidden">
+                                        <div id="my-id-status-line" class="text-xs uppercase tracking-widest text-emerald-600 font-semibold mt-0.5"></div>
+                                    </div>
+                                    <p id="my-id-secure-line" class="text-xs text-slate-500 mt-0.5 truncate">Stored securely — visible only to you and authorized staff.</p>
+                                    <p id="my-id-summary-hint" class="text-xs text-slate-400 mt-0.5">Not on file — tap to expand</p>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <div id="my-id-visible-summary" class="hidden mb-3 pl-1">
-                        <div id="my-id-status-line" class="text-xs uppercase tracking-widest text-emerald-600 font-semibold"></div>
-                        <p id="my-id-secure-line" class="text-sm text-slate-600 mt-1">Your government ID is stored securely and visible only to you and authorized staff.</p>
-                    </div>
-                    <details id="my-id-panel" class="border border-slate-200 rounded-3xl bg-white overflow-hidden">
-                        <summary id="my-id-summary" class="cursor-pointer px-6 py-4 flex items-center justify-between text-navy font-semibold list-none [&::-webkit-details-marker]:hidden">
-                            <span class="flex items-center gap-2">
-                                <i class="fas fa-id-card text-sage"></i>
-                                My ID
-                            </span>
-                            <span id="my-id-summary-hint" class="text-xs font-normal text-slate-500">Click to expand</span>
+                            <i class="fas fa-chevron-down my-id-chevron" aria-hidden="true"></i>
                         </summary>
-                        <div id="my-id-section" class="px-6 pb-6 border-t border-slate-100 pt-4">
-                            <div class="text-slate-500 text-sm">
-                                No ID on file yet. Once your admin assigns your uploaded government ID here, it will appear below with a preview.
-                                <button onclick="contactAdminForID()" class="ml-2 text-navy underline text-xs">Contact admin to upload or update ID</button>
+                        <div class="my-id-card-body">
+                            <div class="my-id-trust-row flex flex-wrap gap-x-5 gap-y-2 mb-4 pb-4 border-b border-slate-100">
+                                <span><i class="fas fa-lock" aria-hidden="true"></i> Encrypted storage</span>
+                                <span><i class="fas fa-eye-slash" aria-hidden="true"></i> Staff review only</span>
+                                <span><i class="fas fa-house-lock" aria-hidden="true"></i> Never public</span>
+                            </div>
+                            <div id="my-id-section">
+                                <div class="text-slate-500 text-sm">
+                                    No ID on file yet. Once your admin assigns your uploaded government ID here, it will appear below with a preview.
+                                    <button onclick="contactAdminForID()" class="ml-2 text-navy underline text-xs">Contact admin to upload or update ID</button>
+                                </div>
                             </div>
                         </div>
                     </details>
@@ -966,19 +948,19 @@
             const loginView = document.getElementById('login-view');
             if (!loginView || loginView.classList.contains('hidden')) return;
 
-            const firstChild = loginView.querySelector('.max-w-md');
-            if (!firstChild) return;
+            const anchor = loginView.querySelector('#session-banner-anchor');
+            if (!anchor) return;
 
-            const existing = firstChild.querySelector('#session-security-banner');
+            const existing = anchor.querySelector('#session-security-banner');
             if (existing) existing.remove();
 
             const banner = document.createElement('div');
             banner.id = 'session-security-banner';
-            banner.className = 'mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-sm';
+            banner.className = 'mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-sm';
             banner.innerHTML = reason === 'inactivity'
                 ? '<strong>Signed out for your security.</strong> Your session ended after 30 minutes of inactivity. Please sign in again.'
                 : '<strong>Signed out for your security.</strong> Please sign in again to continue.';
-            firstChild.prepend(banner);
+            anchor.appendChild(banner);
         }
 
         // Initialize Supabase client
@@ -1032,9 +1014,9 @@
             if (pendingView) pendingView.classList.add('hidden');
             showAuthTab('signup');
 
-            const signupCard = document.querySelector('#signup-form-container .bg-white');
-            if (signupCard) {
-                signupCard.innerHTML = `
+            const signupPanel = document.getElementById('signup-form-panel');
+            if (signupPanel) {
+                signupPanel.innerHTML = `
                     <div class="text-center py-4">
                         <div class="text-emerald-600 text-3xl mb-3"><i class="fas fa-check-circle"></i></div>
                         <h3 class="font-semibold text-lg text-navy">Account created!</h3>
@@ -1046,7 +1028,7 @@
                         </button>
                     </div>
                 `;
-                signupCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                signupPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
             showSignupStatus('success', 'Account created! Check your email for the confirmation link.');
@@ -1068,17 +1050,13 @@
                 clearSignupStatus();
                 loginContainer.classList.remove('hidden');
                 signupContainer.classList.add('hidden');
-                tabLogin.classList.add('border-b-2', 'border-navy', 'text-navy');
-                tabLogin.classList.remove('text-slate-500');
-                tabSignup.classList.remove('border-b-2', 'border-navy', 'text-navy');
-                tabSignup.classList.add('text-slate-500');
+                tabLogin.classList.add('is-active');
+                tabSignup.classList.remove('is-active');
             } else {
                 loginContainer.classList.add('hidden');
                 signupContainer.classList.remove('hidden');
-                tabSignup.classList.add('border-b-2', 'border-navy', 'text-navy');
-                tabSignup.classList.remove('text-slate-500');
-                tabLogin.classList.remove('border-b-2', 'border-navy', 'text-navy');
-                tabLogin.classList.add('text-slate-500');
+                tabSignup.classList.add('is-active');
+                tabLogin.classList.remove('is-active');
             }
         }
 
@@ -1720,7 +1698,10 @@
             const secureLine = document.getElementById('my-id-secure-line');
 
             if (error || !idDocs || idDocs.length === 0) {
-                if (hint) hint.textContent = 'Not on file — click to expand';
+                if (hint) {
+                    hint.textContent = 'Not on file — tap to expand';
+                    hint.classList.remove('hidden');
+                }
                 if (panel) panel.removeAttribute('open');
                 if (visibleSummary) visibleSummary.classList.add('hidden');
                 section.innerHTML = `
@@ -1733,7 +1714,7 @@
             }
 
             const idDoc = idDocs[0];
-            if (hint) hint.textContent = 'Click to view';
+            if (hint) hint.classList.add('hidden');
             if (panel) panel.removeAttribute('open');
             if (visibleSummary) visibleSummary.classList.remove('hidden');
             if (statusLine) statusLine.textContent = `On file (${idDoc.school_year || 'Current'})`;

@@ -198,11 +198,46 @@
     font-weight: 700;
   }
 
-  .security-panel {
-    border-radius: 1rem;
-    border: 1px solid rgb(226 232 240);
-    background-color: rgb(248 250 252);
-    padding: 1rem 1.125rem;
+  .auth-shell {
+    max-width: 32rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .auth-card {
+    background-color: white;
+    border-radius: 1.5rem;
+    border: 1px solid rgb(241 245 249);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.04);
+    overflow: hidden;
+  }
+
+  .auth-tab-track {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 0.875rem;
+    background-color: rgb(241 245 249);
+  }
+
+  .auth-tab-track .auth-tab-pill {
+    border-radius: 0.75rem;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(71 85 105);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .auth-tab-track .auth-tab-pill.is-active {
+    background-color: white;
+    color: #0A2540;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  }
+
+  .auth-trust-strip {
+    border-top: 1px solid rgb(241 245 249);
+    background: linear-gradient(180deg, rgb(248 250 252) 0%, rgb(255 255 255) 100%);
   }
 
   .security-badge {
@@ -225,19 +260,73 @@
     font-size: 0.625rem;
   }
 
-  .security-badge--hero {
-    border-color: rgb(255 255 255 / 0.15);
-    background-color: rgb(255 255 255 / 0.1);
-    color: rgb(255 255 255 / 0.9);
+  .enrollment-trust {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgb(226 232 240);
   }
 
-  .security-badge--hero i {
-    color: rgb(255 255 255 / 0.75);
+  .my-id-trust-row span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: rgb(71 85 105);
   }
 
-  .security-panel--id {
-    border-color: rgb(167 243 208 / 0.7);
-    background-color: rgb(236 253 245 / 0.6);
+  .my-id-trust-row i {
+    color: #7C8F7E;
+    font-size: 0.6875rem;
+  }
+
+  .my-id-card {
+    border: 1px solid rgb(226 232 240);
+    border-radius: 1.5rem;
+    background-color: white;
+    overflow: hidden;
+  }
+
+  .my-id-card summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .my-id-card summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .my-id-card-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    background-color: rgb(236 253 245);
+    color: rgb(5 150 105);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .my-id-chevron {
+    color: #7C8F7E;
+    font-size: 0.75rem;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+  }
+
+  .my-id-card[open] .my-id-chevron {
+    transform: rotate(180deg);
+  }
+
+  .my-id-card-body {
+    padding: 0 1.5rem 1.5rem;
+    border-top: 1px solid rgb(241 245 249);
+    padding-top: 1rem;
   }
 
   /* Summit Family Hub */
