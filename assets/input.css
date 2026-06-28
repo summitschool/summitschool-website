@@ -471,15 +471,14 @@
   .hub-tab-btn:not(.is-active),
   .hub-admin-tab-btn:not(.is-active) {
     border: 1px solid rgb(203 213 225);
-    background-color: rgb(255 255 255 / 0.8);
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+    background-color: transparent;
   }
 
   .auth-tab-btn:hover:not(.is-active),
   .hub-tab-btn:hover:not(.is-active),
   .hub-admin-tab-btn:hover:not(.is-active) {
     border-color: rgb(186 198 212);
-    background-color: white;
+    background-color: transparent;
     color: #0A2540;
   }
 

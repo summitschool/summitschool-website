@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
 
     <!-- Pre-compiled Tailwind + custom styles (blocking — eliminates runtime CDN FOUC) -->
-    <link rel="stylesheet" href="assets/styles.css">
+    <link rel="stylesheet" href="assets/styles.css?v=20260628g">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -52,15 +52,16 @@
                 <div class="flex items-center gap-x-2">
                     <a href="members.html"
                        id="header-login-btn"
-                       class="inline-flex items-center gap-x-1.5 px-4 py-2 text-xs sm:text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985] shadow-sm">
-                        <i class="fas fa-right-to-bracket text-[10px] sm:text-xs" aria-hidden="true"></i>
-                        <span>Family Hub Sign In</span>
+                       class="header-login-btn inline-flex items-center gap-x-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-full bg-navy text-white hover:bg-[#0F3A5F] transition-all active:scale-[0.985] shadow-sm">
+                        <i class="fas fa-right-to-bracket text-[10px] sm:text-xs shrink-0" aria-hidden="true"></i>
+                        <span class="sm:hidden">Sign In</span>
+                        <span class="hidden sm:inline">Family Hub Sign In</span>
                     </a>
                     <button type="button"
                             id="header-logout-btn"
                             onclick="handleSiteLogout()"
-                            class="hidden items-center gap-x-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-slate-600 hover:text-navy border border-slate-200 hover:border-slate-300 bg-white rounded-full transition-all active:scale-[0.985] shadow-sm">
-                        <i class="fas fa-sign-out-alt text-[10px] sm:text-xs" aria-hidden="true"></i>
+                            class="header-logout-btn hidden items-center gap-x-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full transition-all active:scale-[0.985] shadow-sm">
+                        <i class="fas fa-sign-out-alt text-[10px] sm:text-xs shrink-0" aria-hidden="true"></i>
                         <span>Log out</span>
                     </button>
                     <button id="mobile-menu-btn"
