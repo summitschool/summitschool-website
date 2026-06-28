@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260629">
+    <link rel="stylesheet" href="assets/styles.css?v=20260630">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -168,8 +168,32 @@
                             </form>
 
                             <div class="mt-4 text-center">
-                                <a href="reset-password.html" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
+                                <a href="#" onclick="showForgotPasswordPanel(); return false;" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
                             </div>
+                        </div>
+
+                        <div id="forgot-password-form-container" class="hidden">
+                            <div class="auth-form-intro mb-5">
+                                <h2 class="auth-form-heading">Reset your password</h2>
+                                <p class="auth-form-subtitle">Enter your Family Hub email and we will send you a secure link to choose a new password.</p>
+                            </div>
+                            <form id="forgot-password-form" class="space-y-4" action="#" method="post" novalidate>
+                                <div>
+                                    <label for="forgot-password-email" class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                                    <input type="email" id="forgot-password-email" required
+                                           class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                           placeholder="you@family.com"
+                                           autocomplete="email">
+                                </div>
+                                <button type="button" id="forgot-password-submit-btn"
+                                        class="w-full py-3.5 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                    Send Reset Link
+                                </button>
+                            </form>
+                            <div id="forgot-password-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
+                            <p class="mt-4 text-center">
+                                <a href="#" onclick="showAuthTab('login'); return false;" class="text-sm text-sage hover:text-navy transition">Back to sign in</a>
+                            </p>
                         </div>
 
                         <div id="signup-form-container" class="hidden">
@@ -1097,10 +1121,153 @@
             showSignupStatus('success', 'Account created! Check your email for the confirmation link.');
         }
 
+        function showForgotPasswordStatus(type, message) {
+            const statusEl = document.getElementById('forgot-password-status');
+            if (!statusEl) return;
+
+            statusEl.classList.remove(
+                'hidden',
+                'bg-red-50', 'border-red-200', 'text-red-800',
+                'bg-emerald-50', 'border-emerald-200', 'text-emerald-900',
+                'bg-amber-50', 'border-amber-200', 'text-amber-900'
+            );
+
+            if (type === 'success') {
+                statusEl.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+            } else if (type === 'warning') {
+                statusEl.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-900');
+            } else {
+                statusEl.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+            }
+
+            statusEl.textContent = message;
+            statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function clearForgotPasswordStatus() {
+            const statusEl = document.getElementById('forgot-password-status');
+            if (!statusEl) return;
+            statusEl.textContent = '';
+            statusEl.className = 'hidden mt-4 p-4 rounded-2xl text-sm border';
+        }
+
+        async function requestPasswordResetEmail(email) {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/send-password-reset`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': SUPABASE_ANON_KEY
+                },
+                body: JSON.stringify({
+                    email,
+                    redirectTo: getAuthRedirectUrl('/reset-password.html')
+                })
+            });
+
+            let result = {};
+            try {
+                result = await response.json();
+            } catch (_) {
+                result = {};
+            }
+
+            if (!response.ok || result.ok === false) {
+                const message = result.error || `Password reset request failed (${response.status}).`;
+                throw new Error(message);
+            }
+
+            return result;
+        }
+
+        let forgotPasswordInFlight = false;
+
+        async function handleForgotPasswordSubmit(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (forgotPasswordInFlight) return false;
+
+            const emailInput = document.getElementById('forgot-password-email');
+            const submitBtn = document.getElementById('forgot-password-submit-btn');
+            const email = emailInput?.value.trim().toLowerCase();
+
+            if (!email) {
+                showForgotPasswordStatus('error', 'Please enter your email address.');
+                return false;
+            }
+
+            clearForgotPasswordStatus();
+            forgotPasswordInFlight = true;
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Sending...';
+            }
+
+            try {
+                await requestPasswordResetEmail(email);
+                if (emailInput) emailInput.value = '';
+                showForgotPasswordStatus(
+                    'success',
+                    `If an account exists for ${email}, we sent a password reset link. Check your inbox and spam folder.`
+                );
+            } catch (err) {
+                const errText = err?.message || String(err);
+                if (String(errText).toLowerCase().includes('rate limit')) {
+                    showForgotPasswordStatus('warning', 'Too many reset emails have been sent recently. Please wait about an hour and try again.');
+                } else {
+                    showForgotPasswordStatus('error', errText);
+                }
+            } finally {
+                forgotPasswordInFlight = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Send Reset Link';
+                }
+            }
+
+            return false;
+        }
+
+        function showForgotPasswordPanel() {
+            const loginContainer = document.getElementById('login-form-container');
+            const signupContainer = document.getElementById('signup-form-container');
+            const forgotContainer = document.getElementById('forgot-password-form-container');
+            const tabLogin = document.getElementById('tab-login');
+            const tabSignup = document.getElementById('tab-signup');
+
+            clearSignupStatus();
+            clearForgotPasswordStatus();
+
+            if (loginContainer) loginContainer.classList.add('hidden');
+            if (signupContainer) signupContainer.classList.add('hidden');
+            if (forgotContainer) forgotContainer.classList.remove('hidden');
+
+            if (tabLogin) {
+                tabLogin.classList.remove('is-active');
+                tabLogin.setAttribute('aria-selected', 'false');
+            }
+            if (tabSignup) {
+                tabSignup.classList.remove('is-active');
+                tabSignup.setAttribute('aria-selected', 'false');
+            }
+
+            const loginEmail = document.getElementById('login-email')?.value.trim();
+            const forgotEmail = document.getElementById('forgot-password-email');
+            if (loginEmail && forgotEmail && !forgotEmail.value) {
+                forgotEmail.value = loginEmail;
+            }
+
+            forgotContainer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
         // Tab switching for login/signup
         function showAuthTab(tab) {
             const loginContainer = document.getElementById('login-form-container');
             const signupContainer = document.getElementById('signup-form-container');
+            const forgotContainer = document.getElementById('forgot-password-form-container');
             const tabLogin = document.getElementById('tab-login');
             const tabSignup = document.getElementById('tab-signup');
 
@@ -1108,6 +1275,9 @@
                 console.error('Tab elements not found');
                 return;
             }
+
+            if (forgotContainer) forgotContainer.classList.add('hidden');
+            clearForgotPasswordStatus();
 
             if (tab === 'login') {
                 clearSignupStatus();
@@ -4910,9 +5080,13 @@
         function setupForms() {
             const loginForm = document.getElementById('login-form');
             const signupForm = document.getElementById('signup-form');
+            const forgotForm = document.getElementById('forgot-password-form');
+            const forgotBtn = document.getElementById('forgot-password-submit-btn');
 
             if (loginForm) loginForm.addEventListener('submit', handleLogin);
             if (signupForm) signupForm.addEventListener('submit', handleSignup);
+            if (forgotForm) forgotForm.addEventListener('submit', handleForgotPasswordSubmit);
+            if (forgotBtn) forgotBtn.addEventListener('click', handleForgotPasswordSubmit);
         }
 
         // Attach tab click handlers (more reliable than inline onclick)
