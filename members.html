@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260628b">
+    <link rel="stylesheet" href="assets/styles.css?v=20260628c">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -240,18 +240,18 @@
         </div>
 
         <!-- Pending Approval View -->
-        <div id="pending-view" class="hidden max-w-lg mx-auto text-center py-12">
-            <div class="bg-white border border-amber-200 rounded-3xl p-10">
+        <div id="pending-view" class="hidden auth-shell py-4">
+            <div class="auth-card text-center px-8 py-10">
                 <div class="mx-auto w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
-                    <i class="fas fa-hourglass-half text-3xl"></i>
+                    <i class="fas fa-hourglass-half text-3xl" aria-hidden="true"></i>
                 </div>
                 <h2 class="heading-serif text-3xl text-navy" id="pending-title">Account Pending Approval</h2>
-                <p class="mt-4 text-slate-600" id="pending-message-primary">Thank you for signing up. Your account has been created and is now awaiting review by our team.</p>
-                <p class="mt-2 text-slate-600" id="pending-message-secondary">Family Hub access approvals will begin on July 1, 2026. You will receive an email once your access has been approved.</p>
-                
+                <p class="mt-4 text-slate-600 leading-relaxed" id="pending-message-primary">Thank you for signing up. Your account has been created and is now awaiting review by our team.</p>
+                <p class="mt-2 text-slate-600 leading-relaxed" id="pending-message-secondary">Family Hub access approvals will begin on July 1, 2026. You will receive an email once your access has been approved.</p>
+
                 <div class="mt-8">
-                    <button onclick="logout()" 
-                            class="px-6 py-3 text-sm font-medium border border-slate-300 hover:bg-slate-50 rounded-2xl transition-colors">
+                    <button type="button" onclick="logout()"
+                            class="px-6 py-3 text-sm font-semibold border border-slate-300 hover:bg-slate-50 rounded-2xl transition-colors">
                         Return to Login
                     </button>
                 </div>
@@ -260,43 +260,60 @@
 
         <!-- Dashboard View -->
         <div id="dashboard-view" class="hidden">
-            <div class="flex items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-200/80">
-                <div class="flex items-center gap-4 min-w-0">
-                    <img src="images/hero-logo.png?v=20260615" alt="Summit Church School" class="h-14 sm:h-16 w-auto object-contain shrink-0">
-                    <div class="min-w-0">
-                        <h1 class="heading-serif text-2xl sm:text-3xl md:text-4xl text-navy tracking-tighter leading-tight">Family Hub</h1>
-                        <p class="text-slate-600 mt-0.5 text-sm sm:text-base truncate" id="welcome-message">Welcome back</p>
+            <div class="hub-shell">
+                <div class="hub-card">
+                    <div class="hub-header">
+                        <img src="images/hero-logo.png?v=20260615" alt="Summit Church School" class="hub-header-logo">
+                        <div class="min-w-0">
+                            <h1 class="heading-serif text-2xl sm:text-3xl text-navy tracking-tighter leading-tight">Family Hub</h1>
+                            <p class="text-slate-600 mt-0.5 text-sm sm:text-base truncate" id="welcome-message">Welcome back</p>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Dashboard Tabs -->
-            <div class="flex gap-2 border-b border-slate-200 mb-6">
-                <button onclick="showDashboardTab('my-tasks')" id="tab-my-tasks"
-                        class="pl-4 pr-6 py-2 text-sm font-medium border-b-2 border-navy text-navy whitespace-nowrap relative">My Tasks
-                    <span id="my-tasks-badge" class="hidden absolute top-0 right-0 z-10 translate-x-1/4 -translate-y-1/4 bg-red-500 text-white text-xs font-bold min-w-[1.35rem] h-5 px-1.5 inline-flex items-center justify-center rounded-full leading-none shadow-sm">0</span>
-                    <span id="my-tasks-overdue-badge" class="hidden absolute top-0 right-0 z-10 translate-x-1/4 -translate-y-1/4 bg-red-500 text-white text-xs font-bold w-5 h-5 inline-flex items-center justify-center rounded-full leading-none shadow-sm">!</span>
-                </button>
-                <button onclick="showDashboardTab('my-documents')" id="tab-my-documents"
-                        class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">My Documents</button>
-                <button onclick="showDashboardTab('resources')" id="tab-resources"
-                        class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Resources</button>
-                <button onclick="showDashboardTab('family-records')" id="tab-family-records"
-                        class="hidden px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Family Records</button>
-                <button onclick="showDashboardTab('admin')" id="tab-admin"
-                        class="hidden px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700">Admin</button>
-            </div>
+                    <div class="hub-nav-wrap">
+                        <div class="hub-tab-group" role="tablist" aria-label="Family Hub sections">
+                            <button type="button" onclick="showDashboardTab('my-tasks')" id="tab-my-tasks" role="tab"
+                                    class="hub-tab-btn is-active" aria-selected="true">
+                                <i class="fas fa-list-check" aria-hidden="true"></i>
+                                <span>My Tasks</span>
+                                <span id="my-tasks-badge" class="hub-tab-badge hidden">0</span>
+                                <span id="my-tasks-overdue-badge" class="hub-tab-badge hidden">!</span>
+                            </button>
+                            <button type="button" onclick="showDashboardTab('my-documents')" id="tab-my-documents" role="tab"
+                                    class="hub-tab-btn" aria-selected="false">
+                                <i class="fas fa-folder-open" aria-hidden="true"></i>
+                                <span>My Documents</span>
+                            </button>
+                            <button type="button" onclick="showDashboardTab('resources')" id="tab-resources" role="tab"
+                                    class="hub-tab-btn" aria-selected="false">
+                                <i class="fas fa-book-open" aria-hidden="true"></i>
+                                <span>Resources</span>
+                            </button>
+                            <button type="button" onclick="showDashboardTab('family-records')" id="tab-family-records" role="tab"
+                                    class="hub-tab-btn hidden" aria-selected="false">
+                                <i class="fas fa-users" aria-hidden="true"></i>
+                                <span>Family Records</span>
+                            </button>
+                            <button type="button" onclick="showDashboardTab('admin')" id="tab-admin" role="tab"
+                                    class="hub-tab-btn hidden" aria-selected="false">
+                                <i class="fas fa-gear" aria-hidden="true"></i>
+                                <span>Admin</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="hub-content">
 
             <!-- My Documents Tab Content -->
             <div id="dashboard-my-documents" class="hidden">
-                <h2 class="text-2xl font-semibold text-navy mb-4">My Documents</h2>
-                <p class="text-sm text-slate-600 mb-4 leading-relaxed">Your family's private document archive. Completed forms are uploaded here after review and approval. Only your household can access these files. Documents are organized by school year so everything stays in one secure place whenever you need it.</p>
-                
+                <div class="hub-section-intro">
+                    <h2 class="hub-section-heading">My Documents</h2>
+                    <p class="hub-section-subtitle">Your family's private document archive. Completed forms appear here after review and approval, organized by school year.</p>
+                </div>
+
                 <div id="my-documents" class="space-y-4">
                     <!-- Dynamically populated from Supabase, grouped by school_year -->
-                    <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">
-                        Loading your documents...
-                    </div>
+                    <div class="hub-empty-state">Loading your documents...</div>
                 </div>
 
                 <!-- My ID subsection (collapsed by default; status visible in summary when on file) -->
@@ -337,10 +354,12 @@
 
             <!-- Family Records Tab (staff viewers with delegated access — read-only) -->
             <div id="dashboard-family-records" class="hidden">
-                <h2 class="text-2xl font-semibold text-navy mb-2">Family Records</h2>
-                <p class="text-sm text-slate-600 mb-4">Read-only access to every family's documents and government IDs. You still have your own My Documents and My Tasks in the Family Hub.</p>
+                <div class="hub-section-intro">
+                    <h2 class="hub-section-heading">Family Records</h2>
+                    <p class="hub-section-subtitle">Read-only access to assigned families' documents and government IDs.</p>
+                </div>
 
-                <div class="bg-white border border-slate-100 rounded-3xl p-6 mb-6">
+                <div class="hub-panel hub-panel-padded mb-6">
                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
                     <select id="viewer-family-select" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="loadViewerFamilyRecords()">
                         <option value="">Loading assigned families...</option>
@@ -371,14 +390,14 @@
 
             <!-- Resources Tab Content -->
             <div id="dashboard-resources" class="hidden">
-                <h2 class="text-2xl font-semibold text-navy mb-4">Resources</h2>
-                <p class="text-sm text-slate-600 mb-4">Resources and links available to all families.</p>
-                
+                <div class="hub-section-intro">
+                    <h2 class="hub-section-heading">Resources</h2>
+                    <p class="hub-section-subtitle">School-wide links and documents shared with all enrolled families.</p>
+                </div>
+
                 <div id="shared-resources" class="grid md:grid-cols-2 gap-4">
                     <!-- Dynamically loaded from Supabase shared_resources table -->
-                    <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">
-                        Loading shared resources...
-                    </div>
+                    <div class="hub-empty-state md:col-span-2">Loading shared resources...</div>
                 </div>
 
                 <div class="mt-8 text-center text-sm text-slate-500">
@@ -389,24 +408,24 @@
             <!-- My Tasks Tab Content (new; badge on tab) -->
             <div id="dashboard-my-tasks">
                 <!-- Member Banner (from admin) -->
-                <div id="member-banner" class="hidden mb-6 p-4 bg-amber-100 border border-amber-300 rounded-3xl text-amber-900">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1 pr-4">
-                            <strong class="block mb-1">Announcement</strong>
-                            <div id="member-banner-text" class="whitespace-pre-wrap"></div>
+                <div id="member-banner" class="hub-announcement hidden">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <strong class="block mb-1 text-sm">Announcement</strong>
+                            <div id="member-banner-text" class="text-sm whitespace-pre-wrap"></div>
                         </div>
-                        <button onclick="dismissBanner()" class="text-amber-700 hover:text-amber-900 text-xs font-medium">Dismiss</button>
+                        <button type="button" onclick="dismissBanner()" class="text-amber-800 hover:text-amber-950 text-xs font-semibold shrink-0">Dismiss</button>
                     </div>
                 </div>
 
-                <h2 class="text-2xl font-semibold text-navy mb-4">My Tasks</h2>
-                <p class="text-sm text-slate-600 mb-4 leading-relaxed">Complete each assigned task by its due date. Submitted items are reviewed by our team and, once approved, will appear in My Documents.</p>
+                <div class="hub-section-intro">
+                    <h2 class="hub-section-heading">My Tasks</h2>
+                    <p class="hub-section-subtitle">Complete assigned tasks by their due dates. Approved submissions move to My Documents.</p>
+                </div>
 
                 <div id="my-tasks-list" class="space-y-4">
                     <!-- Populated dynamically: standard tasks assigned to 'tasks' + special ID upload card -->
-                    <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">
-                        Loading your tasks...
-                    </div>
+                    <div class="hub-empty-state">Loading your tasks...</div>
                 </div>
 
                 <div class="mt-6 text-xs text-slate-500">
@@ -416,42 +435,43 @@
 
             <!-- Admin Tab Content (only for sjesimon@gmail.com) -->
             <div id="dashboard-admin" class="hidden">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-semibold text-navy">Administration</h2>
-                    <p class="text-sm text-slate-600 mt-1">Manage Family Hub access, family documents, and site-wide content.</p>
+                <div class="hub-section-intro">
+                    <h2 class="hub-section-heading">Administration</h2>
+                    <p class="hub-section-subtitle">Manage Family Hub access, family documents, and site-wide content.</p>
                 </div>
 
-                <!-- Admin sub-navigation -->
-                <div class="flex flex-wrap gap-2 border-b border-slate-200 mb-6">
-                    <button type="button" onclick="showAdminSection('members')" id="admin-nav-members"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium border-b-2 border-navy text-navy whitespace-nowrap">Signups</button>
-                    <button type="button" onclick="showAdminSection('families')" id="admin-nav-families"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Families</button>
-                    <button type="button" onclick="showAdminSection('site')" id="admin-nav-site"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Site Content</button>
-                    <button type="button" onclick="showAdminSection('access')" id="admin-nav-access"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Staff Access</button>
-                    <button type="button" onclick="showAdminSection('records')" id="admin-nav-records"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Family Records</button>
-                    <button type="button" onclick="showAdminSection('library')" id="admin-nav-library"
-                            class="admin-nav-btn px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 whitespace-nowrap">Document Library</button>
+                <div class="hub-nav-wrap !px-0 !pt-0 mb-6">
+                    <div class="hub-admin-tab-group" role="tablist" aria-label="Admin sections">
+                        <button type="button" onclick="showAdminSection('members')" id="admin-nav-members" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn is-active" aria-selected="true">Signups</button>
+                        <button type="button" onclick="showAdminSection('families')" id="admin-nav-families" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Families</button>
+                        <button type="button" onclick="showAdminSection('site')" id="admin-nav-site" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Site Content</button>
+                        <button type="button" onclick="showAdminSection('access')" id="admin-nav-access" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Staff Access</button>
+                        <button type="button" onclick="showAdminSection('records')" id="admin-nav-records" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Family Records</button>
+                        <button type="button" onclick="showAdminSection('library')" id="admin-nav-library" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Document Library</button>
+                    </div>
                 </div>
 
                 <!-- 1. Signups: approvals + ID review -->
                 <div id="admin-section-members">
-                    <div id="admin-approvals-section">
-                        <h3 class="text-xl font-semibold text-navy mb-2">Pending Family Approvals</h3>
-                        <p class="text-sm text-slate-600 mb-4">Review new signups waiting for Family Hub access. Approve to grant dashboard access, or deny to decline the application. Approvals are planned to begin July 1, 2026.</p>
+                    <div id="admin-approvals-section" class="hub-admin-block">
+                        <h3 class="hub-admin-block-title mb-1">Pending Family Approvals</h3>
+                        <p class="hub-section-subtitle mb-4">Review new signups waiting for Family Hub access. Approve to grant dashboard access, or deny to decline the application.</p>
                         <div id="admin-pending-approvals-list" class="space-y-3">
-                            <div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">Loading pending requests...</div>
+                            <div class="hub-empty-state">Loading pending requests...</div>
                         </div>
                     </div>
 
-                    <div class="mt-10 pt-8 border-t border-slate-200">
-                        <h3 class="text-xl font-semibold text-navy mb-2">Pending ID Uploads</h3>
-                        <p class="text-sm text-slate-600 mb-4">Review government ID photos submitted by families in My Tasks. Approve to add the ID to the family's My ID section, or deny to remove the submission.</p>
+                    <div class="hub-admin-block">
+                        <h3 class="hub-admin-block-title mb-1">Pending ID Uploads</h3>
+                        <p class="hub-section-subtitle mb-4">Review government ID photos submitted in My Tasks. Approve to add to the family's My ID section, or deny to remove.</p>
 
-                        <div id="admin-pending-ids-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[80px] bg-white">
+                        <div id="admin-pending-ids-list" class="hub-panel hub-panel-padded text-sm text-slate-600 min-h-[5rem]">
                             Loading pending ID uploads...
                         </div>
                         <div id="admin-pending-ids-status" class="mt-4 text-sm hidden"></div>
@@ -461,10 +481,10 @@
                 <!-- 2. Families: per-family document management -->
                 <div id="admin-section-families" class="hidden">
                 <div id="admin-upload-section" class="pt-2">
-                    <h3 class="text-xl font-semibold text-navy mb-2">Family Documents &amp; Tasks</h3>
-                    <p class="text-sm text-slate-600 mb-6">Upload personal documents, assign standard forms, and manage each family's My Documents and My Tasks. Personal items appear only in that family's account. <strong>DocuSeal tip:</strong> paste a signing link for one family, then delete the link and upload the signed PDF once complete.</p>
+                    <h3 class="hub-admin-block-title mb-1">Family Documents &amp; Tasks</h3>
+                    <p class="hub-section-subtitle mb-6">Upload personal documents, assign standard forms, and manage each family's My Documents and My Tasks. <strong>DocuSeal tip:</strong> paste a signing link for one family, then upload the signed PDF once complete.</p>
 
-                    <div class="bg-white border border-slate-100 rounded-3xl p-8">
+                    <div class="hub-panel hub-panel-padded">
                         <form id="admin-upload-form" class="space-y-6">
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
@@ -597,10 +617,10 @@
 
                 <!-- 2b. Family Records: read-only browse for any family -->
                 <div id="admin-section-records" class="hidden">
-                    <h3 class="text-xl font-semibold text-navy mb-2">Family Records</h3>
-                    <p class="text-sm text-slate-600 mb-6">Select any approved family to view their My Documents archive and government ID on file. This is read-only — use the <strong>Families</strong> tab to upload, assign, or delete items.</p>
+                    <h3 class="hub-admin-block-title mb-1">Family Records</h3>
+                    <p class="hub-section-subtitle mb-6">Select any approved family to view their documents and government ID. Read-only — use <strong>Families</strong> to upload or manage items.</p>
 
-                    <div class="bg-white border border-slate-100 rounded-3xl p-6">
+                    <div class="hub-panel hub-panel-padded">
                         <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
                         <div class="flex flex-col sm:flex-row gap-3 mb-6">
                             <select id="admin-records-family-select" class="form-input flex-1 px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="loadAdminFamilyRecords()">
@@ -633,10 +653,10 @@
 
                 <!-- 2c. Staff Access: staff view all families (read-only) -->
                 <div id="admin-section-access" class="hidden">
-                    <h3 class="text-xl font-semibold text-navy mb-2">Staff Access</h3>
+                    <h3 class="hub-admin-block-title mb-1">Staff Access</h3>
                     <p class="text-sm text-slate-600 mb-6">Add approved Family Hub users as staff and choose which <strong>Admin</strong> sub-tabs they can use. Only you (full admin) can manage staff access.</p>
 
-                    <div class="bg-white border border-slate-100 rounded-3xl p-6 space-y-6">
+                    <div class="hub-panel hub-panel-padded space-y-6">
                         <div id="staff-access-list" class="border border-slate-200 rounded-2xl p-4 min-h-[80px] text-sm text-slate-600">
                             Loading staff members...
                         </div>
@@ -670,10 +690,10 @@
                 <!-- 3. Document Library: standard templates -->
                 <div id="admin-section-library" class="hidden">
                 <div class="pt-2">
-                    <h3 class="text-xl font-semibold text-navy mb-2">Standard Document Templates</h3>
+                    <h3 class="hub-admin-block-title mb-1">Standard Document Templates</h3>
                     <p class="text-xs text-slate-500 mb-4">Curate reusable documents and links for your families. After approving a family in the <strong>Signups</strong> tab, assign templates from the <strong>Families</strong> tab. You can exclude items a family does not need (e.g. graduation packets for non-seniors).</p>
 
-                    <div class="bg-white border border-slate-100 rounded-3xl p-6">
+                    <div class="hub-panel hub-panel-padded">
                         <form id="admin-standard-form" class="space-y-4" autocomplete="off">
                             <input type="hidden" id="admin-standard-id">
                             <div>
@@ -717,10 +737,10 @@
                 <!-- 4. Site Content: shared resources + announcements -->
                 <div id="admin-section-site" class="hidden">
                 <div class="pt-2">
-                    <h3 class="text-xl font-semibold text-navy mb-2">Shared Resources</h3>
+                    <h3 class="hub-admin-block-title mb-1">Shared Resources</h3>
                     <p class="text-sm text-slate-600 mb-6">Add, edit, or remove resources that appear for all approved families in the Resources tab.</p>
 
-                    <div class="bg-white border border-slate-100 rounded-3xl p-8 mb-6">
+                    <div class="hub-panel hub-panel-padded mb-6">
                         <form id="admin-shared-form" class="space-y-5" autocomplete="off">
                             <input type="hidden" id="admin-shared-id">
                             <div>
@@ -782,10 +802,10 @@
                 </div>
 
                 <div class="mt-10 pt-8 border-t border-slate-200">
-                    <h3 class="text-xl font-semibold text-navy mb-2">Family Hub Announcement Banner</h3>
+                    <h3 class="hub-admin-block-title mb-1">Family Hub Announcement Banner</h3>
                     <p class="text-sm text-slate-600 mb-6">Publish a message that appears as a banner at the top of the My Tasks tab for all approved families. You can deactivate it anytime.</p>
 
-                    <div class="bg-white border border-slate-100 rounded-3xl p-8 mb-6">
+                    <div class="hub-panel hub-panel-padded mb-6">
                         <form id="admin-banner-form" class="space-y-5" autocomplete="off">
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Banner Message</label>
@@ -816,7 +836,11 @@
                 </div>
                 </div>
             </div>
-        </div>
+
+                    </div><!-- /.hub-content -->
+                </div><!-- /.hub-card -->
+            </div><!-- /.hub-shell -->
+        </div><!-- /#dashboard-view -->
         
     </div>
 
@@ -1321,6 +1345,15 @@
             }
         }
 
+        function activateHubTabButtons(buttons, activeButton) {
+            buttons.forEach(btn => {
+                if (!btn) return;
+                const isActive = btn === activeButton;
+                btn.classList.toggle('is-active', isActive);
+                btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+        }
+
         // Admin sub-section navigation
         function showAdminSection(section) {
             if (!staffHasAdminSection(section)) {
@@ -1351,19 +1384,11 @@
             };
 
             Object.values(sections).forEach(el => el?.classList.add('hidden'));
-            Object.values(navButtons).forEach(btn => {
-                if (!btn) return;
-                btn.classList.remove('border-b-2', 'border-navy', 'text-navy');
-                btn.classList.add('text-slate-500');
-            });
 
             const activeSection = sections[section];
             const activeButton = navButtons[section];
             if (activeSection) activeSection.classList.remove('hidden');
-            if (activeButton) {
-                activeButton.classList.add('border-b-2', 'border-navy', 'text-navy');
-                activeButton.classList.remove('text-slate-500');
-            }
+            activateHubTabButtons(Object.values(navButtons), activeButton);
 
             if (isSwitching) {
                 if (section === 'members') {
@@ -1414,38 +1439,26 @@
             if (familyRecordsContent) familyRecordsContent.classList.add('hidden');
             adminContent.classList.add('hidden');
 
-            // reset tab styles
-            [tabMy, tabTasks, tabRes, tabFamilyRecords, tabAdmin].forEach(t => {
-                if (!t) return;
-                t.classList.remove('border-b-2', 'border-navy', 'text-navy');
-                t.classList.add('text-slate-500');
-            });
+            const hubTabs = [tabMy, tabTasks, tabRes, tabFamilyRecords, tabAdmin];
+            let activeTab = tabTasks;
 
             if (tab === 'my-documents') {
                 myDocsContent.classList.remove('hidden');
-                tabMy.classList.add('border-b-2', 'border-navy', 'text-navy');
-                tabMy.classList.remove('text-slate-500');
+                activeTab = tabMy;
             } else if (tab === 'my-tasks') {
                 myTasksContent.classList.remove('hidden');
-                tabTasks.classList.add('border-b-2', 'border-navy', 'text-navy');
-                tabTasks.classList.remove('text-slate-500');
-                // Load tasks + update badge when tab is shown (placeholder for now)
+                activeTab = tabTasks;
                 if (typeof loadMyTasks === 'function') loadMyTasks();
             } else if (tab === 'resources') {
                 resourcesContent.classList.remove('hidden');
-                tabRes.classList.add('border-b-2', 'border-navy', 'text-navy');
-                tabRes.classList.remove('text-slate-500');
+                activeTab = tabRes;
             } else if (tab === 'family-records') {
                 if (familyRecordsContent) familyRecordsContent.classList.remove('hidden');
-                if (tabFamilyRecords) {
-                    tabFamilyRecords.classList.add('border-b-2', 'border-navy', 'text-navy');
-                    tabFamilyRecords.classList.remove('text-slate-500');
-                }
+                activeTab = tabFamilyRecords;
                 if (typeof loadViewerFamiliesForSelect === 'function') loadViewerFamiliesForSelect();
             } else if (tab === 'admin') {
                 adminContent.classList.remove('hidden');
-                tabAdmin.classList.add('border-b-2', 'border-navy', 'text-navy');
-                tabAdmin.classList.remove('text-slate-500');
+                activeTab = tabAdmin;
 
                 applyStaffAdminNavVisibility();
                 const allowedSection = staffHasAdminSection(lastAdminSection)
@@ -1453,6 +1466,8 @@
                     : getFirstAllowedAdminSection();
                 showAdminSection(allowedSection);
             }
+
+            activateHubTabButtons(hubTabs, activeTab);
         }
 
         function isTaskDocument(doc) {
@@ -1564,7 +1579,7 @@
             const overdueBadge = document.getElementById('my-tasks-overdue-badge');
             if (!list || !badge || !supabaseClient) return;
 
-            list.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">Loading your tasks...</div>';
+            list.innerHTML = '<div class="hub-empty-state">Loading your tasks...</div>';
 
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
@@ -1609,7 +1624,7 @@
             }
 
             if (tasks.length === 0) {
-                list.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">No pending tasks.</div>';
+                list.innerHTML = '<div class="hub-empty-state">No pending tasks.</div>';
                 return;
             }
 
@@ -1626,7 +1641,7 @@
                 if (isIDTask) {
                     // Special ID task: render the upload form (will be removed after submit)
                     html += `
-                        <div class="border border-amber-300 bg-amber-50 rounded-3xl p-6 relative" id="id-task-card">
+                        <div class="hub-panel hub-panel-padded border-amber-300 !bg-amber-50/80 relative" id="id-task-card">
                             <div class="flex items-start justify-between gap-3 mb-1">
                                 <div class="font-semibold text-navy flex-1">${escapeHtml(task.title)}</div>
                                 ${overdueIcon}
@@ -2036,7 +2051,7 @@
             const container = document.getElementById('my-documents');
             if (!container || !supabaseClient) return;
 
-            container.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">Loading your documents...</div>';
+            container.innerHTML = '<div class="hub-empty-state">Loading your documents...</div>';
 
             const { data, error } = await supabaseClient
                 .from('family_documents')
@@ -2059,7 +2074,7 @@
 
             if (!docs || docs.length === 0) {
                 container.innerHTML = `
-                    <div class="text-slate-500 text-sm p-6 border border-dashed border-slate-300 rounded-3xl text-center">
+                    <div class="hub-empty-state">
                         No documents yet.
                     </div>
                 `;
@@ -2111,7 +2126,7 @@
                     }
 
                     html += `
-                        <div class="member-card bg-white border border-slate-100 rounded-3xl p-6">
+                        <div class="hub-item-card member-card">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
                                     <h4 class="font-semibold text-lg text-navy">${doc.title}</h4>
@@ -2140,7 +2155,7 @@
             const container = document.getElementById('shared-resources');
             if (!container || !supabaseClient) return;
 
-            container.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-3xl">Loading shared resources...</div>';
+            container.innerHTML = '<div class="hub-empty-state">Loading shared resources...</div>';
 
             const { data: resources, error } = await supabaseClient
                 .from('shared_resources')
@@ -2157,7 +2172,7 @@
 
             if (!resources || resources.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-2 text-slate-500 text-sm p-6 border border-dashed border-slate-300 rounded-3xl text-center">
+                    <div class="col-span-2 hub-empty-state">
                         No shared resources yet. Your admin can add them from the Admin tab.
                     </div>
                 `;
@@ -2182,7 +2197,7 @@
                 }
 
                 html += `
-                    <div class="member-card bg-white border border-slate-100 rounded-3xl p-6">
+                    <div class="hub-item-card member-card">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
                                 <h4 class="font-semibold text-lg text-navy">${res.title}</h4>
@@ -2205,7 +2220,7 @@
             if (!container) return;
 
             container.innerHTML = `
-                <div class="member-card bg-white border border-slate-100 rounded-3xl p-6">
+                <div class="hub-item-card member-card">
                     <div class="flex items-start justify-between">
                         <div>
                             <h4 class="font-semibold text-lg text-navy">Sample: Grade Submission 2024</h4>
@@ -2216,7 +2231,7 @@
                         </a>
                     </div>
                 </div>
-                <div class="member-card bg-white border border-slate-100 rounded-3xl p-6">
+                <div class="hub-item-card member-card">
                     <div class="flex items-start justify-between">
                         <div>
                             <h4 class="font-semibold text-lg text-navy">Sample: Transcript Request</h4>
@@ -2273,7 +2288,7 @@
         async function renderFamilyRecordsView(docsContainer, idContainer, familyUserId) {
             if (!docsContainer || !idContainer || !familyUserId || !supabaseClient) return;
 
-            docsContainer.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">Loading documents...</div>';
+            docsContainer.innerHTML = '<div class="hub-empty-state">Loading documents...</div>';
             idContainer.innerHTML = '<div class="text-slate-500 text-sm">Loading ID...</div>';
 
             const { data, error } = await supabaseClient
@@ -2297,7 +2312,7 @@
 
             if (!docs.length) {
                 docsContainer.innerHTML = `
-                    <div class="text-slate-500 text-sm p-6 border border-dashed border-slate-300 rounded-2xl text-center">
+                    <div class="hub-empty-state">
                         No archived documents for this family yet.
                     </div>
                 `;
@@ -2684,7 +2699,7 @@
             const list = document.getElementById('admin-pending-approvals-list');
             if (!list || !supabaseClient) return;
 
-            list.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">Loading pending requests...</div>';
+            list.innerHTML = '<div class="hub-empty-state">Loading pending requests...</div>';
 
             let profiles = null;
             let error = null;
@@ -2712,7 +2727,7 @@
             const waiting = (profiles || []).filter(p => p.denied !== true);
 
             if (waiting.length === 0) {
-                list.innerHTML = '<div class="text-slate-500 text-sm p-4 border border-dashed border-slate-300 rounded-2xl">No families waiting for approval.</div>';
+                list.innerHTML = '<div class="hub-empty-state">No families waiting for approval.</div>';
                 return;
             }
 
