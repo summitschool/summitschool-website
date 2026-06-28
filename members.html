@@ -2510,11 +2510,51 @@
             await renderFamilyRecordsView(docsContainer, idContainer, familyUserId);
         }
 
+        function showStaffAccessStatus(type, message) {
+            const statusDiv = document.getElementById('staff-access-status');
+            if (!statusDiv) return;
+
+            statusDiv.classList.remove('hidden', 'text-red-600', 'text-emerald-600', 'text-amber-700');
+            if (type === 'success') {
+                statusDiv.classList.add('text-emerald-600');
+            } else if (type === 'warning') {
+                statusDiv.classList.add('text-amber-700');
+            } else {
+                statusDiv.classList.add('text-red-600');
+            }
+
+            statusDiv.textContent = message;
+        }
+
+        function setupStaffAccessPanel() {
+            const list = document.getElementById('staff-access-list');
+            if (!list || list.dataset.bound === 'true') return;
+
+            list.addEventListener('click', (event) => {
+                const removeBtn = event.target.closest('[data-action="remove-staff"]');
+                if (removeBtn) {
+                    event.preventDefault();
+                    void removeStaffMember(removeBtn.dataset.staffId);
+                    return;
+                }
+
+                const saveBtn = event.target.closest('[data-action="save-staff-sections"]');
+                if (saveBtn) {
+                    event.preventDefault();
+                    void updateStaffMemberSections(saveBtn.dataset.staffId);
+                }
+            });
+
+            list.dataset.bound = 'true';
+        }
+
         async function loadStaffAccessPanel() {
             const addSelect = document.getElementById('staff-add-select');
             const list = document.getElementById('staff-access-list');
             const statusDiv = document.getElementById('staff-access-status');
             if (!addSelect || !list || !supabaseClient) return;
+
+            setupStaffAccessPanel();
 
             list.innerHTML = '<div class="text-slate-500">Loading staff members...</div>';
 
@@ -2575,7 +2615,7 @@
                                 <div class="text-[10px] text-slate-500">${email}${addedAt ? ` • added ${addedAt}` : ''}</div>
                                 <div class="text-[10px] text-slate-400 mt-1">Current access: ${escapeHtml(sectionLabels || 'None')}</div>
                             </div>
-                            <button type="button" onclick="removeStaffMember('${row.id}')"
+                            <button type="button" data-action="remove-staff" data-staff-id="${row.id}"
                                     class="text-xs px-2 py-1 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0">
                                 Remove
                             </button>
@@ -2585,7 +2625,7 @@
                             <div id="staff-sections-${row.id}" class="flex flex-wrap gap-2">
                                 ${renderStaffSectionCheckboxes(sections, `staff-edit-${row.id}`)}
                             </div>
-                            <button type="button" onclick="updateStaffMemberSections('${row.id}')"
+                            <button type="button" data-action="save-staff-sections" data-staff-id="${row.id}"
                                     class="mt-3 text-xs px-3 py-1.5 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-lg transition-all">
                                 Save Access
                             </button>
@@ -2679,19 +2719,50 @@
 
         async function removeStaffMember(staffId) {
             if (!staffId || !supabaseClient) return;
-            if (!confirm('Remove this staff member? They will lose all staff Admin access.')) return;
 
-            const { error } = await supabaseClient
-                .from('staff_members')
-                .delete()
-                .eq('id', staffId);
-
-            if (error) {
-                alert('Failed to remove staff member: ' + (error.message || error));
+            if (!currentUserAccess.isFullAdmin) {
+                showStaffAccessStatus('error', 'Only the full admin can remove staff access.');
                 return;
             }
 
-            loadStaffAccessPanel();
+            if (!confirm('Remove this staff member? They will lose all staff Admin access.')) return;
+
+            const removeBtn = document.querySelector(`[data-action="remove-staff"][data-staff-id="${staffId}"]`);
+            if (removeBtn) {
+                removeBtn.disabled = true;
+                removeBtn.textContent = 'Removing...';
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('staff_members')
+                    .delete()
+                    .eq('id', staffId)
+                    .select('id');
+
+                if (error) {
+                    showStaffAccessStatus('error', 'Failed to remove staff member: ' + (error.message || error));
+                    return;
+                }
+
+                if (!data || data.length === 0) {
+                    showStaffAccessStatus(
+                        'error',
+                        'Could not remove staff member. Run supabase/staff-admin-sections.sql in Supabase, or confirm you are signed in as the full admin.'
+                    );
+                    return;
+                }
+
+                showStaffAccessStatus('success', 'Staff access removed.');
+                await loadStaffAccessPanel();
+            } catch (err) {
+                showStaffAccessStatus('error', 'Failed to remove staff member: ' + (err?.message || err));
+            } finally {
+                if (removeBtn) {
+                    removeBtn.disabled = false;
+                    removeBtn.textContent = 'Remove';
+                }
+            }
         }
 
         // Admin-only: families waiting for approval
@@ -4836,6 +4907,7 @@
             setupAdminSharedForm();   // shared resources management
             setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
             setupAdminBannerForm();   // banner management
+            setupStaffAccessPanel();
 
             // Set initial tab state (support links from enrollment page)
             const authTabHash = window.location.hash.toLowerCase();
