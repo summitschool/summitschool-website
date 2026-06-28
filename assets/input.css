@@ -198,6 +198,23 @@
     font-weight: 700;
   }
 
+  .header-logout-btn {
+    background-color: #C9A227;
+    color: #0A2540;
+    border: 1px solid #C9A227;
+    font-weight: 600;
+  }
+
+  .header-logout-btn:hover {
+    background-color: #E8D5A3;
+    border-color: #E8D5A3;
+    color: #0A2540;
+  }
+
+  .header-login-btn {
+    white-space: nowrap;
+  }
+
   .auth-shell {
     max-width: 32rem;
     margin-left: auto;
