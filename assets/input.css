@@ -704,13 +704,6 @@
       font-size: 1.0625rem;
     }
 
-    .hub-tab-group .hub-tab-btn:last-child:nth-child(odd) {
-      grid-column: 1 / -1;
-      flex-direction: row;
-      min-height: 3.25rem;
-      gap: 0.5rem;
-    }
-
     .hub-admin-tab-group {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
