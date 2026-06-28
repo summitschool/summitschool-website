@@ -212,6 +212,21 @@
                     After creating your account, check your email (including spam) and click the confirmation link.<br>
                     You will not be able to sign in until your email is confirmed.
                 </div>
+
+                <div class="security-panel mt-6">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-shield-halved text-sage" aria-hidden="true"></i>
+                        <p class="text-sm font-semibold text-navy">Built for family privacy</p>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Sign-in credentials and family documents are protected with encrypted connections, private household access, and secure cloud storage. Only you and authorized school staff can reach your account.
+                    </p>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="security-badge"><i class="fas fa-lock" aria-hidden="true"></i> Encrypted sign-in</span>
+                        <span class="security-badge"><i class="fas fa-user-shield" aria-hidden="true"></i> Family-only access</span>
+                        <span class="security-badge"><i class="fas fa-clock" aria-hidden="true"></i> Auto sign-out after inactivity</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -277,9 +292,25 @@
 
                 <!-- My ID subsection (collapsed by default; status lines visible when collapsed) -->
                 <div id="my-id-wrapper" class="mt-8">
+                    <div class="security-panel security-panel--id mb-4">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-id-card-clip text-emerald-700 text-lg mt-0.5 shrink-0" aria-hidden="true"></i>
+                            <div>
+                                <p class="text-sm font-semibold text-navy">Government ID protection</p>
+                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+                                    Photos of your ID are stored in encrypted, access-controlled storage — not on a public webpage. Only authorized Summit staff can review them for school records, and uploads use secure temporary review before being placed in your private My ID section.
+                                </p>
+                                <div class="flex flex-wrap gap-2 mt-3">
+                                    <span class="security-badge"><i class="fas fa-lock" aria-hidden="true"></i> Encrypted transfer</span>
+                                    <span class="security-badge"><i class="fas fa-eye-slash" aria-hidden="true"></i> Staff review only</span>
+                                    <span class="security-badge"><i class="fas fa-house-lock" aria-hidden="true"></i> Never shared publicly</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div id="my-id-visible-summary" class="hidden mb-3 pl-1">
                         <div id="my-id-status-line" class="text-xs uppercase tracking-widest text-emerald-600 font-semibold"></div>
-                        <p id="my-id-secure-line" class="text-sm text-slate-600 mt-1">Your government ID is stored securely.</p>
+                        <p id="my-id-secure-line" class="text-sm text-slate-600 mt-1">Your government ID is stored securely and visible only to you and authorized staff.</p>
                     </div>
                     <details id="my-id-panel" class="border border-slate-200 rounded-3xl bg-white overflow-hidden">
                         <summary id="my-id-summary" class="cursor-pointer px-6 py-4 flex items-center justify-between text-navy font-semibold list-none [&::-webkit-details-marker]:hidden">
@@ -1706,7 +1737,7 @@
             if (panel) panel.removeAttribute('open');
             if (visibleSummary) visibleSummary.classList.remove('hidden');
             if (statusLine) statusLine.textContent = `On file (${idDoc.school_year || 'Current'})`;
-            if (secureLine) secureLine.textContent = 'Your government ID is stored securely.';
+            if (secureLine) secureLine.textContent = 'Your government ID is stored securely and visible only to you and authorized staff.';
 
             const storagePath = await ensurePermanentIdPath(idDoc);
             const signedUrl = await getSignedStorageUrl(storagePath);
