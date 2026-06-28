@@ -212,27 +212,77 @@
     overflow: hidden;
   }
 
-  .auth-tab-track {
+  .auth-tab-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .auth-tab-btn {
     display: flex;
-    gap: 0.25rem;
-    padding: 0.25rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 0.625rem;
     border-radius: 0.875rem;
-    background-color: rgb(241 245 249);
-  }
-
-  .auth-tab-track .auth-tab-pill {
-    border-radius: 0.75rem;
-    padding: 0.625rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: rgb(71 85 105);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .auth-tab-track .auth-tab-pill.is-active {
+    border: 2px solid rgb(203 213 225);
     background-color: white;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: rgb(51 65 85);
+    cursor: pointer;
+    transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (min-width: 400px) {
+    .auth-tab-btn {
+      flex-direction: row;
+      font-size: 0.875rem;
+      padding: 0.875rem 1rem;
+    }
+  }
+
+  .auth-tab-btn i {
+    font-size: 0.9375rem;
+    color: #7C8F7E;
+    transition: color 0.2s ease;
+  }
+
+  .auth-tab-btn:hover:not(.is-active) {
+    border-color: #C9A227;
+    background-color: rgb(248 244 237);
     color: #0A2540;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  }
+
+  .auth-tab-btn:hover:not(.is-active) i {
+    color: #0A2540;
+  }
+
+  .auth-tab-btn:active:not(.is-active) {
+    transform: scale(0.98);
+  }
+
+  .auth-tab-btn.is-active {
+    border-color: #0A2540;
+    background-color: #0A2540;
+    color: white;
+    box-shadow: 0 4px 14px rgb(10 37 64 / 0.22);
+  }
+
+  .auth-tab-btn.is-active i {
+    color: #E8D5A3;
+  }
+
+  .auth-tab-btn:focus-visible {
+    outline: 2px solid #C9A227;
+    outline-offset: 2px;
   }
 
   .auth-trust-strip {
