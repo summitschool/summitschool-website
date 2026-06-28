@@ -1189,6 +1189,26 @@
             return { session: null, error: null };
         }
 
+        async function sendSignupPendingEmail(user, names = {}) {
+            if (!supabaseClient || !user?.email) return;
+
+            try {
+                const { error } = await supabaseClient.functions.invoke('send-signup-pending-email', {
+                    body: {
+                        email: user.email,
+                        first_name: names.firstName || null,
+                        last_name: names.lastName || null,
+                        full_name: names.fullName || null,
+                    },
+                });
+                if (error) {
+                    console.warn('[Signup pending email] invoke failed:', error.message || error);
+                }
+            } catch (err) {
+                console.warn('[Signup pending email] invoke skipped:', err);
+            }
+        }
+
         async function ensureProfileFromAuthUser(user) {
             if (!user || !supabaseClient) return;
 
@@ -1216,6 +1236,8 @@
                 });
                 if (error) {
                     console.warn('[Google OAuth] Profile insert skipped:', error.message);
+                } else {
+                    await sendSignupPendingEmail(user, { firstName, lastName, fullName });
                 }
                 return;
             }
@@ -1288,6 +1310,27 @@
             }
 
             await ensureProfileFromAuthUser(activeSession.user);
+
+            if (params.has('code')) {
+                const sentKey = `pending_email_sent_${activeSession.user.id}`;
+                if (!sessionStorage.getItem(sentKey)) {
+                    const { data: pendingProfile } = await supabaseClient
+                        .from('profiles')
+                        .select('approved, denied')
+                        .eq('id', activeSession.user.id)
+                        .maybeSingle();
+
+                    if (pendingProfile && pendingProfile.approved !== true && pendingProfile.denied !== true) {
+                        const meta = activeSession.user.user_metadata || {};
+                        const firstName = (meta.first_name || meta.given_name || '').trim();
+                        const lastName = (meta.last_name || meta.family_name || '').trim();
+                        const fullName = (meta.full_name || meta.name || `${firstName} ${lastName}`.trim()).trim();
+                        await sendSignupPendingEmail(activeSession.user, { firstName, lastName, fullName });
+                        sessionStorage.setItem(sentKey, '1');
+                    }
+                }
+            }
+
             recordMemberActivity();
             clearPendingOAuthAttempt();
             history.replaceState(null, '', window.location.pathname);

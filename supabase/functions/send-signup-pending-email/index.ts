@@ -1,5 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildFamilyHubEmailHtml, escapeHtml, FAMILY_HUB_URL } from '../_shared/family-hub-email.ts';
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const WEBHOOK_SECRET = Deno.env.get('SIGNUP_PENDING_EMAIL_WEBHOOK_SECRET')
@@ -86,6 +90,30 @@ async function sendWithResend(to: string, subject: string, text: string, html: s
   return result;
 }
 
+async function isAuthorized(req: Request, targetEmail: string) {
+  if (WEBHOOK_SECRET) {
+    const providedSecret = req.headers.get('x-webhook-secret');
+    if (providedSecret === WEBHOOK_SECRET) {
+      return true;
+    }
+  }
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return false;
+  }
+
+  const token = authHeader.replace('Bearer ', '').trim();
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user?.email) {
+    return false;
+  }
+
+  return user.email.trim().toLowerCase() === targetEmail;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -101,13 +129,6 @@ serve(async (req) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  if (WEBHOOK_SECRET) {
-    const providedSecret = req.headers.get('x-webhook-secret');
-    if (providedSecret !== WEBHOOK_SECRET) {
-      return new Response('Unauthorized', { status: 401 });
-    }
-  }
-
   try {
     const payload = await req.json() as SignupPendingPayload;
     const email = String(payload.email || '').trim().toLowerCase();
@@ -117,6 +138,10 @@ serve(async (req) => {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    if (!(await isAuthorized(req, email))) {
+      return new Response('Unauthorized', { status: 401 });
     }
 
     const { subject, text, html } = buildEmail(payload);
