@@ -297,12 +297,11 @@
     gap: 0.5rem;
     min-height: 3.5rem;
     padding: 0.625rem 0.75rem;
-    border: none;
     border-radius: 0.875rem;
-    background-color: transparent;
     color: rgb(51 65 85);
     cursor: pointer;
     transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
                 color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
                 box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
                 transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -335,20 +334,12 @@
     transition: color 0.2s ease;
   }
 
-  .auth-tab-btn:hover:not(.is-active) {
-    background-color: white;
-    color: #0A2540;
-  }
-
-  .auth-tab-btn:hover:not(.is-active) i {
-    color: #0A2540;
-  }
-
   .auth-tab-btn:active:not(.is-active) {
     transform: scale(0.98);
   }
 
   .auth-tab-btn.is-active {
+    border: 1px solid #0A2540;
     background-color: #0A2540;
     color: white;
     box-shadow: 0 3px 10px rgb(10 37 64 / 0.28);
@@ -466,16 +457,36 @@
     gap: 0.4375rem;
     min-height: 2.625rem;
     padding: 0.5rem 0.875rem;
-    border: none;
     border-radius: 0.875rem;
-    background-color: transparent;
     font-size: 0.8125rem;
     font-weight: 600;
     line-height: 1.2;
     color: rgb(51 65 85);
     white-space: nowrap;
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  }
+
+  .auth-tab-btn:not(.is-active),
+  .hub-tab-btn:not(.is-active),
+  .hub-admin-tab-btn:not(.is-active) {
+    border: 1px solid rgb(203 213 225);
+    background-color: rgb(255 255 255 / 0.8);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  .auth-tab-btn:hover:not(.is-active),
+  .hub-tab-btn:hover:not(.is-active),
+  .hub-admin-tab-btn:hover:not(.is-active) {
+    border-color: rgb(186 198 212);
+    background-color: white;
+    color: #0A2540;
+  }
+
+  .auth-tab-btn:hover:not(.is-active) i,
+  .hub-tab-btn:hover:not(.is-active) i,
+  .hub-admin-tab-btn:hover:not(.is-active) i {
+    color: #0A2540;
   }
 
   @media (min-width: 640px) {
@@ -493,19 +504,9 @@
     transition: color 0.2s ease;
   }
 
-  .hub-tab-btn:hover:not(.is-active),
-  .hub-admin-tab-btn:hover:not(.is-active) {
-    background-color: white;
-    color: #0A2540;
-  }
-
-  .hub-tab-btn:hover:not(.is-active) i,
-  .hub-admin-tab-btn:hover:not(.is-active) i {
-    color: #0A2540;
-  }
-
   .hub-tab-btn.is-active,
   .hub-admin-tab-btn.is-active {
+    border: 1px solid #0A2540;
     background-color: #0A2540;
     color: white;
     box-shadow: 0 2px 8px rgb(10 37 64 / 0.25);
