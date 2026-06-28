@@ -204,12 +204,63 @@
     margin-right: auto;
   }
 
+  .portal-main {
+    max-width: 64rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 1rem 0.75rem 2rem;
+    padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 640px) {
+    .portal-main {
+      padding: 3rem 1.5rem;
+    }
+  }
+
   .auth-card {
     background-color: white;
     border-radius: 1.5rem;
     border: 1px solid rgb(241 245 249);
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.04);
     overflow: hidden;
+  }
+
+  .auth-card-header {
+    padding: 1.5rem 1.25rem 1.25rem;
+    text-align: center;
+  }
+
+  .auth-card-inset {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  .auth-card-body {
+    padding: 0 1.25rem 1.5rem;
+  }
+
+  .auth-card-pending {
+    padding: 2rem 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .auth-card-header {
+      padding: 2rem 2rem 1.25rem;
+    }
+
+    .auth-card-inset {
+      margin-left: 1.5rem;
+      margin-right: 1.5rem;
+    }
+
+    .auth-card-body {
+      padding: 0 2rem 1.5rem;
+    }
+
+    .auth-card-pending {
+      padding: 2.5rem 2rem;
+    }
   }
 
   .auth-mode-picker {
@@ -333,6 +384,13 @@
   .auth-trust-strip {
     border-top: 1px solid rgb(241 245 249);
     background: linear-gradient(180deg, rgb(248 250 252) 0%, rgb(255 255 255) 100%);
+    padding: 1.25rem 1.25rem 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .auth-trust-strip {
+      padding: 1.25rem 2rem 1.5rem;
+    }
   }
 
   /* Family Hub dashboard + admin */
@@ -485,7 +543,7 @@
   }
 
   .hub-content {
-    padding: 1.5rem;
+    padding: 1.25rem 1rem 1.5rem;
   }
 
   @media (min-width: 640px) {
@@ -520,7 +578,7 @@
   }
 
   .hub-panel-padded {
-    padding: 1.5rem;
+    padding: 1.125rem;
   }
 
   @media (min-width: 640px) {
@@ -563,6 +621,156 @@
     font-weight: 700;
     color: #0A2540;
     letter-spacing: -0.01em;
+  }
+
+  /* Mobile: spacious, touch-friendly portal layout */
+  @media (max-width: 639px) {
+    .auth-card,
+    .hub-card {
+      border-radius: 1.25rem;
+    }
+
+    .auth-tab-group {
+      max-width: none;
+      gap: 0.5rem;
+      padding: 0.5rem;
+    }
+
+    .auth-tab-btn {
+      min-height: 3.25rem;
+      padding: 0.75rem 0.625rem;
+    }
+
+    .auth-tab-sub {
+      display: none;
+    }
+
+    .auth-tab-text {
+      align-items: center;
+      text-align: center;
+    }
+
+    .auth-form-heading,
+    .hub-section-heading {
+      font-size: 1.125rem;
+    }
+
+    .auth-form-subtitle,
+    .hub-section-subtitle {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+    }
+
+    .hub-header {
+      padding: 1.25rem 1rem 1rem;
+      gap: 0.75rem;
+    }
+
+    .hub-header-logo {
+      height: 2.75rem;
+    }
+
+    .hub-header h1 {
+      font-size: 1.375rem;
+      line-height: 1.2;
+    }
+
+    .hub-nav-wrap {
+      padding: 0.75rem 1rem 0;
+      overflow-x: visible;
+    }
+
+    .hub-tab-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+      gap: 0.5rem;
+      padding: 0.5rem;
+    }
+
+    .hub-tab-btn {
+      flex-direction: column;
+      justify-content: center;
+      min-height: 3.75rem;
+      padding: 0.625rem 0.5rem;
+      font-size: 0.75rem;
+      gap: 0.3125rem;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    .hub-tab-btn i {
+      font-size: 1.0625rem;
+    }
+
+    .hub-tab-group .hub-tab-btn:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      min-height: 3.25rem;
+      gap: 0.5rem;
+    }
+
+    .hub-admin-tab-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem;
+      padding: 0.5rem;
+    }
+
+    .hub-admin-tab-btn {
+      min-height: 3rem;
+      padding: 0.625rem 0.5rem;
+      font-size: 0.75rem;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .hub-content {
+      padding: 1.25rem 1rem 1.5rem;
+    }
+
+    .hub-panel-padded {
+      padding: 1.125rem;
+    }
+
+    .hub-item-card,
+    .member-card {
+      padding: 1.125rem;
+      border-radius: 1rem;
+    }
+
+    .hub-empty-state {
+      padding: 1.125rem 1rem;
+      font-size: 0.8125rem;
+    }
+
+    .hub-section-intro {
+      margin-bottom: 1rem;
+    }
+
+    .hub-announcement {
+      padding: 0.875rem 1rem;
+    }
+
+    .hub-admin-block {
+      margin-bottom: 1.5rem;
+    }
+
+    .hub-admin-block + .hub-admin-block {
+      padding-top: 1.5rem;
+    }
+
+    .security-badge {
+      font-size: 0.625rem;
+      padding: 0.3125rem 0.625rem;
+    }
+
+    .form-input {
+      padding-top: 0.8125rem;
+      padding-bottom: 0.8125rem;
+    }
   }
 
   .security-badge {
