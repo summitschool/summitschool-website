@@ -6,14 +6,17 @@
   <title>Confirm your Summit Family Hub email</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F8F6F1;font-family:Inter,Arial,sans-serif;color:#334155;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Confirm your email to finish setting up your Summit Family Hub account.</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#F8F6F1;padding:32px 16px;">
     <tr>
       <td align="center">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;overflow:hidden;">
           <tr>
-            <td style="padding:32px 32px 16px;text-align:center;">
+            <td style="padding:28px 32px 12px;text-align:center;">
+              <img src="{{ .SiteURL }}/images/logo.png" alt="Summit Church School" width="112" height="112"
+                   style="display:block;margin:0 auto 16px;width:112px;height:auto;max-height:112px;border-radius:16px;">
               <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#8B9A7B;font-weight:600;">Summit Church School</p>
-              <h1 style="margin:0;font-family:'Playfair Display',Georgia,serif;font-size:28px;line-height:1.2;color:#1B365D;">Confirm your Family Hub email</h1>
+              <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:28px;line-height:1.2;color:#1B365D;">Confirm your Family Hub email</h1>
             </td>
           </tr>
           <tr>
@@ -21,7 +24,7 @@
               <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#475569;">
                 Welcome{{ if .Data.first_name }}, {{ .Data.first_name }}{{ end }}! Please confirm your email address to finish setting up your Summit Family Hub account.
               </p>
-              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#64748b;">
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#64748b;">
                 After confirming, our team will review your account. Family Hub access approvals begin July 1, 2026.
               </p>
               <a href="{{ .ConfirmationURL }}"
@@ -36,7 +39,7 @@
                 If you did not create a Family Hub account, you can safely ignore this email.
               </p>
               <p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:#cbd5e1;text-align:center;">
-                Summit Family Hub • <a href="{{ .SiteURL }}" style="color:#8B9A7B;">{{ .SiteURL }}</a>
+                Summit Family Hub • <a href="{{ .SiteURL }}" style="color:#8B9A7B;text-decoration:none;">{{ .SiteURL }}</a>
               </p>
             </td>
           </tr>

@@ -1,10 +1,11 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { buildFamilyHubEmailHtml, escapeHtml, FAMILY_HUB_URL } from '../_shared/family-hub-email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const WEBHOOK_SECRET = Deno.env.get('APPROVAL_EMAIL_WEBHOOK_SECRET');
 const FROM_EMAIL = Deno.env.get('APPROVAL_FROM_EMAIL') || 'Summit Church School <info@summitchurchschool.org>';
-const FAMILY_HUB_URL = Deno.env.get('FAMILY_HUB_URL') || 'https://summitchurchschool.org/members.html';
+const FAMILY_HUB_SIGNIN_URL = Deno.env.get('FAMILY_HUB_URL') || FAMILY_HUB_URL;
 const ADMIN_EMAIL = (Deno.env.get('FULL_ADMIN_EMAIL') || 'sjesimon@gmail.com').toLowerCase();
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -35,36 +36,33 @@ function formatFamilyName(record: ApprovalPayload) {
 
 function buildEmail(record: ApprovalPayload) {
   const name = formatFamilyName(record);
-  const subject = 'Your Summit Family Hub Access Has Been Approved - Summit Church School';
+  const subject = 'Your Summit Family Hub access has been approved';
   const text = [
     `Hello ${name},`,
     '',
     'Great news! Your Summit Family Hub access has been approved.',
     '',
-    `You can now sign in at ${FAMILY_HUB_URL} to view documents, tasks, and school resources.`,
+    `You can now sign in at ${FAMILY_HUB_SIGNIN_URL} to view documents, tasks, and school resources.`,
     '',
     'Welcome!',
     '',
     'Summit Church School',
   ].join('\n');
 
-  const html = `
-    <p>Hello ${escapeHtml(name)},</p>
-    <p>Great news! Your <strong>Summit Family Hub</strong> access has been approved.</p>
-    <p>You can now sign in to view documents, tasks, and school resources:</p>
-    <p><a href="${escapeHtml(FAMILY_HUB_URL)}">${escapeHtml(FAMILY_HUB_URL)}</a></p>
-    <p>Welcome!<br>Summit Church School</p>
-  `.trim();
+  const html = buildFamilyHubEmailHtml({
+    title: 'Your Family Hub access is approved',
+    preheader: 'You can now sign in to the Summit Family Hub.',
+    greeting: `Hello ${escapeHtml(name)},`,
+    paragraphs: [
+      'Great news! Your <strong>Summit Family Hub</strong> access has been approved.',
+      'You can now sign in to view documents, assigned tasks, school resources, and important updates for your family.',
+    ],
+    ctaLabel: 'Sign In to Family Hub',
+    ctaUrl: FAMILY_HUB_SIGNIN_URL,
+    footerNote: 'Welcome to Summit Church School. Contact us through the main site if you need help getting started.',
+  });
 
   return { subject, text, html };
-}
-
-function escapeHtml(value: unknown) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 async function sendWithResend(to: string, subject: string, text: string, html: string) {

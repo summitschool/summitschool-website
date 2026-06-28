@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { buildFamilyHubEmailHtml, escapeHtml } from '../_shared/family-hub-email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = Deno.env.get('APPROVAL_FROM_EMAIL') || 'Summit Family Hub <info@summitchurchschool.org>';
@@ -19,14 +20,6 @@ type ResetPayload = {
   email?: string;
 };
 
-function escapeHtml(value: unknown) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 function buildResetEmail(email: string, actionLink: string) {
   const subject = 'Reset your Summit Family Hub password';
   const text = [
@@ -43,39 +36,17 @@ function buildResetEmail(email: string, actionLink: string) {
     'https://summitchurchschool.org/members.html',
   ].join('\n');
 
-  const html = `
-    <div style="margin:0;padding:32px 16px;background:#F8F6F1;font-family:Inter,Arial,sans-serif;color:#334155;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;">
-        <tr>
-          <td style="padding:32px 32px 16px;text-align:center;">
-            <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#8B9A7B;font-weight:600;">Summit Church School</p>
-            <h1 style="margin:0;font-family:Georgia,serif;font-size:28px;line-height:1.2;color:#1B365D;">Reset your Family Hub password</h1>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:8px 32px 24px;text-align:center;">
-            <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#475569;">
-              We received a request to reset the password for <strong>${escapeHtml(email)}</strong>.
-            </p>
-            <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#64748b;">
-              Click below to choose a new password. This link expires soon and can only be used once.
-            </p>
-            <a href="${escapeHtml(actionLink)}"
-               style="display:inline-block;padding:14px 28px;background:#1B365D;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:16px;">
-              Reset Password
-            </a>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:0 32px 32px;">
-            <p style="margin:0;font-size:13px;line-height:1.6;color:#94a3b8;text-align:center;">
-              If you did not request a password reset, you can safely ignore this email.
-            </p>
-          </td>
-        </tr>
-      </table>
-    </div>
-  `.trim();
+  const html = buildFamilyHubEmailHtml({
+    title: 'Reset your Family Hub password',
+    preheader: 'Choose a new password for your Summit Family Hub account.',
+    paragraphs: [
+      `We received a request to reset the password for <strong>${escapeHtml(email)}</strong>.`,
+      'Click below to choose a new password. This link expires soon and can only be used once.',
+    ],
+    ctaLabel: 'Reset Password',
+    ctaUrl: actionLink,
+    footerNote: 'If you did not request a password reset, you can safely ignore this email. Your password will not change.',
+  });
 
   return { subject, text, html };
 }
