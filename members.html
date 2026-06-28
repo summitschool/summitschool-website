@@ -19,16 +19,33 @@
         (function () {
             var hash = window.location.hash || '';
             var search = window.location.search || '';
-            var hasAuthParams = hash.indexOf('access_token') !== -1
-                || hash.indexOf('type=') !== -1
-                || hash.indexOf('error=') !== -1
-                || search.indexOf('code=') !== -1
-                || search.indexOf('error=') !== -1;
-            if (!hasAuthParams) return;
+            var oauthKey = 'members_oauth_callback_pending';
+            var ts = localStorage.getItem(oauthKey);
+            var recent = ts && (Date.now() - parseInt(ts, 10) < 600000);
+            var pendingOAuth = sessionStorage.getItem(oauthKey) === '1' || recent;
+            var hasPkceCode = search.indexOf('code=') !== -1 && search.indexOf('token_hash=') === -1;
+
+            // Google OAuth / PKCE sign-in must stay on members.html (do not bounce to confirm-email).
+            if (pendingOAuth || hasPkceCode || search.indexOf('auth=oauth') !== -1) {
+                return;
+            }
 
             var isRecovery = hash.indexOf('type=recovery') !== -1 || search.indexOf('type=recovery') !== -1;
-            var targetPage = isRecovery ? 'reset-password.html' : 'confirm-email.html';
-            window.location.replace(targetPage + hash + search);
+            if (isRecovery) {
+                window.location.replace('reset-password.html' + hash + search);
+                return;
+            }
+
+            var isLegacyEmailConfirmation = search.indexOf('token_hash=') !== -1
+                || (hash.indexOf('access_token') !== -1 && (
+                    hash.indexOf('type=signup') !== -1
+                    || hash.indexOf('type=email') !== -1
+                    || hash.indexOf('type=magiclink') !== -1
+                ));
+
+            if (isLegacyEmailConfirmation) {
+                window.location.replace('confirm-email.html' + hash + search);
+            }
         })();
     </script>
     <!-- Sticky Navigation -->
@@ -1273,7 +1290,7 @@
             await ensureProfileFromAuthUser(activeSession.user);
             recordMemberActivity();
             clearPendingOAuthAttempt();
-            window.location.replace(getAuthRedirectUrl('/members.html'));
+            history.replaceState(null, '', window.location.pathname);
             return true;
         }
 
