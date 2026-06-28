@@ -8,9 +8,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260630">
+    <link rel="stylesheet" href="assets/styles.css?v=20260701">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+    <script>
+        (function () {
+            var key = 'members_oauth_callback_pending';
+            var ts = localStorage.getItem(key);
+            var recent = ts && (Date.now() - parseInt(ts, 10) < 600000);
+            var pending = sessionStorage.getItem(key) === '1' || recent;
+            var search = window.location.search || '';
+            var hash = window.location.hash || '';
+            if (pending && (search.indexOf('code=') !== -1 || hash.indexOf('code=') !== -1)) {
+                window.location.replace('members.html' + search + hash);
+            }
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-[#F8F6F1] text-slate-800 body-text antialiased min-h-screen flex flex-col">
@@ -84,6 +97,25 @@
     <script>
         const SUPABASE_URL = 'https://tajyrmydwqsijstyzsjr.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy';
+        const OAUTH_CALLBACK_KEY = 'members_oauth_callback_pending';
+        const OAUTH_ATTEMPT_MAX_AGE_MS = 10 * 60 * 1000;
+
+        function hasPendingOAuthAttempt() {
+            const ts = localStorage.getItem(OAUTH_CALLBACK_KEY);
+            if (ts) {
+                const age = Date.now() - parseInt(ts, 10);
+                if (Number.isFinite(age) && age >= 0 && age < OAUTH_ATTEMPT_MAX_AGE_MS) {
+                    return true;
+                }
+                localStorage.removeItem(OAUTH_CALLBACK_KEY);
+            }
+            return sessionStorage.getItem(OAUTH_CALLBACK_KEY) === '1';
+        }
+
+        function clearPendingOAuthAttempt() {
+            sessionStorage.removeItem(OAUTH_CALLBACK_KEY);
+            localStorage.removeItem(OAUTH_CALLBACK_KEY);
+        }
 
         function sleep(ms) {
             return new Promise((resolve) => setTimeout(resolve, ms));
@@ -245,6 +277,11 @@
                 }
 
                 if (confirmed) {
+                    if (hasPendingOAuthAttempt()) {
+                        clearPendingOAuthAttempt();
+                        window.location.replace('members.html');
+                        return;
+                    }
                     await supabaseClient.auth.signOut({ scope: 'local' });
                     showConfirmedSuccess('Your email address has been verified. You can sign in to the Family Hub anytime.');
                     return;

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260630">
+    <link rel="stylesheet" href="assets/styles.css?v=20260701">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -140,15 +140,9 @@
                         </div>
                     </div>
 
-                    <div id="oauth-section" class="auth-card-inset auth-oauth-wrap mb-6">
-                        <button id="google-signin-btn" type="button" class="auth-google-btn">
-                            <svg class="auth-google-icon" viewBox="0 0 48 48" aria-hidden="true">
-                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.13 13.09 17.62 9.5 24 9.5z"/>
-                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.38 0-11.87-4.28-13.82-10.17l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                            </svg>
-                            <span id="google-signin-label">Sign in with Google</span>
+                    <div id="oauth-section" class="auth-oauth-wrap mb-5">
+                        <button id="google-signin-btn" type="button" class="auth-google-official" aria-label="Sign in with Google">
+                            <img src="images/btn_google_signin_light.png" alt="" width="175" height="40" decoding="async" draggable="false">
                         </button>
                         <p class="auth-google-hint">Staff approval is still required before dashboard access.</p>
                     </div>
@@ -1069,17 +1063,40 @@
         }
 
         const OAUTH_CALLBACK_KEY = 'members_oauth_callback_pending';
-        const GOOGLE_SIGNIN_LABEL = 'Sign in with Google';
+        const OAUTH_ATTEMPT_MAX_AGE_MS = 10 * 60 * 1000;
 
         function hasPkceAuthCode() {
             const params = new URLSearchParams(window.location.search);
             return params.has('code') && !params.has('token_hash');
         }
 
+        function hasPendingOAuthAttempt() {
+            const ts = localStorage.getItem(OAUTH_CALLBACK_KEY);
+            if (ts) {
+                const age = Date.now() - parseInt(ts, 10);
+                if (Number.isFinite(age) && age >= 0 && age < OAUTH_ATTEMPT_MAX_AGE_MS) {
+                    return true;
+                }
+                localStorage.removeItem(OAUTH_CALLBACK_KEY);
+            }
+            return sessionStorage.getItem(OAUTH_CALLBACK_KEY) === '1';
+        }
+
+        function markPendingOAuthAttempt() {
+            const stamp = String(Date.now());
+            sessionStorage.setItem(OAUTH_CALLBACK_KEY, '1');
+            localStorage.setItem(OAUTH_CALLBACK_KEY, stamp);
+        }
+
+        function clearPendingOAuthAttempt() {
+            sessionStorage.removeItem(OAUTH_CALLBACK_KEY);
+            localStorage.removeItem(OAUTH_CALLBACK_KEY);
+        }
+
         function isOAuthCallbackUrl() {
             const params = new URLSearchParams(window.location.search);
             return params.get('auth') === 'oauth'
-                || sessionStorage.getItem(OAUTH_CALLBACK_KEY) === '1'
+                || hasPendingOAuthAttempt()
                 || hasPkceAuthCode();
         }
 
@@ -1121,9 +1138,7 @@
 
         function resetGoogleSignInButton() {
             const btn = document.getElementById('google-signin-btn');
-            const label = document.getElementById('google-signin-label');
             if (btn) btn.disabled = false;
-            if (label) label.textContent = GOOGLE_SIGNIN_LABEL;
         }
 
         function showOAuthStatus(type, message) {
@@ -1218,7 +1233,7 @@
                 || hashParams.get('error');
 
             if (oauthError) {
-                sessionStorage.removeItem(OAUTH_CALLBACK_KEY);
+                clearPendingOAuthAttempt();
                 history.replaceState(null, '', window.location.pathname);
                 showOAuthStatus('error', decodeURIComponent(oauthError.replace(/\+/g, ' ')));
                 resetGoogleSignInButton();
@@ -1234,10 +1249,10 @@
 
             const { session, error } = await waitForAuthSession(30, 300);
             subscription.unsubscribe();
-            sessionStorage.removeItem(OAUTH_CALLBACK_KEY);
-            history.replaceState(null, '', window.location.pathname);
 
             if (error) {
+                clearPendingOAuthAttempt();
+                history.replaceState(null, '', window.location.pathname);
                 showOAuthStatus('error', 'Google sign-in could not be completed. Please try again.');
                 resetGoogleSignInButton();
                 return true;
@@ -1246,6 +1261,8 @@
             const activeSession = session || (sessionEstablished ? (await supabaseClient.auth.getSession()).data.session : null);
 
             if (!activeSession?.user) {
+                clearPendingOAuthAttempt();
+                history.replaceState(null, '', window.location.pathname);
                 if (params.has('code')) {
                     showOAuthStatus('error', 'Google sign-in timed out. Please try again.');
                     resetGoogleSignInButton();
@@ -1255,6 +1272,8 @@
 
             await ensureProfileFromAuthUser(activeSession.user);
             recordMemberActivity();
+            clearPendingOAuthAttempt();
+            window.location.replace(getAuthRedirectUrl('/members.html'));
             return true;
         }
 
@@ -1265,16 +1284,14 @@
             }
 
             const btn = document.getElementById('google-signin-btn');
-            const label = document.getElementById('google-signin-label');
             if (btn) btn.disabled = true;
-            if (label) label.textContent = 'Redirecting to Google...';
 
-            sessionStorage.setItem(OAUTH_CALLBACK_KEY, '1');
+            markPendingOAuthAttempt();
 
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: getAuthRedirectUrl('/members.html?auth=oauth'),
+                    redirectTo: getAuthRedirectUrl('/members.html'),
                     queryParams: {
                         access_type: 'online',
                         prompt: 'select_account'
@@ -1283,7 +1300,7 @@
             });
 
             if (error) {
-                sessionStorage.removeItem(OAUTH_CALLBACK_KEY);
+                clearPendingOAuthAttempt();
                 resetGoogleSignInButton();
                 alert('Google sign-in failed: ' + error.message);
             }
