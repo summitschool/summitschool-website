@@ -872,6 +872,7 @@
         let supabaseClient = null;
         let currentUserAccess = {
             isFullAdmin: false,
+            isStaffMember: false,
             isFamilyViewer: false,
             staffAllFamilies: false,
             staffAdminSections: []
@@ -980,6 +981,7 @@
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
                     enforceMemberSessionIfExpired();
+                    void refreshMemberAccessIfLoggedIn();
                 }
             });
 
@@ -1122,18 +1124,28 @@
 
         function normalizeStaffAdminSections(sections) {
             if (!Array.isArray(sections) || sections.length === 0) {
-                return ['records'];
+                return [];
             }
             return sections.filter(section =>
                 STAFF_ASSIGNABLE_ADMIN_SECTIONS.some(def => def.id === section)
             );
         }
 
+        function staffSectionsWithLegacyDefault(sections) {
+            const normalized = normalizeStaffAdminSections(sections);
+            return normalized.length ? normalized : ['records'];
+        }
+
         function getAllowedAdminSections() {
             if (currentUserAccess.isFullAdmin) {
                 return STAFF_ASSIGNABLE_ADMIN_SECTIONS.map(section => section.id).concat(['access']);
             }
-            return normalizeStaffAdminSections(currentUserAccess.staffAdminSections);
+            if (!currentUserAccess.isStaffMember) {
+                return [];
+            }
+            return currentUserAccess.staffAdminSections.filter(section =>
+                STAFF_ASSIGNABLE_ADMIN_SECTIONS.some(def => def.id === section)
+            );
         }
 
         function staffHasAdminSection(section) {
@@ -1183,6 +1195,7 @@
         async function loadUserAccess(user) {
             currentUserAccess = {
                 isFullAdmin: isFullAdminUser(user),
+                isStaffMember: false,
                 isFamilyViewer: false,
                 staffAllFamilies: false,
                 staffAdminSections: []
@@ -1197,11 +1210,67 @@
                 .maybeSingle();
 
             if (!error && staffMember) {
-                const sections = normalizeStaffAdminSections(staffMember.admin_sections);
+                const sections = staffSectionsWithLegacyDefault(staffMember.admin_sections);
+                currentUserAccess.isStaffMember = true;
                 currentUserAccess.staffAdminSections = sections;
                 currentUserAccess.isFamilyViewer = sections.includes('records');
                 currentUserAccess.staffAllFamilies = sections.includes('records');
             }
+        }
+
+        async function applyMemberAccessUI() {
+            const adminTab = document.getElementById('tab-admin');
+            const familyRecordsTab = document.getElementById('tab-family-records');
+            const adminContent = document.getElementById('dashboard-admin');
+
+            const staffAdminSections = getAllowedAdminSections().filter(section => section !== 'access');
+            const staffHasAdminTab = currentUserAccess.isFullAdmin || staffAdminSections.length > 0;
+            const staffUsesAdminForRecords = currentUserAccess.isStaffMember
+                && !currentUserAccess.isFullAdmin
+                && currentUserAccess.staffAdminSections.includes('records');
+
+            if (staffHasAdminTab) {
+                if (adminTab) adminTab.classList.remove('hidden');
+                applyStaffAdminNavVisibility();
+                lastAdminSection = getFirstAllowedAdminSection();
+
+                if (currentUserAccess.isFullAdmin) {
+                    loadAdminFamilies();
+                    loadAdminSharedResources();
+                    loadCurrentBannerForAdmin();
+                    if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
+                    if (typeof loadAdminStandards === 'function') loadAdminStandards();
+                }
+            } else {
+                if (adminTab) adminTab.classList.add('hidden');
+                if (adminContent) adminContent.classList.add('hidden');
+                if (adminTab?.classList.contains('is-active')) {
+                    showDashboardTab('my-tasks');
+                }
+            }
+
+            if (currentUserAccess.isFamilyViewer && !currentUserAccess.isFullAdmin && !staffUsesAdminForRecords) {
+                if (familyRecordsTab) familyRecordsTab.classList.remove('hidden');
+                if (typeof loadViewerFamiliesForSelect === 'function') loadViewerFamiliesForSelect();
+            } else {
+                if (familyRecordsTab) familyRecordsTab.classList.add('hidden');
+                if (familyRecordsTab?.classList.contains('is-active')) {
+                    showDashboardTab('my-tasks');
+                }
+            }
+        }
+
+        async function refreshMemberAccessIfLoggedIn() {
+            if (!supabaseClient) return;
+
+            const dashboardView = document.getElementById('dashboard-view');
+            if (!dashboardView || dashboardView.classList.contains('hidden')) return;
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
+
+            await loadUserAccess(user);
+            await applyMemberAccessUI();
         }
 
         function resetAdminFamilySelection() {
@@ -1986,37 +2055,7 @@
                     if (typeof loadMyIDSection === 'function') loadMyIDSection();
 
                     await loadUserAccess(user);
-
-                    const adminTab = document.getElementById('tab-admin');
-                    const familyRecordsTab = document.getElementById('tab-family-records');
-
-                    const staffAdminSections = getAllowedAdminSections().filter(section => section !== 'access');
-                    const staffHasAdminTab = currentUserAccess.isFullAdmin || staffAdminSections.length > 0;
-                    const staffUsesAdminForRecords = !currentUserAccess.isFullAdmin
-                        && currentUserAccess.staffAdminSections.includes('records');
-
-                    if (staffHasAdminTab) {
-                        if (adminTab) adminTab.classList.remove('hidden');
-                        applyStaffAdminNavVisibility();
-                        lastAdminSection = getFirstAllowedAdminSection();
-
-                        if (currentUserAccess.isFullAdmin) {
-                            loadAdminFamilies();
-                            loadAdminSharedResources();
-                            loadCurrentBannerForAdmin();
-                            if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
-                            if (typeof loadAdminStandards === 'function') loadAdminStandards();
-                        }
-                    } else if (adminTab) {
-                        adminTab.classList.add('hidden');
-                    }
-
-                    if (currentUserAccess.isFamilyViewer && !currentUserAccess.isFullAdmin && !staffUsesAdminForRecords) {
-                        if (familyRecordsTab) familyRecordsTab.classList.remove('hidden');
-                        if (typeof loadViewerFamiliesForSelect === 'function') loadViewerFamiliesForSelect();
-                    } else if (familyRecordsTab) {
-                        familyRecordsTab.classList.add('hidden');
-                    }
+                    await applyMemberAccessUI();
 
                     // Note: do NOT default the sub-tab here.
                     // Default happens only on initial load (see below) so that
@@ -2602,7 +2641,7 @@
                 const name = escapeHtml(profile ? formatFamilyName(profile) : 'Unknown user');
                 const email = escapeHtml(profile?.email || '');
                 const addedAt = row.created_at ? new Date(row.created_at).toLocaleDateString() : '';
-                const sections = normalizeStaffAdminSections(row.admin_sections);
+                const sections = staffSectionsWithLegacyDefault(row.admin_sections);
                 const sectionLabels = sections.map(sectionId => {
                     const def = STAFF_ASSIGNABLE_ADMIN_SECTIONS.find(item => item.id === sectionId);
                     return def ? def.label : sectionId;
