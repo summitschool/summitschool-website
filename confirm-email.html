@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css">
+    <link rel="stylesheet" href="assets/styles.css?v=20260630">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -84,6 +84,11 @@
     <script>
         const SUPABASE_URL = 'https://tajyrmydwqsijstyzsjr.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy';
+
+        function sleep(ms) {
+            return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+
         function parseHashParams() {
             const raw = window.location.hash.startsWith('#')
                 ? window.location.hash.slice(1)
@@ -104,15 +109,50 @@
             return hash.includes('type=recovery') || search.includes('type=recovery');
         }
 
-        async function init() {
-            if (isRecoveryAuthUrl()) {
-                window.location.replace('reset-password.html' + window.location.hash + window.location.search);
-                return;
-            }
+        function hasAuthCallback() {
+            const hash = window.location.hash;
+            const search = window.location.search;
+            return hash.includes('access_token')
+                || hash.includes('type=')
+                || hash.includes('error=')
+                || search.includes('code=')
+                || search.includes('token_hash=')
+                || search.includes('error=');
+        }
 
+        function createSupabaseClient() {
+            return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    persistSession: true,
+                    storage: window.sessionStorage,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true,
+                    flowType: 'pkce'
+                }
+            });
+        }
+
+        function normalizeOtpType(rawType) {
+            const type = String(rawType || '').toLowerCase();
+            if (type === 'signup' || type === 'email' || type === 'invite' || type === 'magiclink' || type === 'recovery' || type === 'email_change') {
+                return type === 'magiclink' ? 'email' : type;
+            }
+            return 'email';
+        }
+
+        async function waitForSession(supabaseClient, maxAttempts = 12, delayMs = 350) {
+            for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+                if (error) return { session: null, error };
+                if (session) return { session, error: null };
+                await sleep(delayMs);
+            }
+            return { session: null, error: null };
+        }
+
+        async function confirmEmailFromCallback() {
             const hashParams = parseHashParams();
             const searchParams = new URLSearchParams(window.location.search);
-            const hashType = hashParams.get('type') || searchParams.get('type');
             const hashError = hashParams.get('error_description') || hashParams.get('error')
                 || searchParams.get('error_description') || searchParams.get('error');
 
@@ -126,11 +166,7 @@
                 return;
             }
 
-            const hasAuthHash = window.location.hash.includes('access_token')
-                || window.location.hash.includes('type=')
-                || window.location.search.includes('code=');
-
-            if (!hasAuthHash) {
+            if (!hasAuthCallback()) {
                 showPanel('confirm-success');
                 const successMessage = document.getElementById('confirm-success-message');
                 if (successMessage) {
@@ -139,48 +175,109 @@
                 return;
             }
 
-            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                auth: {
-                    persistSession: true,
-                    storage: window.sessionStorage,
-                    autoRefreshToken: true,
-                    detectSessionInUrl: true
+            showPanel('confirm-loading');
+
+            if (!window.supabase) {
+                showPanel('confirm-error');
+                return;
+            }
+
+            const supabaseClient = createSupabaseClient();
+            let confirmed = false;
+            let confirmError = null;
+
+            const authSubscription = supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+                    confirmed = true;
                 }
             });
 
-            let session = null;
-            let sessionError = null;
+            try {
+                const code = searchParams.get('code');
+                const tokenHash = searchParams.get('token_hash') || hashParams.get('token_hash');
+                const callbackType = normalizeOtpType(searchParams.get('type') || hashParams.get('type'));
 
-            for (let attempt = 0; attempt < 3; attempt += 1) {
-                const result = await supabaseClient.auth.getSession();
-                session = result.data.session;
-                sessionError = result.error;
-                if (session || sessionError) break;
-                await new Promise((resolve) => setTimeout(resolve, 250));
-            }
+                if (code) {
+                    const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
+                    if (error) {
+                        confirmError = error;
+                    } else if (data?.session) {
+                        confirmed = true;
+                    }
+                } else if (tokenHash) {
+                    const otpTypes = callbackType === 'signup' ? ['signup', 'email'] : [callbackType, 'email', 'signup'];
+                    for (const otpType of otpTypes) {
+                        const { data, error } = await supabaseClient.auth.verifyOtp({
+                            token_hash: tokenHash,
+                            type: otpType
+                        });
+                        if (!error && data?.session) {
+                            confirmed = true;
+                            break;
+                        }
+                        if (error && !confirmError) {
+                            confirmError = error;
+                        }
+                    }
+                }
 
-            history.replaceState(null, '', window.location.pathname);
+                if (!confirmed && !confirmError) {
+                    const waited = await waitForSession(supabaseClient);
+                    if (waited.error) {
+                        confirmError = waited.error;
+                    } else if (waited.session) {
+                        confirmed = true;
+                    }
+                }
 
-            if (hashType === 'recovery') {
-                window.location.replace('reset-password.html');
-                return;
-            }
+                history.replaceState(null, '', window.location.pathname);
 
-            if (sessionError || !session) {
-                showPanel('confirm-error');
-                return;
-            }
+                if (confirmError && !confirmed) {
+                    const errorMessage = document.getElementById('confirm-error-message');
+                    if (errorMessage) {
+                        errorMessage.textContent = confirmError.message || 'This confirmation link could not be verified.';
+                    }
+                    showPanel('confirm-error');
+                    return;
+                }
 
-            await supabaseClient.auth.signOut({ scope: 'local' });
-            showPanel('confirm-success');
-        }
+                if (!confirmed) {
+                    showPanel('confirm-error');
+                    return;
+                }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            init().catch((err) => {
+                await supabaseClient.auth.signOut({ scope: 'local' });
+                showPanel('confirm-success');
+            } catch (err) {
                 console.error('confirm-email init failed:', err);
                 showPanel('confirm-error');
+            } finally {
+                authSubscription?.data?.subscription?.unsubscribe();
+            }
+        }
+
+        async function init() {
+            if (isRecoveryAuthUrl()) {
+                window.location.replace('reset-password.html' + window.location.hash + window.location.search);
+                return;
+            }
+
+            await confirmEmailFromCallback();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                init().catch((err) => {
+                    console.error('confirm-email boot failed:', err);
+                    showPanel('confirm-error');
+                });
             });
-        });
+        } else {
+            init().catch((err) => {
+                console.error('confirm-email boot failed:', err);
+                showPanel('confirm-error');
+            });
+        }
     </script>
 </body>
 </html>
