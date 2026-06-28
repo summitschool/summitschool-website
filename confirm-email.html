@@ -140,7 +140,25 @@
             return 'email';
         }
 
-        async function waitForSession(supabaseClient, maxAttempts = 12, delayMs = 350) {
+        function isBenignConfirmationError(error) {
+            const msg = String(error?.message || error || '').toLowerCase();
+            return msg.includes('expired')
+                || msg.includes('invalid')
+                || msg.includes('already')
+                || msg.includes('used')
+                || msg.includes('not found');
+        }
+
+        function showConfirmedSuccess(message) {
+            history.replaceState(null, '', window.location.pathname);
+            const successMessage = document.getElementById('confirm-success-message');
+            if (successMessage) {
+                successMessage.textContent = message;
+            }
+            showPanel('confirm-success');
+        }
+
+        async function waitForSession(supabaseClient, maxAttempts = 15, delayMs = 400) {
             for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
                 const { data: { session }, error } = await supabaseClient.auth.getSession();
                 if (error) return { session: null, error };
@@ -196,15 +214,11 @@
                 const code = searchParams.get('code');
                 const tokenHash = searchParams.get('token_hash') || hashParams.get('token_hash');
                 const callbackType = normalizeOtpType(searchParams.get('type') || hashParams.get('type'));
+                const hadAuthCallback = Boolean(code || tokenHash || window.location.hash.includes('access_token'));
 
-                if (code) {
-                    const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
-                    if (error) {
-                        confirmError = error;
-                    } else if (data?.session) {
-                        confirmed = true;
-                    }
-                } else if (tokenHash) {
+                // token_hash links need an explicit verify call; PKCE ?code= links are
+                // handled by detectSessionInUrl on the client (do not exchange twice).
+                if (tokenHash) {
                     const otpTypes = callbackType === 'signup' ? ['signup', 'email'] : [callbackType, 'email', 'signup'];
                     for (const otpType of otpTypes) {
                         const { data, error } = await supabaseClient.auth.verifyOtp({
@@ -221,33 +235,32 @@
                     }
                 }
 
-                if (!confirmed && !confirmError) {
+                if (!confirmed) {
                     const waited = await waitForSession(supabaseClient);
                     if (waited.error) {
-                        confirmError = waited.error;
+                        confirmError = confirmError || waited.error;
                     } else if (waited.session) {
                         confirmed = true;
                     }
                 }
 
+                if (confirmed) {
+                    await supabaseClient.auth.signOut({ scope: 'local' });
+                    showConfirmedSuccess('Your email address has been verified. You can sign in to the Family Hub anytime.');
+                    return;
+                }
+
+                if (hadAuthCallback && (!confirmError || isBenignConfirmationError(confirmError))) {
+                    showConfirmedSuccess('Your email appears to be confirmed already. You can sign in to the Family Hub below while your account awaits approval.');
+                    return;
+                }
+
                 history.replaceState(null, '', window.location.pathname);
-
-                if (confirmError && !confirmed) {
-                    const errorMessage = document.getElementById('confirm-error-message');
-                    if (errorMessage) {
-                        errorMessage.textContent = confirmError.message || 'This confirmation link could not be verified.';
-                    }
-                    showPanel('confirm-error');
-                    return;
+                const errorMessage = document.getElementById('confirm-error-message');
+                if (errorMessage) {
+                    errorMessage.textContent = confirmError?.message || 'This confirmation link could not be verified.';
                 }
-
-                if (!confirmed) {
-                    showPanel('confirm-error');
-                    return;
-                }
-
-                await supabaseClient.auth.signOut({ scope: 'local' });
-                showPanel('confirm-success');
+                showPanel('confirm-error');
             } catch (err) {
                 console.error('confirm-email init failed:', err);
                 showPanel('confirm-error');
