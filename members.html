@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260628">
+    <link rel="stylesheet" href="assets/styles.css?v=20260628b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -162,15 +162,6 @@
                             <div class="mt-4 text-center">
                                 <a href="#" onclick="forgotPassword(); return false;" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
                             </div>
-
-                            <div class="auth-switch-panel mt-6">
-                                <p class="auth-switch-label">Don't have an account yet?</p>
-                                <p class="auth-switch-hint">Enrolled Summit families can register for free — it only takes a minute.</p>
-                                <button type="button" onclick="showAuthTab('signup')" class="auth-register-cta">
-                                    Click here to register your family
-                                    <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                                </button>
-                            </div>
                         </div>
 
                         <div id="signup-form-container" class="hidden">
@@ -225,14 +216,6 @@
                                 <p class="text-xs text-center text-slate-500 mt-4 leading-relaxed">
                                     Your account will be reviewed by our team. Approvals begin July 1, 2026.
                                 </p>
-
-                                <div class="auth-switch-panel auth-switch-panel--compact mt-6">
-                                    <p class="auth-switch-label">Already registered?</p>
-                                    <button type="button" onclick="showAuthTab('login')" class="auth-signin-link">
-                                        Click here to sign in
-                                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                                    </button>
-                                </div>
                             </div>
                             <div id="signup-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
                         </div>
