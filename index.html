@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
 
     <!-- Pre-compiled Tailwind + custom styles (blocking — eliminates runtime CDN FOUC) -->
-    <link rel="stylesheet" href="assets/styles.css?v=20260628g">
+    <link rel="stylesheet" href="assets/styles.css?v=20260629">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -32,10 +32,10 @@
     <!-- Sticky Navigation -->
     <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
         <div class="tail-container">
-            <div class="flex items-center justify-between h-24">
+            <div class="flex items-center justify-between h-16 sm:h-20">
                 <!-- Logo -->
                 <a href="#" class="flex items-center">
-                    <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-20 w-auto object-contain rounded-2xl">
+                    <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-11 sm:h-16 w-auto object-contain rounded-2xl">
                 </a>
 
                 <!-- Desktop Navigation -->
@@ -86,9 +86,14 @@
                 <a href="#resources" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Resources</a>
                 <a href="#contact" class="mobile-nav-link px-4 py-3.5 rounded-xl hover:bg-cream text-slate-700">Contact</a>
                 
-                <div class="pt-3 px-4">
-                    <a href="#enrollment" 
-                       class="block w-full text-center px-6 py-3.5 text-base font-semibold rounded-2xl bg-navy text-white active:scale-[0.985]">
+                <div class="pt-3 px-4 space-y-2">
+                    <a href="members.html"
+                       class="flex w-full items-center justify-center gap-2 px-6 py-3.5 text-base font-semibold rounded-2xl bg-navy text-white active:scale-[0.985]">
+                        <i class="fas fa-right-to-bracket text-sm" aria-hidden="true"></i>
+                        Family Hub Sign In
+                    </a>
+                    <a href="#enrollment"
+                       class="block w-full text-center px-6 py-3.5 text-base font-semibold rounded-2xl border-2 border-navy text-navy bg-white active:scale-[0.985]">
                         Enroll Now
                     </a>
                 </div>
@@ -148,7 +153,7 @@
 
         <div class="tail-container pt-8">
             <div class="max-w-4xl mx-auto text-center">
-                <a href="https://summitchurchrbc.com" target="_blank" rel="noopener noreferrer" class="inline-block px-4 py-1 rounded-full bg-cream text-sage text-xs font-semibold tracking-[1.5px] mb-4 hover:bg-cream/80 transition">A MINISTRY OF SUMMIT CHURCH</a>
+                <a href="https://summitchurchrbc.com" target="_blank" rel="noopener noreferrer" class="section-eyebrow hover:opacity-80 transition">A Ministry of Summit Church</a>
                 
                 <h2 class="heading-serif text-5xl sm:text-6xl text-navy tracking-tighter">About Summit Church School</h2>
                 
@@ -191,8 +196,9 @@
     <section id="why" class="py-16 bg-ivory">
         <div class="tail-container">
             <div class="max-w-3xl mx-auto text-center mb-12">
-                <h2 class="heading-serif text-5xl text-navy tracking-tighter">Why Families Choose Summit</h2>
-                <p class="mt-4 text-xl text-slate-600">A supportive partnership designed for the realities of home education.</p>
+                <span class="section-eyebrow">Partnership &amp; Support</span>
+                <h2 class="heading-serif text-5xl text-navy tracking-tighter mt-3">Why Families Choose Summit</h2>
+                <p class="mt-4 text-xl text-slate-600">Legal coverage, records, community, and a secure Family Hub — built for real homeschool life.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
@@ -244,6 +250,21 @@
                     <h3 class="text-2xl font-semibold text-navy tracking-tight">Responsive Parent Support</h3>
                     <p class="mt-3 text-slate-600 flex-1">Real people who answer emails and texts quickly. Guidance on record keeping, high school planning, and encouragement when you need it most.</p>
                 </div>
+
+                <div class="benefit-card bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col md:col-span-2 lg:col-span-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+                        <div class="w-12 h-12 rounded-2xl bg-navy flex items-center justify-center shrink-0">
+                            <i class="fas fa-house-chimney-user text-white text-lg" aria-hidden="true"></i>
+                        </div>
+                        <div class="flex-1 text-left">
+                            <h3 class="text-2xl font-semibold text-navy tracking-tight">Summit Family Hub</h3>
+                            <p class="mt-2 text-slate-600">After enrollment, families use our secure online Family Hub for documents, assigned tasks, school resources, and important updates — private to your household.</p>
+                        </div>
+                        <a href="members.html" class="btn-gold shrink-0 px-6 py-3 text-sm font-semibold rounded-2xl text-center whitespace-nowrap">
+                            Open Family Hub
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -252,8 +273,9 @@
     <section id="faq" class="py-16 bg-white border-t border-slate-100">
         <div class="tail-container max-w-4xl mx-auto">
             <div class="text-center mb-10">
-                <h2 class="heading-serif text-5xl text-navy tracking-tighter">Frequently Asked Questions</h2>
-                <p class="mt-3 text-xl text-slate-600">Everything you need to know about joining our community.</p>
+                <span class="section-eyebrow">Common Questions</span>
+                <h2 class="heading-serif text-5xl text-navy tracking-tighter mt-3">Frequently Asked Questions</h2>
+                <p class="mt-3 text-xl text-slate-600">Clear answers about enrollment, records, and how we support your family.</p>
             </div>
 
             <div class="space-y-3">
@@ -367,9 +389,9 @@
     <section id="enrollment" class="py-16 bg-navy text-white">
         <div class="tail-container">
             <div class="max-w-3xl mx-auto text-center mb-12">
-                <div class="inline px-3.5 py-1 rounded-full bg-white/10 text-gold text-xs tracking-[2px] font-semibold">SIMPLE PROCESS • START TODAY</div>
+                <span class="section-eyebrow section-eyebrow--light">Enrollment</span>
                 <h2 class="heading-serif text-5xl tracking-tighter mt-4">Ready to Join Our Community?</h2>
-                <p class="mt-4 text-xl text-white/80">Four simple steps to give your family the structure and support you’ve been looking for.</p>
+                <p class="mt-4 text-xl text-white/80">Four straightforward steps from application to your Family Hub account.</p>
             </div>
 
             <!-- Steps -->
@@ -381,21 +403,21 @@
                 </div>
                 <div class="bg-white/5 rounded-3xl p-7 border border-white/10">
                     <div class="step-number w-9 h-9 flex items-center justify-center rounded-2xl text-xl mb-5">2</div>
-                    <h4 class="font-semibold text-xl tracking-tight">Complete Paperwork</h4>
-                    <p class="mt-2 text-white/80 text-[15px]">Complete the Enrollment Application. We keep the process straightforward and respectful of your time.</p>
+                    <h4 class="font-semibold text-xl tracking-tight">Apply Online</h4>
+                    <p class="mt-2 text-white/80 text-[15px]">Complete the secure online Enrollment Application. Save your progress and return anytime.</p>
                 </div>
                 <div class="bg-white/5 rounded-3xl p-7 border border-white/10">
                     <div class="step-number w-9 h-9 flex items-center justify-center rounded-2xl text-xl mb-5">3</div>
-                    <h4 class="font-semibold text-xl tracking-tight">Submit Application</h4>
-                    <p class="mt-2 text-white/80 text-[15px]">Submit your completed Enrollment Application. We’ll review it and notify you once approved before tuition payment is due.</p>
+                    <h4 class="font-semibold text-xl tracking-tight">Application Review</h4>
+                    <p class="mt-2 text-white/80 text-[15px]">We review your application and notify you once approved — before tuition payment is due.</p>
                 </div>
                 <div class="bg-white/5 rounded-3xl p-7 border border-white/10">
                     <div class="step-number w-9 h-9 flex items-center justify-center rounded-2xl text-xl mb-5">4</div>
                     <h4 class="font-semibold text-xl tracking-tight">Pay Tuition &amp; Welcome</h4>
                     <p class="mt-2 text-white/80 text-[15px] leading-relaxed">After approval, submit your tuition. Then create your Summit Family Hub account to access family documents, assigned tasks, and school resources in one secure place.</p>
-                    <a href="members.html#signup"
-                       class="flex w-full items-center justify-center text-center mt-4 px-5 py-2.5 text-sm font-semibold rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 text-white transition-all">
+                    <a href="members.html#signup" class="hub-cta-link">
                         Create Family Hub Account
+                        <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
                     </a>
                 </div>
             </div>
@@ -403,7 +425,7 @@
             <!-- Paperwork + Payment -->
             <div class="max-w-5xl mx-auto grid md:grid-cols-2 gap-8">
                 <!-- Enrollment Form -->
-                <div class="bg-white rounded-3xl p-8 md:p-9 text-navy">
+                <div class="site-card p-8 md:p-9 text-navy">
                     <div class="flex items-center gap-x-3 mb-6">
                         <div class="bg-cream p-2.5 rounded-2xl">
                             <svg class="w-6 h-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -411,9 +433,8 @@
                         <h3 class="text-2xl font-semibold tracking-tight">Enrollment Application</h3>
                     </div>
                     
-                    <p class="text-sm text-slate-600 mb-6">
-                        Complete our secure online Enrollment Application. 
-                        This form includes everything needed to apply.
+                    <p class="text-sm text-slate-600 mb-6 leading-relaxed">
+                        Start your application online. One secure form covers everything we need to review your family’s enrollment.
                     </p>
                     
                     <!-- DOCUSEAL ENROLL LINK - Update this URL after migrating DocuSeal to Railway (or when changing the subdomain) -->
@@ -450,7 +471,7 @@
                 </div>
 
                 <!-- Pay Tuition -->
-                <div class="bg-white rounded-3xl p-8 md:p-9 text-navy">
+                <div class="site-card p-8 md:p-9 text-navy">
                     <div class="flex items-center gap-x-3 mb-6">
                         <div class="bg-cream p-2.5 rounded-2xl">
                             <svg class="w-6 h-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -458,7 +479,7 @@
                         <h3 class="text-2xl font-semibold tracking-tight">Pay Tuition</h3>
                     </div>
                     
-                    <p class="text-sm text-slate-600 mb-6">Please do not submit payment until your application has been approved. Once approved, you may use one of the payment options below.</p>
+                    <p class="text-sm text-slate-600 mb-6 leading-relaxed">Submit payment only after your application is approved. Tuition rates are in the enrollment packet — choose an option below when you’re ready.</p>
                     
                     <div class="space-y-3">
                         <!-- PayPal -->
@@ -491,34 +512,45 @@
     <!-- 7. RESOURCES -->
     <section id="resources" class="py-16 bg-ivory">
         <div class="tail-container max-w-3xl mx-auto text-center">
-            <h2 class="heading-serif text-5xl text-navy tracking-tighter">Connect With Our Community</h2>
-            <p class="mt-4 text-xl text-slate-600">Stay encouraged and informed through our active online spaces.</p>
+            <span class="section-eyebrow">Stay Connected</span>
+            <h2 class="heading-serif text-5xl text-navy tracking-tighter mt-3">Connect With Our Community</h2>
+            <p class="mt-4 text-xl text-slate-600">Community spaces for encouragement — plus the Family Hub for enrolled families.</p>
             
-            <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                <a href="https://www.facebook.com/SummitChurchSchool" target="_blank" 
-                   class="group flex items-center gap-x-5 bg-white border border-slate-200 hover:border-gold/30 rounded-3xl p-7 transition-all hover:shadow-md">
+            <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto">
+                <a href="https://www.facebook.com/SummitChurchSchool" target="_blank" rel="noopener noreferrer"
+                   class="community-card group">
                     <div class="w-12 h-12 flex-shrink-0 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center">
                         <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"></path></svg>
                     </div>
-                    <div class="text-left">
-                        <div class="font-semibold text-xl text-navy tracking-tight group-hover:text-gold transition">Facebook Page</div>
+                    <div class="text-left min-w-0">
+                        <div class="font-semibold text-lg text-navy tracking-tight group-hover:text-gold transition">Facebook Page</div>
                         <div class="text-slate-600 text-sm mt-0.5">News, events &amp; encouragement</div>
                     </div>
                 </a>
                 
-                <a href="https://www.facebook.com/groups/summitchurchschool/" target="_blank"
-                   class="group flex items-center gap-x-5 bg-white border border-slate-200 hover:border-gold/30 rounded-3xl p-7 transition-all hover:shadow-md">
+                <a href="https://www.facebook.com/groups/summitchurchschool/" target="_blank" rel="noopener noreferrer"
+                   class="community-card group">
                     <div class="w-12 h-12 flex-shrink-0 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center">
                         <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"></path></svg>
                     </div>
-                    <div class="text-left">
-                        <div class="font-semibold text-xl text-navy tracking-tight group-hover:text-gold transition">Private Parent Group</div>
-                        <div class="text-slate-600 text-sm mt-0.5">For enrolled families &amp; friends</div>
+                    <div class="text-left min-w-0">
+                        <div class="font-semibold text-lg text-navy tracking-tight group-hover:text-gold transition">Private Parent Group</div>
+                        <div class="text-slate-600 text-sm mt-0.5">For enrolled families</div>
+                    </div>
+                </a>
+
+                <a href="members.html" class="community-card group sm:col-span-2 lg:col-span-1">
+                    <div class="w-12 h-12 flex-shrink-0 bg-navy text-gold rounded-2xl flex items-center justify-center">
+                        <i class="fas fa-house-chimney-user text-lg" aria-hidden="true"></i>
+                    </div>
+                    <div class="text-left min-w-0">
+                        <div class="font-semibold text-lg text-navy tracking-tight group-hover:text-gold transition">Summit Family Hub</div>
+                        <div class="text-slate-600 text-sm mt-0.5">Documents, tasks &amp; resources for enrolled families</div>
                     </div>
                 </a>
             </div>
             
-            <p class="mt-8 text-sm text-slate-500">Request to join the group after enrolling or message us on the page.</p>
+            <p class="mt-8 text-sm text-slate-500">Join the parent group after enrolling. Already enrolled? Sign in to the Family Hub above.</p>
         </div>
     </section>
 
@@ -528,8 +560,9 @@
             <div class="grid md:grid-cols-5 gap-x-12 gap-y-12">
                 <!-- Contact Info -->
                 <div class="md:col-span-2">
-                    <h2 class="heading-serif text-4xl text-navy tracking-tight">Let’s Talk</h2>
-                    <p class="mt-4 text-lg text-slate-600">We would love to hear from you and answer any questions you have about joining Summit Church School.</p>
+                    <span class="section-eyebrow">Contact</span>
+                    <h2 class="heading-serif text-4xl text-navy tracking-tight mt-3">Let’s Talk</h2>
+                    <p class="mt-4 text-lg text-slate-600 leading-relaxed">Questions about enrollment, records, or the Family Hub? We’re happy to help your family get started.</p>
                     
                     <div class="mt-8 space-y-5 text-sm">
                         <div>
@@ -558,7 +591,7 @@
 
                 <!-- Contact Form -->
                 <div class="md:col-span-3">
-                    <form id="contact-form" action="https://formspree.io/f/mojbzrla" method="POST" class="space-y-5">
+                    <form id="contact-form" action="https://formspree.io/f/mojbzrla" method="POST" class="site-card p-6 sm:p-8 space-y-5">
                         <!-- Sets a consistent subject for all incoming emails -->
                         <input type="hidden" name="_subject" value="New message from Summit Church School website">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -579,6 +612,7 @@
                             <select name="interest" class="form-input w-full px-5 py-3.5 bg-white border border-slate-300 rounded-2xl text-base">
                                 <option>Enrolling my child(ren)</option>
                                 <option>Learning more about the program</option>
+                                <option>Family Hub access or account help</option>
                                 <option>High school / transcript questions</option>
                                 <option>Payment or tuition questions</option>
                                 <option>Other</option>
@@ -634,6 +668,7 @@
                     <a href="#about" class="hover:text-white transition">About</a>
                     <a href="#faq" class="hover:text-white transition">FAQ</a>
                     <a href="#enrollment" class="hover:text-white transition">Enroll</a>
+                    <a href="members.html" class="hover:text-white transition">Family Hub</a>
                     <a href="#resources" class="hover:text-white transition">Community</a>
                     <a href="#contact" class="hover:text-white transition">Contact</a>
                 </div>
@@ -700,7 +735,7 @@
             await updateHeaderAuthState();
         }
 
-        const NAV_HEIGHT = 80;
+        const NAV_HEIGHT = window.matchMedia('(min-width: 640px)').matches ? 80 : 64;
         const MENU_ICON_OPEN = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M4 6h16M4 12h16M4 18h16"></path>';
         const MENU_ICON_CLOSE = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M6 18L18 6M6 6l12 12"></path>';
 

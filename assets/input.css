@@ -22,7 +22,73 @@
 
 @layer components {
   .tail-container {
-    @apply max-w-screen-xl mx-auto px-6;
+    @apply max-w-screen-xl mx-auto px-4 sm:px-6;
+  }
+
+  .section-eyebrow {
+    display: inline-block;
+    margin-bottom: 0.75rem;
+    padding: 0.25rem 0.875rem;
+    border-radius: 9999px;
+    background-color: rgb(248 244 237);
+    color: #7C8F7E;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .section-eyebrow--light {
+    background-color: rgb(255 255 255 / 0.12);
+    color: #E8D5A3;
+  }
+
+  .site-card {
+    background-color: white;
+    border-radius: 1.5rem;
+    border: 1px solid rgb(241 245 249);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.04);
+  }
+
+  .community-card {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.75rem;
+    border-radius: 1.5rem;
+    border: 1px solid rgb(226 232 240);
+    background-color: white;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.2s ease,
+                box-shadow 0.2s ease;
+  }
+
+  .community-card:hover {
+    transform: translateY(-2px);
+    border-color: rgb(201 162 39 / 0.35);
+    box-shadow: 0 8px 20px -6px rgb(0 0 0 / 0.08);
+  }
+
+  .hub-cta-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.625rem 1rem;
+    border-radius: 0.875rem;
+    border: 1px solid rgb(201 162 39 / 0.45);
+    background-color: rgb(201 162 39 / 0.15);
+    color: #E8D5A3;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .hub-cta-link:hover {
+    background-color: rgb(201 162 39 / 0.28);
+    border-color: #C9A227;
   }
 
   .heading-serif {
