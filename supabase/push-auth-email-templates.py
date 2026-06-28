@@ -41,6 +41,7 @@ def main() -> int:
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "User-Agent": "supabase-cli/2.108.0",
         },
         method="PATCH",
     )
