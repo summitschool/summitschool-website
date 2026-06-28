@@ -162,8 +162,10 @@ site_url = "https://summitchurchschool.org"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
   "https://summitchurchschool.org/confirm-email.html",
+  "https://summitchurchschool.org/reset-password.html",
   "https://summitchurchschool.org/members.html",
   "http://127.0.0.1:3000/confirm-email.html",
+  "http://127.0.0.1:3000/reset-password.html",
   "http://127.0.0.1:3000/members.html"
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).

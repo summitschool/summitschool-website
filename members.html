@@ -17,10 +17,18 @@
 <body class="bg-[#F8F6F1] text-slate-800 body-text antialiased">
     <script>
         (function () {
-            var hash = window.location.hash;
-            if (hash && (hash.indexOf('access_token') !== -1 || hash.indexOf('type=') !== -1 || hash.indexOf('error=') !== -1)) {
-                window.location.replace('confirm-email.html' + hash + window.location.search);
-            }
+            var hash = window.location.hash || '';
+            var search = window.location.search || '';
+            var hasAuthParams = hash.indexOf('access_token') !== -1
+                || hash.indexOf('type=') !== -1
+                || hash.indexOf('error=') !== -1
+                || search.indexOf('code=') !== -1
+                || search.indexOf('error=') !== -1;
+            if (!hasAuthParams) return;
+
+            var isRecovery = hash.indexOf('type=recovery') !== -1 || search.indexOf('type=recovery') !== -1;
+            var targetPage = isRecovery ? 'reset-password.html' : 'confirm-email.html';
+            window.location.replace(targetPage + hash + search);
         })();
     </script>
     <!-- Sticky Navigation -->
@@ -160,7 +168,7 @@
                             </form>
 
                             <div class="mt-4 text-center">
-                                <a href="#" onclick="forgotPassword(); return false;" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
+                                <a href="reset-password.html" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
                             </div>
                         </div>
 
@@ -1018,14 +1026,20 @@
             supabaseClient = initializeSupabase();
         }
 
-        // Fallback if an auth email still lands on members.html instead of confirm-email.html.
+        // Fallback if an auth email still lands on members.html instead of the right auth page.
         function handleAuthRedirect() {
             const hash = window.location.hash;
-            const hasAuthHash = hash.includes('access_token') || hash.includes('type=') || hash.includes('error=');
-            if (!hasAuthHash) return;
+            const search = window.location.search;
+            const hasAuthParams = hash.includes('access_token')
+                || hash.includes('type=')
+                || hash.includes('error=')
+                || search.includes('code=')
+                || search.includes('error=');
+            if (!hasAuthParams) return;
 
-            const target = 'confirm-email.html' + hash + window.location.search;
-            window.location.replace(target);
+            const isRecovery = hash.includes('type=recovery') || search.includes('type=recovery');
+            const targetPage = isRecovery ? 'reset-password.html' : 'confirm-email.html';
+            window.location.replace(targetPage + hash + search);
         }
 
         function showSignupStatus(type, message) {
@@ -4859,27 +4873,6 @@
 
             showSignupSuccessScreen();
             signupInProgress = false;
-        }
-
-        // Forgot password
-        async function forgotPassword() {
-            if (!supabaseClient) {
-                alert('Password reset will be available once Supabase is connected.');
-                return;
-            }
-
-            const email = prompt('Please enter the email address associated with your account:');
-            if (!email) return;
-
-            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: getAuthRedirectUrl('/confirm-email.html')
-            });
-
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
-                alert('Password reset email sent. Please check your inbox.');
-            }
         }
 
         // Logout
