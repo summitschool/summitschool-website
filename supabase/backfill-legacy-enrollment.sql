@@ -1,0 +1,15 @@
+-- One-time backfill for legacy enrollment template hepTZVXKSzmTVE.
+-- Archives fully signed submissions to enrollment_document_archive / My Documents
+-- keyed by the family email on that submission only.
+--
+-- Deploy:
+--   supabase functions deploy backfill-legacy-enrollment-documents --no-verify-jwt
+--
+-- Dry run:
+--   curl -X POST https://tajyrmydwqsijstyzsjr.supabase.co/functions/v1/backfill-legacy-enrollment-documents \
+--     -H "Content-Type: application/json" \
+--     -H "x-webhook-secret: YOUR_ENROLLMENT_DELIVERY_WEBHOOK_SECRET" \
+--     -d '{"template_slug":"hepTZVXKSzmTVE","dry_run":true}'
+--
+-- Run backfill:
+--   curl -X POST ... -d '{"template_slug":"hepTZVXKSzmTVE"}'
