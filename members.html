@@ -124,14 +124,9 @@
                     </div>
 
                     <div id="members-opening-notice" class="auth-card-inset mb-5 p-4 bg-amber-50 border border-amber-200/80 rounded-2xl">
-                        <div class="flex gap-3 items-start">
-                            <i class="fas fa-calendar-alt text-amber-600 mt-0.5 shrink-0" aria-hidden="true"></i>
-                            <div>
-                                <p class="text-sm font-semibold text-navy">Opening July 1, 2026</p>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    You may create your account now. Access approvals begin when the Family Hub officially opens on <strong>July 1, 2026</strong>.
-                                </p>
-                            </div>
+                        <div class="flex gap-3 items-center">
+                            <i class="fas fa-calendar-alt text-amber-600 shrink-0" aria-hidden="true"></i>
+                            <p class="text-sm font-semibold text-navy">Opening July 1, 2026</p>
                         </div>
                     </div>
 
@@ -164,7 +159,13 @@
 
                     <div id="signup-form-intro" class="auth-card-inset auth-form-intro mb-5 hidden">
                         <h2 class="auth-form-heading">Register your family</h2>
-                        <p class="auth-form-subtitle">Continue with Google, or register with email to request Family Hub access. We'll review and approve enrolled families.</p>
+                        <p class="auth-form-subtitle">Continue with Google, or register with email to request Family Hub access.</p>
+                        <ol class="mt-3 space-y-1.5 text-sm text-slate-600 list-decimal list-inside leading-relaxed">
+                            <li>Create your account with Google or email</li>
+                            <li>Confirm your email address (email signups only)</li>
+                            <li>Our team reviews and approves enrolled families</li>
+                            <li>You'll receive an email when your access is approved</li>
+                        </ol>
                     </div>
 
                     <div id="oauth-section" class="auth-oauth-wrap mb-5">
@@ -273,10 +274,6 @@
                                         Create Account &amp; Request Access
                                     </button>
                                 </form>
-
-                                <p class="text-xs text-center text-slate-500 mt-4 leading-relaxed">
-                                    Your account will be reviewed by our team. Approvals begin July 1, 2026.
-                                </p>
                             </div>
                             <div id="signup-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
                         </div>
@@ -285,10 +282,7 @@
                     <div class="auth-trust-strip">
                         <p class="text-xs text-center text-slate-500 leading-relaxed">
                             For currently enrolled families only.
-                            <a href="index.html#contact" class="text-navy underline hover:text-sage transition">Contact us</a> for help.
-                        </p>
-                        <p class="text-xs text-center text-slate-500 mt-2 leading-relaxed">
-                            After signing up, confirm your email before you can sign in.
+                            <a href="index.html?interest=family-hub-help#contact" class="text-navy underline hover:text-sage transition">Contact us</a> for help.
                         </p>
                         <div class="flex flex-wrap justify-center gap-2 mt-4">
                             <span class="security-badge"><i class="fas fa-lock" aria-hidden="true"></i> Encrypted sign-in</span>
@@ -308,7 +302,7 @@
                 </div>
                 <h2 class="heading-serif text-3xl text-navy" id="pending-title">Account Pending Approval</h2>
                 <p class="mt-4 text-slate-600 leading-relaxed" id="pending-message-primary">Thank you for signing up. Your account has been created and is now awaiting review by our team.</p>
-                <p class="mt-2 text-slate-600 leading-relaxed" id="pending-message-secondary">Family Hub access approvals will begin on July 1, 2026. You will receive an email once your access has been approved.</p>
+                <p class="mt-2 text-slate-600 leading-relaxed" id="pending-message-secondary">You will receive an email once your access has been approved.</p>
 
                 <div class="mt-8">
                     <button type="button" onclick="logout()"
@@ -462,7 +456,7 @@
                 </div>
 
                 <div class="mt-8 text-center text-sm text-slate-500">
-                    Questions about anything in the Family Hub? <a href="index.html#contact" class="text-navy underline">Reach out anytime</a>.
+                    Questions about anything in the Family Hub? <a href="index.html?interest=family-hub-help#contact" class="text-navy underline">Reach out anytime</a>.
                 </div>
             </div>
 
@@ -1373,7 +1367,9 @@
             }
         }
 
-        function showSignupStatus(type, message) {
+        const FAMILY_HUB_CONTACT_URL = 'index.html?interest=family-hub-help#contact';
+
+        function showSignupStatus(type, message, options = {}) {
             const statusEl = document.getElementById('signup-status');
             if (!statusEl) return;
 
@@ -1387,7 +1383,11 @@
                 statusEl.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
             }
 
-            statusEl.textContent = message;
+            if (options.html) {
+                statusEl.innerHTML = message;
+            } else {
+                statusEl.textContent = message;
+            }
             statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
@@ -2283,7 +2283,7 @@
         }
 
         function contactAdminForID() {
-            alert('Please email the admin at the address listed on the main site contact page, or use the contact form. Reference your account email for faster help updating your ID.');
+            window.location.href = 'index.html?interest=family-hub-help#contact';
         }
 
         // Load / render My ID section (called from checkLoginState and after admin assign simulation).
@@ -2518,7 +2518,7 @@
                     const pendingSecondary = document.getElementById('pending-message-secondary');
                     if (pendingTitle) pendingTitle.textContent = 'Application Not Approved';
                     if (pendingPrimary) pendingPrimary.textContent = 'Your Family Hub access request was not approved at this time.';
-                    if (pendingSecondary) pendingSecondary.textContent = 'If you believe this was a mistake, please contact us through the main site contact form.';
+                    if (pendingSecondary) pendingSecondary.innerHTML = 'If you believe this was a mistake, please <a href="index.html?interest=family-hub-help#contact" class="text-navy underline hover:text-sage transition">contact us</a>.';
 
                     setLogoutButtonsVisible(true);
                 } else if (profile && profile.approved === true) {
@@ -2571,7 +2571,7 @@
                     const pendingSecondary = document.getElementById('pending-message-secondary');
                     if (pendingTitle) pendingTitle.textContent = 'Account Pending Approval';
                     if (pendingPrimary) pendingPrimary.textContent = 'Thank you for signing up. Your account has been created and is now awaiting review by our team.';
-                    if (pendingSecondary) pendingSecondary.textContent = 'Family Hub access approvals will begin on July 1, 2026. You will receive an email once your access has been approved.';
+                    if (pendingSecondary) pendingSecondary.textContent = 'You will receive an email once your access has been approved.';
 
                     setLogoutButtonsVisible(true);
                 }
@@ -5328,7 +5328,7 @@
             if (error) {
                 const errText = error.message || error.msg || error.error_description || error.code || JSON.stringify(error);
                 if (String(errText).toLowerCase().includes('rate limit')) {
-                    showSignupStatus('warning', 'Too many signup or confirmation emails have been sent recently. Please wait about an hour and try again, or contact us if you need help.');
+                    showSignupStatus('warning', `Too many signup or confirmation emails have been sent recently. Please wait about an hour and try again, or <a href="${FAMILY_HUB_CONTACT_URL}" class="underline font-medium">contact us</a> if you need help.`, { html: true });
                 } else {
                     showSignupStatus('error', 'Signup failed: ' + errText);
                 }
@@ -5345,7 +5345,7 @@
             }
 
             if (!data?.user) {
-                showSignupStatus('error', 'Signup could not be completed. Please try again, or contact us if the problem continues.');
+                showSignupStatus('error', `Signup could not be completed. Please try again, or <a href="${FAMILY_HUB_CONTACT_URL}" class="underline font-medium">contact us</a> if the problem continues.`, { html: true });
                 console.warn('Signup returned no user and no error:', data);
                 signupInProgress = false;
                 return;

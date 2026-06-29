@@ -601,10 +601,11 @@
                         
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1.5">I’m interested in…</label>
-                            <select name="interest" class="form-input w-full px-5 py-3.5 bg-white border border-slate-300 rounded-2xl text-base">
+                            <select id="contact-interest" name="interest" class="form-input w-full px-5 py-3.5 bg-white border border-slate-300 rounded-2xl text-base">
                                 <option>Enrolling my child(ren)</option>
                                 <option>Learning more about the program</option>
-                                <option>Family Hub access or account help</option>
+                                <option>Family Hub — account access or approval</option>
+                                <option>Family Hub — report a problem</option>
                                 <option>High school / transcript questions</option>
                                 <option>Payment or tuition questions</option>
                                 <option>Other</option>
@@ -752,6 +753,22 @@
             });
         }
 
+        const CONTACT_INTEREST_ALIASES = {
+            'family-hub-help': 'Family Hub — account access or approval',
+            'family-hub-issue': 'Family Hub — report a problem',
+        };
+
+        function initContactInterestFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const interest = params.get('interest');
+            const select = document.getElementById('contact-interest');
+            if (!interest || !select) return;
+
+            const label = CONTACT_INTEREST_ALIASES[interest] || interest;
+            const match = Array.from(select.options).find((option) => option.text === label || option.value === label);
+            if (match) select.value = match.value;
+        }
+
         // Contact form handler
         function initContactForm() {
             const form = document.getElementById('contact-form');
@@ -883,6 +900,7 @@
             await updateHeaderAuthState();
 
             initMobileMenu();
+            initContactInterestFromUrl();
             initContactForm();
             initSmoothScroll();
             setFooterYear();
