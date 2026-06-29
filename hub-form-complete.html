@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Your signed Summit Church School form has been saved to your Family Hub.">
+    <title>Form Saved • Summit Church School</title>
+
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
+    <link rel="stylesheet" href="assets/styles.css?v=20260701">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-[#F8F6F1] text-slate-800 body-text antialiased min-h-screen flex flex-col">
+    <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
+        <div class="max-w-screen-xl mx-auto px-6">
+            <div class="flex items-center h-20">
+                <a href="index.html" class="flex items-center">
+                    <img src="images/logo.png?v=20260615" alt="Summit Church School" class="h-14 w-auto object-contain rounded-2xl">
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-1 py-12 sm:py-16">
+        <div class="max-w-2xl mx-auto px-6">
+            <div class="site-card p-8 sm:p-10 text-navy">
+                <div class="text-center">
+                    <img src="images/logo.png?v=20260615"
+                         alt=""
+                         aria-hidden="true"
+                         class="h-16 sm:h-[4.5rem] w-auto mx-auto object-contain rounded-2xl mb-6">
+                    <div class="mx-auto w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fas fa-check text-3xl" aria-hidden="true"></i>
+                    </div>
+                    <span class="section-eyebrow">Family Hub</span>
+                    <h1 class="heading-serif text-4xl sm:text-[2.75rem] tracking-tighter text-navy mt-3">Form saved</h1>
+                    <p class="mt-4 text-[15px] sm:text-base text-slate-600 leading-relaxed max-w-lg mx-auto">
+                        Thank you for completing your form. Your signed copy has been saved to <strong>My Documents</strong> in the Summit Family Hub.
+                    </p>
+                </div>
+
+                <div class="mt-10 pt-8 border-t border-slate-100">
+                    <h2 class="text-lg font-semibold text-navy tracking-tight">What happens next</h2>
+
+                    <div class="auth-signup-flow mt-6" role="list" aria-label="Form completion next steps">
+                        <div class="auth-signup-step auth-signup-step--highlight" role="listitem">
+                            <div class="auth-signup-step-marker" aria-hidden="true">
+                                <i class="fas fa-check" aria-hidden="true"></i>
+                            </div>
+                            <div class="auth-signup-step-body">
+                                <p class="auth-signup-step-title">Form signed</p>
+                                <p class="auth-signup-step-desc">Your submission is complete.</p>
+                            </div>
+                        </div>
+
+                        <div class="auth-signup-step" role="listitem">
+                            <div class="auth-signup-step-marker" aria-hidden="true">2</div>
+                            <div class="auth-signup-step-body">
+                                <p class="auth-signup-step-title">Saved to My Documents</p>
+                                <p class="auth-signup-step-desc">The signed PDF is now in your Family Hub under <strong>My Documents</strong> for this school year.</p>
+                            </div>
+                        </div>
+
+                        <div class="auth-signup-step" role="listitem">
+                            <div class="auth-signup-step-marker" aria-hidden="true">3</div>
+                            <div class="auth-signup-step-body">
+                                <p class="auth-signup-step-title">Task removed</p>
+                                <p class="auth-signup-step-desc">This form no longer appears in <strong>My Tasks</strong>.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-center">
+                    <button type="button"
+                            id="close-tab-btn"
+                            class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985]">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-navy text-white/70 py-8 border-t border-white/10">
+        <div class="max-w-screen-xl mx-auto px-6 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span>&copy; <span id="year"></span> Summit Church School</span>
+            <div class="flex gap-5">
+                <a href="privacy.html" class="hover:text-white transition">Privacy</a>
+                <a href="terms.html" class="hover:text-white transition">Terms</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/close-or-return.js"></script>
+    <script src="assets/complete-docuseal-task.js"></script>
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+        document.getElementById('close-tab-btn')?.addEventListener('click', () => {
+            window.closeOrReturn('members.html');
+        });
+
+        const templateSlug = new URLSearchParams(window.location.search).get('template') || '';
+        if (templateSlug) {
+            window.completeDocuSealTask?.(templateSlug);
+        }
+    </script>
+</body>
+</html>
