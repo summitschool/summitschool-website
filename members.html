@@ -544,6 +544,7 @@
                         <div id="admin-pending-approvals-list" class="space-y-3">
                             <div class="hub-empty-state">Loading pending requests...</div>
                         </div>
+                        <div id="admin-pending-approvals-status" class="mt-4 text-sm hidden" role="status" aria-live="polite"></div>
                     </div>
 
                     <div class="hub-admin-block">
@@ -921,6 +922,18 @@
             </div><!-- /.hub-shell -->
         </div><!-- /#dashboard-view -->
         
+    </div>
+
+    <div id="admin-confirm-dialog" class="admin-confirm hidden" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-message">
+        <button type="button" class="admin-confirm-backdrop" aria-label="Cancel" data-admin-confirm-cancel></button>
+        <div class="admin-confirm-panel">
+            <h3 id="admin-confirm-title" class="admin-confirm-title heading-serif text-xl text-navy tracking-tight"></h3>
+            <p id="admin-confirm-message" class="admin-confirm-message text-sm text-slate-600 mt-2 leading-relaxed"></p>
+            <div class="admin-confirm-actions">
+                <button type="button" id="admin-confirm-cancel-btn" class="admin-confirm-btn admin-confirm-btn--secondary">Cancel</button>
+                <button type="button" id="admin-confirm-ok-btn" class="admin-confirm-btn admin-confirm-btn--primary">Confirm</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2816,6 +2829,126 @@
                 .replace(/"/g, '&quot;');
         }
 
+        let adminConfirmResolver = null;
+
+        function setupAdminConfirmDialog() {
+            const dialog = document.getElementById('admin-confirm-dialog');
+            if (!dialog || dialog.dataset.bound === 'true') return;
+
+            const cancel = () => closeAdminConfirm(false);
+
+            document.getElementById('admin-confirm-cancel-btn')?.addEventListener('click', cancel);
+            dialog.querySelector('[data-admin-confirm-cancel]')?.addEventListener('click', cancel);
+            document.getElementById('admin-confirm-ok-btn')?.addEventListener('click', () => closeAdminConfirm(true));
+
+            dialog.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && !dialog.classList.contains('hidden')) {
+                    cancel();
+                }
+            });
+
+            dialog.dataset.bound = 'true';
+        }
+
+        function showAdminConfirm({ title, message, confirmLabel = 'Confirm', tone = 'primary' }) {
+            return new Promise((resolve) => {
+                setupAdminConfirmDialog();
+
+                const dialog = document.getElementById('admin-confirm-dialog');
+                const titleEl = document.getElementById('admin-confirm-title');
+                const messageEl = document.getElementById('admin-confirm-message');
+                const okBtn = document.getElementById('admin-confirm-ok-btn');
+
+                if (!dialog || !titleEl || !messageEl || !okBtn) {
+                    resolve(false);
+                    return;
+                }
+
+                adminConfirmResolver = resolve;
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+                okBtn.textContent = confirmLabel;
+                okBtn.className = 'admin-confirm-btn ' + (tone === 'danger' ? 'admin-confirm-btn--danger' : 'admin-confirm-btn--primary');
+
+                dialog.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                okBtn.focus();
+            });
+        }
+
+        function closeAdminConfirm(result) {
+            const dialog = document.getElementById('admin-confirm-dialog');
+            if (dialog) dialog.classList.add('hidden');
+            document.body.style.overflow = '';
+
+            if (adminConfirmResolver) {
+                adminConfirmResolver(result);
+                adminConfirmResolver = null;
+            }
+        }
+
+        function showPendingApprovalsStatus(type, message) {
+            const statusDiv = document.getElementById('admin-pending-approvals-status');
+            if (!statusDiv) return;
+
+            statusDiv.classList.remove('hidden', 'text-red-600', 'text-emerald-600', 'text-amber-700', 'bg-red-50', 'bg-emerald-50', 'bg-amber-50', 'border', 'border-red-200', 'border-emerald-200', 'border-amber-200', 'rounded-2xl', 'p-4');
+
+            if (type === 'success') {
+                statusDiv.classList.add('text-emerald-600', 'bg-emerald-50', 'border', 'border-emerald-200', 'rounded-2xl', 'p-4');
+            } else if (type === 'warning') {
+                statusDiv.classList.add('text-amber-700', 'bg-amber-50', 'border', 'border-amber-200', 'rounded-2xl', 'p-4');
+            } else {
+                statusDiv.classList.add('text-red-600', 'bg-red-50', 'border', 'border-red-200', 'rounded-2xl', 'p-4');
+            }
+
+            statusDiv.textContent = message;
+            statusDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function setupPendingApprovalsPanel() {
+            const list = document.getElementById('admin-pending-approvals-list');
+            if (!list || list.dataset.bound === 'true') return;
+
+            list.addEventListener('click', (event) => {
+                const approveBtn = event.target.closest('[data-action="approve-family"]');
+                if (approveBtn) {
+                    event.preventDefault();
+                    void approveFamily(approveBtn.dataset.profileId);
+                    return;
+                }
+
+                const denyBtn = event.target.closest('[data-action="deny-family"]');
+                if (denyBtn) {
+                    event.preventDefault();
+                    void denyFamily(denyBtn.dataset.profileId, denyBtn.dataset.profileName);
+                }
+            });
+
+            list.dataset.bound = 'true';
+        }
+
+        function setupPendingIdsPanel() {
+            const list = document.getElementById('admin-pending-ids-list');
+            if (!list || list.dataset.bound === 'true') return;
+
+            list.addEventListener('click', (event) => {
+                const approveBtn = event.target.closest('[data-action="approve-pending-id"]');
+                if (approveBtn) {
+                    event.preventDefault();
+                    void approvePendingID(approveBtn);
+                    return;
+                }
+
+                const denyBtn = event.target.closest('[data-action="deny-pending-id"]');
+                if (denyBtn) {
+                    event.preventDefault();
+                    void denyPendingID(denyBtn);
+                }
+            });
+
+            list.dataset.bound = 'true';
+        }
+
         function formatFamilyName(profile) {
             if (profile.first_name && profile.last_name) {
                 return `${profile.first_name} ${profile.last_name}`;
@@ -3379,12 +3512,12 @@
                             <div class="text-xs text-slate-500 mt-1">Signed up: ${signedUp}</div>
                         </div>
                         <div class="flex gap-2 shrink-0">
-                            <button type="button" data-profile-id="${profile.id}" onclick="approveFamily(this.dataset.profileId)"
-                                    class="px-4 py-2 bg-navy hover:bg-[#0F3A5F] text-white text-sm font-semibold rounded-xl transition-all">
+                            <button type="button" data-action="approve-family" data-profile-id="${profile.id}"
+                                    class="hub-admin-action-btn px-4 py-2.5 bg-navy hover:bg-[#0F3A5F] text-white text-sm font-semibold rounded-xl transition-all">
                                 Approve
                             </button>
-                            <button type="button" data-profile-id="${profile.id}" data-profile-name="${name.replace(/"/g, '&quot;')}" onclick="denyFamily(this.dataset.profileId, this.dataset.profileName)"
-                                    class="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-xl transition-all">
+                            <button type="button" data-action="deny-family" data-profile-id="${profile.id}" data-profile-name="${escapeHtml(name)}"
+                                    class="hub-admin-action-btn px-4 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-xl transition-all">
                                 Deny
                             </button>
                         </div>
@@ -3434,8 +3567,15 @@
         }
 
         async function approveFamily(profileId) {
-            if (!supabaseClient) return;
-            if (!confirm('Approve this family for Family Hub access?')) return;
+            if (!supabaseClient || !profileId) return;
+
+            const confirmed = await showAdminConfirm({
+                title: 'Approve family?',
+                message: 'Approve this family for Family Hub access?',
+                confirmLabel: 'Approve',
+                tone: 'primary'
+            });
+            if (!confirmed) return;
 
             const { data: profile, error: profileError } = await supabaseClient
                 .from('profiles')
@@ -3444,7 +3584,7 @@
                 .maybeSingle();
 
             if (profileError) {
-                alert('Failed to load family details: ' + profileError.message);
+                showPendingApprovalsStatus('error', 'Failed to load family details: ' + profileError.message);
                 return;
             }
 
@@ -3460,7 +3600,7 @@
                     .eq('id', profileId);
 
                 if (fallbackError) {
-                    alert('Failed to approve family: ' + fallbackError.message);
+                    showPendingApprovalsStatus('error', 'Failed to approve family: ' + fallbackError.message);
                     return;
                 }
             }
@@ -3469,23 +3609,30 @@
             loadAdminFamilies();
 
             if (!profile?.email) {
-                alert('Family approved, but no email is on file — they will not receive an approval email.');
+                showPendingApprovalsStatus('warning', 'Family approved, but no email is on file — they will not receive an approval email.');
                 return;
             }
 
             try {
                 await sendApprovalEmail(profile);
                 const name = formatFamilyName(profile);
-                alert(`Family approved! Approval email sent to ${name} at ${profile.email}.`);
+                showPendingApprovalsStatus('success', `Family approved! Approval email sent to ${name} at ${profile.email}.`);
             } catch (emailErr) {
                 console.error('Approval email failed:', emailErr);
-                alert(`Family approved, but the approval email could not be sent to ${profile.email}: ${emailErr.message || emailErr}`);
+                showPendingApprovalsStatus('warning', `Family approved, but the approval email could not be sent to ${profile.email}: ${emailErr.message || emailErr}`);
             }
         }
 
         async function denyFamily(profileId, displayName) {
-            if (!supabaseClient) return;
-            if (!confirm(`Deny access for ${displayName}? They will not be able to use the Family Hub.`)) return;
+            if (!supabaseClient || !profileId) return;
+
+            const confirmed = await showAdminConfirm({
+                title: 'Deny access?',
+                message: `Deny access for ${displayName || 'this family'}? They will not be able to use the Family Hub.`,
+                confirmLabel: 'Deny',
+                tone: 'danger'
+            });
+            if (!confirmed) return;
 
             const { error } = await supabaseClient
                 .from('profiles')
@@ -3499,11 +3646,13 @@
                     .eq('id', profileId);
 
                 if (fallbackError) {
-                    alert('Failed to deny family: ' + fallbackError.message);
+                    showPendingApprovalsStatus('error', 'Failed to deny family: ' + fallbackError.message);
                     return;
                 }
 
-                alert('Family marked as not approved, but the denied flag could not be saved. Run supabase/profiles-denied.sql in Supabase, then deny again to remove them from this list.');
+                showPendingApprovalsStatus('warning', 'Family marked as not approved, but the denied flag could not be saved. Run supabase/profiles-denied.sql in Supabase, then deny again to remove them from this list.');
+            } else {
+                showPendingApprovalsStatus('success', `${displayName || 'Family'} denied and removed from the pending list.`);
             }
 
             loadPendingApprovals();
@@ -4116,12 +4265,12 @@
                                 ${ackName ? `<div class="text-xs text-slate-600 mt-1">Acknowledged by: <strong>${ackName}</strong></div>` : ''}
                             </div>
                             <div class="flex gap-2 shrink-0">
-                                <button type="button" data-doc-id="${item.id}" data-source="${item.source}" data-user-id="${item.user_id}" onclick="approvePendingID(this)"
-                                        class="px-3 py-1.5 bg-navy hover:bg-[#0F3A5F] text-white text-xs font-semibold rounded-lg transition-all">
+                                <button type="button" data-action="approve-pending-id" data-doc-id="${item.id}" data-source="${item.source}" data-user-id="${item.user_id}"
+                                        class="hub-admin-action-btn px-3 py-2 bg-navy hover:bg-[#0F3A5F] text-white text-xs font-semibold rounded-lg transition-all">
                                     Approve
                                 </button>
-                                <button type="button" data-doc-id="${item.id}" data-source="${item.source}" data-storage-path="${item.storage_path || ''}" onclick="denyPendingID(this)"
-                                        class="px-3 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-all">
+                                <button type="button" data-action="deny-pending-id" data-doc-id="${item.id}" data-source="${item.source}" data-storage-path="${item.storage_path || ''}"
+                                        class="hub-admin-action-btn px-3 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-all">
                                     Deny
                                 </button>
                             </div>
@@ -4148,7 +4297,14 @@
             const userId = button.dataset.userId;
 
             if (!docId || !supabaseClient) return;
-            if (!confirm('Approve this ID and add it to the family\'s My ID section?')) return;
+
+            const confirmed = await showAdminConfirm({
+                title: 'Approve ID?',
+                message: 'Approve this ID and add it to the family\'s My ID section?',
+                confirmLabel: 'Approve',
+                tone: 'primary'
+            });
+            if (!confirmed) return;
 
             button.disabled = true;
 
@@ -4251,7 +4407,13 @@
             const storagePath = button.dataset.storagePath;
 
             if (!docId || !supabaseClient) return;
-            if (!confirm('Deny and permanently remove this ID submission?')) return;
+            const confirmed = await showAdminConfirm({
+                title: 'Deny ID?',
+                message: 'Deny and permanently remove this ID submission?',
+                confirmLabel: 'Deny',
+                tone: 'danger'
+            });
+            if (!confirmed) return;
 
             button.disabled = true;
 
@@ -5457,6 +5619,9 @@
             setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
             setupAdminBannerForm();   // banner management
             setupStaffAccessPanel();
+            setupAdminConfirmDialog();
+            setupPendingApprovalsPanel();
+            setupPendingIdsPanel();
 
             // Set initial tab state (support links from enrollment page)
             const authTabHash = window.location.hash.toLowerCase();
