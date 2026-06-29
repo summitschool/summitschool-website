@@ -808,13 +808,84 @@
             : `Credits for ${yearRecord.school_year} are calculated when the school year is complete (after Semester 2 is submitted). Each passing course earns 1 credit.`;
 
         return `
-            <div class="p-3 border border-violet-200 rounded-xl bg-violet-50/40 text-xs text-slate-700 space-y-2"
-                 data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
-                <div class="font-semibold text-violet-900">High school credits</div>
-                <p>${escapeHtml(yearLine)}</p>
-                <p class="text-slate-500">Alabama graduation: 4 English, 4 Math, 4 Science, 4 History, 8 Electives. Tag each course so transcripts count correctly.</p>
-                <div class="text-slate-600" data-cumulative-credits="${studentId}">Loading cumulative totals...</div>
+            <div class="flex justify-end">
+                <div class="p-3 border border-violet-200 rounded-xl bg-violet-50/40 text-xs text-slate-700 space-y-2 text-right w-full max-w-md ml-auto"
+                     data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
+                    <div class="font-semibold text-violet-900">High school credits</div>
+                    <p>${escapeHtml(yearLine)}</p>
+                    <p class="text-slate-500">Alabama graduation: 4 English, 4 Math, 4 Science, 4 History, 8 Electives. Tag each course so transcripts count correctly.</p>
+                    <div class="text-slate-600" data-cumulative-credits="${studentId}">Loading cumulative totals...</div>
+                </div>
             </div>
+        `;
+    }
+
+    function buildGradeEntryRowHtml(entry, yearRecord, options = {}) {
+        const gradeLevel = yearRecord.grade_level;
+        const isBackfill = yearRecord.entry_type === 'backfill';
+        const isHs = isHighSchoolGrade(gradeLevel);
+        const readonly = options.readonly || false;
+        const calSem = getCalendarSemester(yearRecord.school_year);
+        const canEditMeta = !readonly && (canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2'));
+        const type = entry.course_type || 'other';
+        const meta = courseTypeMeta(type);
+        const editS1 = canEditGradeField(yearRecord, 'semester_1_grade', gradeLevel) && !readonly;
+        const editS2 = canEditGradeField(yearRecord, 'semester_2_grade', gradeLevel) && !readonly;
+        const editFinal = canEditGradeField(yearRecord, 'final_grade', gradeLevel) && !readonly;
+        const autoFinal = isHs;
+        const displayFinal = autoFinal
+            ? computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, true)
+            : (computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, false) || entry.final_grade || '');
+
+        return `
+            <tr class="border-b border-slate-100" data-entry-id="${entry.id}">
+                <td class="py-2 pr-2 align-top">
+                    <select class="form-input w-full px-2 py-2 text-xs border border-slate-300 rounded-xl mb-1"
+                            data-field="course_type"
+                            ${canEditMeta ? '' : 'disabled'}>
+                        ${buildCourseTypeOptions(type, gradeLevel)}
+                    </select>
+                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                           value="${escapeHtml(entry.course_name || '')}"
+                           data-field="course_name"
+                           placeholder="${escapeHtml(meta.placeholder)}"
+                           ${canEditMeta ? '' : 'readonly'}>
+                </td>
+                ${isBackfill ? `
+                    <td class="py-2 px-2 align-top">
+                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                               value="${escapeHtml(entry.final_grade || '')}"
+                               data-field="final_grade"
+                               placeholder="${escapeHtml(isHs ? 'e.g. 92' : 'A–F or %')}"
+                               ${editS1 ? '' : 'readonly'}>
+                    </td>
+                ` : `
+                    <td class="py-2 px-2 align-top">
+                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s1"
+                               value="${escapeHtml(entry.semester_1_grade || '')}"
+                               data-field="semester_1_grade"
+                               placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's1'))}"
+                               ${editS1 ? '' : 'readonly'}>
+                        ${!editS1 && calSem === '2' && !yearRecord.semester_1_locked ? '<span class="text-[10px] text-slate-400">Opens Jul–Dec</span>' : ''}
+                    </td>
+                    <td class="py-2 px-2 align-top">
+                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s2"
+                               value="${escapeHtml(entry.semester_2_grade || '')}"
+                               data-field="semester_2_grade"
+                               placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's2'))}"
+                               ${editS2 ? '' : 'readonly'}>
+                        ${!editS2 && calSem === '1' ? '<span class="text-[10px] text-slate-400">Opens Jan–May</span>' : ''}
+                    </td>
+                    <td class="py-2 pl-2 align-top">
+                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-final ${autoFinal ? 'bg-slate-50' : ''}"
+                               value="${escapeHtml(displayFinal)}"
+                               data-field="final_grade"
+                               placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 'final'))}"
+                               ${editFinal ? '' : 'readonly'}
+                               ${autoFinal ? 'readonly' : ''}>
+                    </td>
+                `}
+            </tr>
         `;
     }
 
@@ -828,66 +899,7 @@
 
         let rows = '';
         for (const entry of entries) {
-            const type = entry.course_type || 'other';
-            const meta = courseTypeMeta(type);
-            const editS1 = canEditGradeField(yearRecord, 'semester_1_grade', gradeLevel) && !readonly;
-            const editS2 = canEditGradeField(yearRecord, 'semester_2_grade', gradeLevel) && !readonly;
-            const editFinal = canEditGradeField(yearRecord, 'final_grade', gradeLevel) && !readonly;
-            const autoFinal = isHs;
-            const displayFinal = autoFinal
-                ? computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, true)
-                : (computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, false) || entry.final_grade || '');
-
-            rows += `
-                <tr class="border-b border-slate-100" data-entry-id="${entry.id}">
-                    <td class="py-2 pr-2 align-top">
-                        <select class="form-input w-full px-2 py-2 text-xs border border-slate-300 rounded-xl mb-1"
-                                data-field="course_type"
-                                ${canEditMeta ? '' : 'disabled'}>
-                            ${buildCourseTypeOptions(type, gradeLevel)}
-                        </select>
-                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                               value="${escapeHtml(entry.course_name || '')}"
-                               data-field="course_name"
-                               placeholder="${escapeHtml(meta.placeholder)}"
-                               ${canEditMeta ? '' : 'readonly'}>
-                    </td>
-                    ${isBackfill ? `
-                        <td class="py-2 px-2 align-top">
-                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                                   value="${escapeHtml(entry.final_grade || '')}"
-                                   data-field="final_grade"
-                                   placeholder="${escapeHtml(isHs ? 'e.g. 92' : 'A–F or %')}"
-                                   ${editS1 ? '' : 'readonly'}>
-                        </td>
-                    ` : `
-                        <td class="py-2 px-2 align-top">
-                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s1"
-                                   value="${escapeHtml(entry.semester_1_grade || '')}"
-                                   data-field="semester_1_grade"
-                                   placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's1'))}"
-                                   ${editS1 ? '' : 'readonly'}>
-                            ${!editS1 && calSem === '2' && !yearRecord.semester_1_locked ? '<span class="text-[10px] text-slate-400">Opens Jul–Dec</span>' : ''}
-                        </td>
-                        <td class="py-2 px-2 align-top">
-                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s2"
-                                   value="${escapeHtml(entry.semester_2_grade || '')}"
-                                   data-field="semester_2_grade"
-                                   placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's2'))}"
-                                   ${editS2 ? '' : 'readonly'}>
-                            ${!editS2 && calSem === '1' ? '<span class="text-[10px] text-slate-400">Opens Jan–May</span>' : ''}
-                        </td>
-                        <td class="py-2 pl-2 align-top">
-                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-final ${autoFinal ? 'bg-slate-50' : ''}"
-                                   value="${escapeHtml(displayFinal)}"
-                                   data-field="final_grade"
-                                   placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 'final'))}"
-                                   ${editFinal ? '' : 'readonly'}
-                                   ${autoFinal ? 'readonly' : ''}>
-                        </td>
-                    `}
-                </tr>
-            `;
+            rows += buildGradeEntryRowHtml(entry, yearRecord, options);
         }
 
         const gradeLabel = isHs ? '%' : '';
@@ -941,15 +953,31 @@
         }
     }
 
+    function bindGradeRowEvents(row, gradeLevel) {
+        if (!row) return;
+        row.querySelectorAll('.ar-grade-s1, .ar-grade-s2').forEach((input) => {
+            input.addEventListener('input', () => updateFinalForRow(row, gradeLevel));
+        });
+    }
+
     function bindGradeTableEvents() {
         document.querySelectorAll('.ar-grade-table').forEach((table) => {
             const gradeLevel = table.dataset.gradeLevel || '';
             table.querySelectorAll('tr[data-entry-id]').forEach((row) => {
-                row.querySelectorAll('.ar-grade-s1, .ar-grade-s2').forEach((input) => {
-                    input.addEventListener('input', () => updateFinalForRow(row, gradeLevel));
-                });
+                bindGradeRowEvents(row, gradeLevel);
             });
         });
+    }
+
+    async function fetchSchoolYearRecord(schoolYearRecordId) {
+        const client = await getClient();
+        const { data, error } = await client
+            .from('student_school_years')
+            .select('*')
+            .eq('id', schoolYearRecordId)
+            .single();
+        if (error) throw error;
+        return data;
     }
 
     async function hydrateCumulativeCredits() {
@@ -1240,9 +1268,11 @@
                     const entries = await fetchGradeEntries(currentRecord.id);
                     currentYearSection = `
                         <details class="border border-amber-200 rounded-2xl bg-amber-50/30" data-ar-progress-year="${currentRecord.id}" ${isFocused ? 'open' : ''}>
-                            <summary class="px-4 py-3 cursor-pointer font-semibold text-navy">${currentYear} progress report — ${escapeHtml(statusLabel)}</summary>
+                            <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
+                                <span class="font-semibold text-navy min-w-0">${currentYear} progress report — ${escapeHtml(statusLabel)}</span>
+                                <span class="ml-auto text-xs text-slate-500 text-right shrink-0">Grade ${escapeHtml(currentRecord.grade_level)} · ${escapeHtml(currentYear)}</span>
+                            </summary>
                             <div class="p-4 border-t border-amber-100 space-y-4">
-                                <p class="text-xs text-slate-600">Grade ${escapeHtml(currentRecord.grade_level)} for ${currentYear}</p>
                                 ${buildGradeTableHtml(currentRecord, entries)}
                                 ${isHighSchoolGrade(currentRecord.grade_level) ? buildCreditsSummaryHtml(currentRecord, entries, currentRecord.grade_level, student.id) : ''}
                                 ${renderSemesterActions(currentRecord)}
@@ -1277,9 +1307,9 @@
 
                 html += `
                     <details class="border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
-                        <summary class="px-5 py-4 cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 hover:bg-slate-50">
-                            <span class="font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>
-                            <span class="text-sm text-slate-500 text-right">
+                        <summary class="px-5 py-4 cursor-pointer list-none flex items-center gap-3 hover:bg-slate-50">
+                            <span class="font-semibold text-lg text-navy min-w-0">${escapeHtml(studentDisplayName(student))}</span>
+                            <span class="ml-auto text-sm text-slate-500 text-right shrink-0">
                                 ${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}
                                 ${creditHeaderHtml}
                             </span>
@@ -1489,25 +1519,26 @@
     }
 
     async function handleAddCourse(yearRecordId) {
-        const root = document.getElementById('academic-records-root');
-        const expandState = root ? captureExpandState(root) : null;
-
-        if (expandState) {
-            expandState.progressYearIds = [...new Set([...expandState.progressYearIds, yearRecordId])];
-            const table = document.querySelector(`table[data-year-record-id="${yearRecordId}"]`);
-            const studentPanel = table?.closest('.student-record-panel');
-            if (studentPanel?.dataset.studentId) {
-                expandState.studentIds = [...new Set([...expandState.studentIds, studentPanel.dataset.studentId])];
-            }
+        const table = document.querySelector(`table[data-year-record-id="${yearRecordId}"]`);
+        const tbody = table?.querySelector('tbody');
+        if (!table || !tbody) {
+            await window.showAppAlert?.('Could not find the grade table. Please refresh the page and try again.');
+            return;
         }
 
         try {
+            const yearRecord = await fetchSchoolYearRecord(yearRecordId);
             const entries = await fetchGradeEntries(yearRecordId);
             const nextOrder = entries.length
                 ? Math.max(...entries.map((entry) => entry.sort_order || 0)) + 1
                 : 0;
-            await addCourseRow(yearRecordId, nextOrder, 'elective');
-            await loadAcademicRecords({ expandState });
+            const newEntry = await addCourseRow(yearRecordId, nextOrder, 'elective');
+
+            tbody.insertAdjacentHTML('beforeend', buildGradeEntryRowHtml(newEntry, yearRecord));
+
+            const newRow = tbody.querySelector(`tr[data-entry-id="${newEntry.id}"]`);
+            bindGradeRowEvents(newRow, yearRecord.grade_level);
+            newRow?.querySelector('[data-field="course_name"]')?.focus({ preventScroll: true });
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
         }

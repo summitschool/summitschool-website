@@ -27,8 +27,20 @@
         return BTN_PRIMARY;
     }
 
+    function mountDialog() {
+        const dialog = document.getElementById(DIALOG_ID);
+        if (!dialog) return null;
+        if (dialog.parentElement !== document.body) {
+            document.body.appendChild(dialog);
+        }
+        return dialog;
+    }
+
     function ensureDialog() {
-        if (document.getElementById(DIALOG_ID)) return;
+        if (document.getElementById(DIALOG_ID)) {
+            mountDialog();
+            return;
+        }
 
         document.body.insertAdjacentHTML('beforeend', `
             <div id="${DIALOG_ID}" class="hidden" role="dialog" aria-modal="true" aria-labelledby="${TITLE_ID}" aria-describedby="${MESSAGE_ID}">
@@ -73,6 +85,8 @@
     function closeAppDialog(result) {
         const dialog = document.getElementById(DIALOG_ID);
         if (dialog) dialog.classList.add('hidden');
+        document.documentElement.classList.remove('app-dialog-open');
+        document.body.classList.remove('app-dialog-open');
 
         if (dialogResolver) {
             dialogResolver(result);
@@ -84,7 +98,7 @@
         return new Promise((resolve) => {
             ensureDialog();
 
-            const dialog = document.getElementById(DIALOG_ID);
+            const dialog = mountDialog();
             const titleEl = document.getElementById(TITLE_ID);
             const messageEl = document.getElementById(MESSAGE_ID);
             const cancelBtn = document.getElementById(CANCEL_ID);
@@ -122,6 +136,8 @@
                 cancelBtn.className = BTN_SECONDARY;
             }
 
+            document.documentElement.classList.add('app-dialog-open');
+            document.body.classList.add('app-dialog-open');
             dialog.classList.remove('hidden');
             okBtn.focus({ preventScroll: true });
         });

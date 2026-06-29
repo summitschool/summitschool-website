@@ -1182,16 +1182,22 @@ a:focus-visible {
   border-radius: 4px;
 }
 
-/* App dialog (alert / confirm) — explicit layout so popups stay centered */
+/* App dialog (alert / confirm) — viewport-centered overlay (immune to page layout) */
 #app-dialog {
   position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 9999;
+  margin: 0;
+  padding: 0;
+  border: 0;
   box-sizing: border-box;
+  pointer-events: auto;
 }
 
 #app-dialog.hidden {
@@ -1199,8 +1205,11 @@ a:focus-visible {
 }
 
 #app-dialog [data-app-dialog-backdrop] {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
   margin: 0;
@@ -1211,11 +1220,14 @@ a:focus-visible {
 }
 
 #app-dialog .app-dialog-panel {
-  position: relative;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 1;
-  width: 100%;
+  width: calc(100% - 2rem);
   max-width: 24rem;
-  margin: 0 auto;
+  margin: 0;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 1.5rem;
@@ -1232,6 +1244,11 @@ a:focus-visible {
 
 #app-dialog .app-dialog-actions.is-alert {
   display: block;
+}
+
+html.app-dialog-open,
+body.app-dialog-open {
+  overflow: hidden;
 }
 
 @media print {
