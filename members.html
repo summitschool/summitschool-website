@@ -157,6 +157,16 @@
                         </div>
                     </div>
 
+                    <div id="login-form-intro" class="auth-card-inset auth-form-intro mb-5">
+                        <h2 class="auth-form-heading">Welcome back</h2>
+                        <p class="auth-form-subtitle">Sign in with Google, or use the email and password you registered with.</p>
+                    </div>
+
+                    <div id="signup-form-intro" class="auth-card-inset auth-form-intro mb-5 hidden">
+                        <h2 class="auth-form-heading">Register your family</h2>
+                        <p class="auth-form-subtitle">Continue with Google, or register with email to request Family Hub access. We'll review and approve enrolled families.</p>
+                    </div>
+
                     <div id="oauth-section" class="auth-oauth-wrap mb-5">
                         <button id="google-signin-btn" type="button" class="auth-google-official" aria-label="Sign in with Google">
                             <img src="images/btn_google_signin_light.png" alt="" width="175" height="40" decoding="async" draggable="false">
@@ -169,10 +179,6 @@
 
                     <div class="auth-card-body">
                         <div id="login-form-container">
-                            <div class="auth-form-intro mb-5">
-                                <h2 class="auth-form-heading">Welcome back</h2>
-                                <p class="auth-form-subtitle">Sign in with Google above, or use the email and password you registered with.</p>
-                            </div>
                             <form id="login-form" class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
@@ -225,10 +231,6 @@
 
                         <div id="signup-form-container" class="hidden">
                             <div id="signup-form-panel">
-                                <div class="auth-form-intro mb-5">
-                                    <h2 class="auth-form-heading">Register your family</h2>
-                                    <p class="auth-form-subtitle">Continue with Google above, or register with email to request Family Hub access. We'll review and approve enrolled families.</p>
-                                </div>
                                 <form id="signup-form" class="space-y-4">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
@@ -1148,8 +1150,14 @@
         function setOAuthSectionVisible(visible) {
             const oauthSection = document.getElementById('oauth-section');
             const authDivider = document.getElementById('auth-or-divider');
+            const loginIntro = document.getElementById('login-form-intro');
+            const signupIntro = document.getElementById('signup-form-intro');
             if (oauthSection) oauthSection.classList.toggle('hidden', !visible);
             if (authDivider) authDivider.classList.toggle('hidden', !visible);
+            if (!visible) {
+                if (loginIntro) loginIntro.classList.add('hidden');
+                if (signupIntro) signupIntro.classList.add('hidden');
+            }
         }
 
         function resetGoogleSignInButton() {
@@ -1580,10 +1588,15 @@
             clearForgotPasswordStatus();
             setOAuthSectionVisible(true);
 
+            const loginIntro = document.getElementById('login-form-intro');
+            const signupIntro = document.getElementById('signup-form-intro');
+
             if (tab === 'login') {
                 clearSignupStatus();
                 loginContainer.classList.remove('hidden');
                 signupContainer.classList.add('hidden');
+                if (loginIntro) loginIntro.classList.remove('hidden');
+                if (signupIntro) signupIntro.classList.add('hidden');
                 tabLogin.classList.add('is-active');
                 tabSignup.classList.remove('is-active');
                 tabLogin.setAttribute('aria-selected', 'true');
@@ -1591,6 +1604,8 @@
             } else {
                 loginContainer.classList.add('hidden');
                 signupContainer.classList.remove('hidden');
+                if (loginIntro) loginIntro.classList.add('hidden');
+                if (signupIntro) signupIntro.classList.remove('hidden');
                 tabSignup.classList.add('is-active');
                 tabLogin.classList.remove('is-active');
                 tabSignup.setAttribute('aria-selected', 'true');
