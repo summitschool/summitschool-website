@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260701">
+    <link rel="stylesheet" href="assets/styles.css?v=20260702">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -924,14 +924,14 @@
         
     </div>
 
-    <div id="admin-confirm-dialog" class="admin-confirm hidden" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-message">
-        <button type="button" class="admin-confirm-backdrop" aria-label="Cancel" data-admin-confirm-cancel></button>
-        <div class="admin-confirm-panel">
-            <h3 id="admin-confirm-title" class="admin-confirm-title heading-serif text-xl text-navy tracking-tight"></h3>
-            <p id="admin-confirm-message" class="admin-confirm-message text-sm text-slate-600 mt-2 leading-relaxed"></p>
-            <div class="admin-confirm-actions">
-                <button type="button" id="admin-confirm-cancel-btn" class="admin-confirm-btn admin-confirm-btn--secondary">Cancel</button>
-                <button type="button" id="admin-confirm-ok-btn" class="admin-confirm-btn admin-confirm-btn--primary">Confirm</button>
+    <div id="admin-confirm-dialog" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-message">
+        <button type="button" class="absolute inset-0 w-full h-full border-0 p-0 bg-navy/50" aria-label="Cancel" data-admin-confirm-cancel></button>
+        <div class="relative z-10 w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-2xl p-6">
+            <h3 id="admin-confirm-title" class="heading-serif text-xl text-navy tracking-tight"></h3>
+            <p id="admin-confirm-message" class="text-sm text-slate-600 mt-2 leading-relaxed"></p>
+            <div class="flex gap-3 mt-6">
+                <button type="button" id="admin-confirm-cancel-btn" class="flex-1 min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 touch-manipulation">Cancel</button>
+                <button type="button" id="admin-confirm-ok-btn" class="flex-1 min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold bg-navy hover:bg-[#0F3A5F] text-white border border-navy touch-manipulation">Confirm</button>
             </div>
         </div>
     </div>
@@ -2830,6 +2830,9 @@
         }
 
         let adminConfirmResolver = null;
+        const ADMIN_CONFIRM_BTN_BASE = 'flex-1 min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold touch-manipulation';
+        const ADMIN_CONFIRM_BTN_PRIMARY = ADMIN_CONFIRM_BTN_BASE + ' bg-navy hover:bg-[#0F3A5F] text-white border border-navy';
+        const ADMIN_CONFIRM_BTN_DANGER = ADMIN_CONFIRM_BTN_BASE + ' bg-red-600 hover:bg-red-700 text-white border border-red-600';
 
         function setupAdminConfirmDialog() {
             const dialog = document.getElementById('admin-confirm-dialog');
@@ -2868,18 +2871,16 @@
                 titleEl.textContent = title;
                 messageEl.textContent = message;
                 okBtn.textContent = confirmLabel;
-                okBtn.className = 'admin-confirm-btn ' + (tone === 'danger' ? 'admin-confirm-btn--danger' : 'admin-confirm-btn--primary');
+                okBtn.className = tone === 'danger' ? ADMIN_CONFIRM_BTN_DANGER : ADMIN_CONFIRM_BTN_PRIMARY;
 
                 dialog.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
-                okBtn.focus();
+                okBtn.focus({ preventScroll: true });
             });
         }
 
         function closeAdminConfirm(result) {
             const dialog = document.getElementById('admin-confirm-dialog');
             if (dialog) dialog.classList.add('hidden');
-            document.body.style.overflow = '';
 
             if (adminConfirmResolver) {
                 adminConfirmResolver(result);
