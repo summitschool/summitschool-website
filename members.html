@@ -1113,6 +1113,7 @@
         function initSupabaseClient() {
             clearLegacyPersistentAuth();
             supabaseClient = initializeSupabase();
+            window.supabaseClient = supabaseClient;
         }
 
         const OAUTH_CALLBACK_KEY = 'members_oauth_callback_pending';
