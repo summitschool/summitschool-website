@@ -390,6 +390,9 @@ allow_dynamic_registration = false
 [functions.docuseal-enrollment-webhook]
 verify_jwt = false
 
+[functions.docuseal-dmv-webhook]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
