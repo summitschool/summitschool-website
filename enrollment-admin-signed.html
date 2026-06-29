@@ -63,10 +63,11 @@
         </div>
     </footer>
 
+    <script src="assets/close-or-return.js"></script>
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
         document.getElementById('close-tab-btn').addEventListener('click', () => {
-            window.close();
+            window.closeOrReturn('index.html');
         });
     </script>
 </body>
