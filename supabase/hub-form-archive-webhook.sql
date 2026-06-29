@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS public.hub_form_archive_log (
   family_email text,
   family_user_id uuid,
   storage_path text,
-  family_document_id bigint,
+  family_document_id uuid,
   archived_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );

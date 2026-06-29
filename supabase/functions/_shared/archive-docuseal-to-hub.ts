@@ -13,7 +13,7 @@ const DEFAULT_CATEGORY = 'Signed Form';
 type HubArchiveLog = {
   submission_id: number;
   archived_at: string | null;
-  family_document_id: number | null;
+  family_document_id: string | null;
 };
 
 function supabaseAdmin(supabaseUrl: string, supabaseServiceRoleKey: string) {
@@ -69,10 +69,10 @@ async function markArchived(
     submissionId: number;
     familyUserId: string;
     storagePath: string;
-    familyDocumentId: number;
+    familyDocumentId: string;
   },
 ) {
-  const { error } = await supabaseAdmin(supabaseUrl, supabaseServiceRoleKey)
+  const { data, error } = await supabaseAdmin(supabaseUrl, supabaseServiceRoleKey)
     .from('hub_form_archive_log')
     .update({
       family_user_id: options.familyUserId,
@@ -81,10 +81,16 @@ async function markArchived(
       archived_at: new Date().toISOString(),
     })
     .eq('submission_id', options.submissionId)
-    .is('archived_at', null);
+    .is('archived_at', null)
+    .select('submission_id')
+    .maybeSingle();
 
   if (error) {
     throw new Error(error.message || 'Failed to mark hub form archive complete');
+  }
+
+  if (!data) {
+    throw new Error(`Failed to mark hub form archive complete for submission ${options.submissionId}`);
   }
 }
 
@@ -180,13 +186,6 @@ export async function archiveDocuSealSubmissionToHub(options: {
     throw new Error(insertError.message || 'Failed to create Family Hub document record');
   }
 
-  await markArchived(options.supabaseUrl, options.supabaseServiceRoleKey, {
-    submissionId: options.submissionId,
-    familyUserId: userId,
-    storagePath,
-    familyDocumentId: insertedDoc.id,
-  });
-
   const taskResult = await completeFamilyDocuSealTasks({
     supabaseUrl: options.supabaseUrl,
     supabaseServiceRoleKey: options.supabaseServiceRoleKey,
@@ -196,6 +195,13 @@ export async function archiveDocuSealSubmissionToHub(options: {
     submissionId: options.submissionId,
     docusealApiUrl: options.docusealApiUrl,
     docusealApiKey: options.docusealApiKey,
+  });
+
+  await markArchived(options.supabaseUrl, options.supabaseServiceRoleKey, {
+    submissionId: options.submissionId,
+    familyUserId: userId,
+    storagePath,
+    familyDocumentId: insertedDoc.id,
   });
 
   return {
