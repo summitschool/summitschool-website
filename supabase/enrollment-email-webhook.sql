@@ -10,6 +10,7 @@
 --      RESEND_API_KEY                       = re_...
 --      APPROVAL_FROM_EMAIL                  = Summit Church School <info@summitchurchschool.org>
 --      FULL_ADMIN_EMAIL                     = sjesimon@gmail.com
+--      ENROLLMENT_SIGNATURE_EMAIL           = info@summitchurchschool.org
 --      DOCUSEAL_ENROLLMENT_WEBHOOK_SECRET   = long random string (same value used in DocuSeal webhook URL/header)
 --      DOCUSEAL_ENROLLMENT_TEMPLATE_SLUGS    = vi3n5SzMfFnRLH
 --      DOCUSEAL_ENROLLMENT_TEMPLATE_IDS     = optional comma-separated numeric template IDs
@@ -28,11 +29,14 @@
 CREATE TABLE IF NOT EXISTS public.enrollment_email_log (
   submission_id bigint PRIMARY KEY,
   template_id bigint,
-  submitter_email text,
-  sent_at timestamptz NOT NULL DEFAULT now()
+  family_email text,
+  family_name text,
+  admin_pending_notified_at timestamptz,
+  family_notified_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE public.enrollment_email_log ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE public.enrollment_email_log IS
-  'Prevents duplicate enrollment completion emails for the same DocuSeal submission.';
+  'Tracks enrollment DocuSeal webhook emails: admin signature request after family submits, family next-steps after admin signs.';

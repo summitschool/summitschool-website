@@ -79,7 +79,7 @@ function buildEnrollmentEmailHtml(options: EnrollmentEmailOptions) {
   `.trim();
 }
 
-export function buildEnrollmentReceivedFamilyEmail(firstName: string, hasAttachment: boolean) {
+export function buildEnrollmentReceivedFamilyEmail(firstName: string) {
   const greeting = firstName === 'there'
     ? 'Hello,'
     : `Hello ${escapeHtml(firstName)},`;
@@ -106,18 +106,14 @@ export function buildEnrollmentReceivedFamilyEmail(firstName: string, hasAttachm
                 </tr>
               </table>`;
 
-  const attachmentLine = hasAttachment
-    ? 'A copy of your signed application is attached to this email for your records.'
-    : 'Keep this email for your records.';
-
   const html = buildEnrollmentEmailHtml({
     title: 'Application received',
-    preheader: 'Your Summit Church School enrollment application has been received.',
+    preheader: 'Your Summit Church School enrollment application has been received and countersigned.',
     greeting,
     paragraphs: [
-      'Thank you for completing your <strong>Summit Church School</strong> enrollment application. Our team has received your submission and will review it carefully.',
-      'You do not need to take further action until we contact you.',
-      attachmentLine,
+      'Thank you for completing your <strong>Summit Church School</strong> enrollment application. Our team has received and countersigned your submission.',
+      'We will review your application and contact you by email once a decision is ready. You do not need to take further action until then.',
+      'Your signed enrollment documents will be available in the <strong>Summit Family Hub</strong> once your access is approved — no need to save a copy from this email.',
     ],
     extraHtml: nextStepsHtml,
     ctaLabel: 'View Full Next Steps',
@@ -129,8 +125,8 @@ export function buildEnrollmentReceivedFamilyEmail(firstName: string, hasAttachm
     firstName === 'there' ? 'Hello,' : `Hello ${firstName},`,
     '',
     'Thank you for completing your Summit Church School enrollment application.',
-    'Our team has received your submission and will review it carefully.',
-    hasAttachment ? 'A copy of your signed application is attached for your records.' : '',
+    'Our team has received and countersigned your submission and will review it carefully.',
+    'Your signed enrollment documents will be available in the Summit Family Hub once your access is approved.',
     '',
     `View next steps: ${ENROLLMENT_COMPLETE_URL}`,
     '',
@@ -144,7 +140,7 @@ export function buildEnrollmentReceivedFamilyEmail(firstName: string, hasAttachm
   };
 }
 
-export function buildEnrollmentAdminEmail(options: {
+export function buildEnrollmentAdminSignatureRequestEmail(options: {
   submitterName: string;
   submitterEmail: string;
   templateName: string;
@@ -156,31 +152,31 @@ export function buildEnrollmentAdminEmail(options: {
   const reviewUrl = `${options.docuSealBaseUrl.replace(/\/$/, '')}/submissions/${options.submissionId}`;
 
   const html = buildEnrollmentEmailHtml({
-    title: 'New enrollment application',
-    preheader: 'A family completed the Summit Church School enrollment application.',
+    title: 'Enrollment application ready to sign',
+    preheader: 'A family submitted an enrollment application that needs the school signature in DocuSeal.',
     greeting: 'Hello,',
     paragraphs: [
-      `A new <strong>enrollment application</strong> has been submitted through DocuSeal.`,
+      'A family has completed their portion of the <strong>Summit Church School</strong> enrollment application.',
       `<strong>Family:</strong> ${escapeHtml(name)}<br><strong>Email:</strong> ${escapeHtml(email)}<br><strong>Form:</strong> ${escapeHtml(options.templateName)}<br><strong>Submission ID:</strong> ${escapeHtml(options.submissionId)}`,
-      'Review the submission in DocuSeal when you are ready.',
+      'Please open DocuSeal, review the application, and add the school signature. The family will receive their next-steps email after the submission is fully signed.',
     ],
-    ctaLabel: 'Open Submission in DocuSeal',
+    ctaLabel: 'Sign in DocuSeal',
     ctaUrl: reviewUrl,
     footerNote: 'This alert is sent only for the public enrollment application form.',
   });
 
   const text = [
-    'New Summit Church School enrollment application',
+    'Enrollment application ready for school signature',
     '',
     `Family: ${name}`,
     `Email: ${email}`,
     `Form: ${options.templateName}`,
     `Submission ID: ${options.submissionId}`,
-    `Review: ${reviewUrl}`,
+    `Sign in DocuSeal: ${reviewUrl}`,
   ].join('\n');
 
   return {
-    subject: `New enrollment application — ${name}`,
+    subject: `Enrollment application ready to sign — ${name}`,
     html,
     text,
   };

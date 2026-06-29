@@ -1,13 +1,13 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  buildEnrollmentAdminEmail,
+  buildEnrollmentAdminSignatureRequestEmail,
   buildEnrollmentReceivedFamilyEmail,
 } from '../_shared/enrollment-email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = Deno.env.get('APPROVAL_FROM_EMAIL') || 'Summit Church School <info@summitchurchschool.org>';
-const ADMIN_EMAIL = (Deno.env.get('FULL_ADMIN_EMAIL') || 'sjesimon@gmail.com').toLowerCase();
+const SIGNATURE_ADMIN_EMAIL = (Deno.env.get('ENROLLMENT_SIGNATURE_EMAIL') || 'info@summitchurchschool.org').toLowerCase();
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -19,7 +19,6 @@ const DOCUSEAL_API_URL = (Deno.env.get('DOCUSEAL_API_URL') || 'https://enroll.su
 const DOCUSEAL_API_KEY = Deno.env.get('DOCUSEAL_API_KEY') || '';
 
 const DEFAULT_ENROLLMENT_SLUGS = 'vi3n5SzMfFnRLH';
-const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +31,13 @@ type FieldValue = {
   value?: string;
 };
 
+type DocuSealSubmitter = {
+  email?: string;
+  name?: string | null;
+  role?: string;
+  status?: string;
+};
+
 type DocuSealWebhookPayload = {
   event_type?: string;
   timestamp?: string;
@@ -42,7 +48,6 @@ type DocuSealWebhookPayload = {
     status?: string;
     role?: string;
     values?: FieldValue[];
-    documents?: Array<{ name?: string; url?: string }>;
     submission?: {
       id?: number;
       status?: string;
@@ -61,6 +66,15 @@ type DocuSealTemplate = {
   id: number;
   slug?: string;
   name?: string;
+};
+
+type EnrollmentEmailLog = {
+  submission_id: number;
+  template_id: number | null;
+  family_email: string | null;
+  family_name: string | null;
+  admin_pending_notified_at: string | null;
+  family_notified_at: string | null;
 };
 
 let cachedEnrollmentTemplateIds: Set<number> | null = null;
@@ -173,10 +187,10 @@ function isEnrollmentTemplate(templateId: number | undefined, allowedIds: Set<nu
   return allowedIds.has(templateId);
 }
 
-function extractFirstName(data: NonNullable<DocuSealWebhookPayload['data']>) {
-  const fullName = String(data.name || '').trim();
-  if (fullName) {
-    return fullName.split(/\s+/)[0];
+function extractFirstName(fullName: string, values: FieldValue[] | undefined) {
+  const trimmed = fullName.trim();
+  if (trimmed) {
+    return trimmed.split(/\s+/)[0];
   }
 
   const preferredFields = [
@@ -188,7 +202,7 @@ function extractFirstName(data: NonNullable<DocuSealWebhookPayload['data']>) {
   ];
 
   for (const fieldName of preferredFields) {
-    const match = (data.values || []).find((entry) => entry.field === fieldName && entry.value);
+    const match = (values || []).find((entry) => entry.field === fieldName && entry.value);
     if (match?.value) {
       return String(match.value).trim().split(/\s+/)[0];
     }
@@ -197,44 +211,102 @@ function extractFirstName(data: NonNullable<DocuSealWebhookPayload['data']>) {
   return 'there';
 }
 
-async function fetchDocumentAttachment(documents: Array<{ name?: string; url?: string }> | undefined) {
-  const document = (documents || []).find((entry) => entry.url);
-  if (!document?.url) return null;
+function supabaseAdmin() {
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+}
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+async function getEnrollmentLog(submissionId: number) {
+  const { data, error } = await supabaseAdmin()
+    .from('enrollment_email_log')
+    .select('submission_id, template_id, family_email, family_name, admin_pending_notified_at, family_notified_at')
+    .eq('submission_id', submissionId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || 'Failed to load enrollment email log');
+  }
+
+  return data as EnrollmentEmailLog | null;
+}
+
+async function upsertFamilySubmissionRecord(options: {
+  submissionId: number;
+  templateId: number | undefined;
+  familyEmail: string;
+  familyName: string;
+}) {
+  const { error } = await supabaseAdmin()
+    .from('enrollment_email_log')
+    .upsert({
+      submission_id: options.submissionId,
+      template_id: options.templateId ?? null,
+      family_email: options.familyEmail,
+      family_name: options.familyName,
+    }, { onConflict: 'submission_id' });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to save enrollment family record');
+  }
+}
+
+async function markAdminPendingNotified(submissionId: number) {
+  const { error } = await supabaseAdmin()
+    .from('enrollment_email_log')
+    .update({ admin_pending_notified_at: new Date().toISOString() })
+    .eq('submission_id', submissionId)
+    .is('admin_pending_notified_at', null);
+
+  if (error) {
+    throw new Error(error.message || 'Failed to mark admin pending notification');
+  }
+}
+
+async function markFamilyNotified(submissionId: number) {
+  const { error } = await supabaseAdmin()
+    .from('enrollment_email_log')
+    .update({ family_notified_at: new Date().toISOString() })
+    .eq('submission_id', submissionId)
+    .is('family_notified_at', null);
+
+  if (error) {
+    throw new Error(error.message || 'Failed to mark family notification');
+  }
+}
+
+async function fetchFamilyContactFromSubmission(submissionId: number) {
+  if (!DOCUSEAL_API_KEY) return null;
 
   try {
-    const response = await fetch(document.url, { signal: controller.signal });
+    const response = await fetch(`${DOCUSEAL_API_URL}/api/submissions/${submissionId}`, {
+      headers: {
+        'X-Auth-Token': DOCUSEAL_API_KEY,
+        Accept: 'application/json',
+      },
+    });
+
     if (!response.ok) {
-      console.error('enrollment document fetch failed', response.status);
+      console.error('docuseal submission lookup failed', response.status, await response.text());
       return null;
     }
 
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength === 0 || bytes.byteLength > MAX_ATTACHMENT_BYTES) {
-      console.error('enrollment document skipped due to size', bytes.byteLength);
-      return null;
-    }
+    const submission = await response.json() as { submitters?: DocuSealSubmitter[] };
+    const adminEmails = new Set([SIGNATURE_ADMIN_EMAIL]);
 
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i += 1) {
-      binary += String.fromCharCode(bytes[i]);
-    }
+    const familySubmitter = (submission.submitters || []).find((submitter) => {
+      const email = String(submitter.email || '').trim().toLowerCase();
+      return email && !adminEmails.has(email);
+    });
 
-    const safeName = String(document.name || 'Summit-Enrollment-Application')
-      .replace(/[^\w.\- ]+/g, '')
-      .trim() || 'Summit-Enrollment-Application';
+    if (!familySubmitter?.email) return null;
 
     return {
-      filename: safeName.endsWith('.pdf') ? safeName : `${safeName}.pdf`,
-      content: btoa(binary),
+      email: String(familySubmitter.email).trim().toLowerCase(),
+      name: String(familySubmitter.name || '').trim(),
+      values: undefined as FieldValue[] | undefined,
     };
   } catch (error) {
-    console.error('enrollment document fetch error:', error);
+    console.error('docuseal submission lookup error:', error);
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -243,7 +315,6 @@ async function sendWithResend(options: {
   subject: string;
   text: string;
   html: string;
-  attachments?: Array<{ filename: string; content: string }>;
 }) {
   if (!RESEND_API_KEY) {
     throw new Error('RESEND_API_KEY must be set on the Edge Function.');
@@ -261,7 +332,6 @@ async function sendWithResend(options: {
       subject: options.subject,
       text: options.text,
       html: options.html,
-      attachments: options.attachments,
     }),
   });
 
@@ -273,25 +343,88 @@ async function sendWithResend(options: {
   return result;
 }
 
-async function reserveSubmissionSend(submissionId: number, templateId: number | undefined, submitterEmail: string) {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  const { error } = await supabase
-    .from('enrollment_email_log')
-    .insert({
-      submission_id: submissionId,
-      template_id: templateId ?? null,
-      submitter_email: submitterEmail || null,
-    });
+async function handleFamilySubmitted(options: {
+  submissionId: number;
+  templateId: number | undefined;
+  familyEmail: string;
+  familyName: string;
+  templateName: string;
+  values: FieldValue[] | undefined;
+}) {
+  const existing = await getEnrollmentLog(options.submissionId);
 
-  if (error?.code === '23505') {
-    return false;
+  if (existing?.admin_pending_notified_at) {
+    return { skipped: 'admin_pending_already_sent' as const };
   }
 
-  if (error) {
-    throw new Error(error.message || 'Failed to record enrollment email send');
+  await upsertFamilySubmissionRecord(options);
+
+  const adminEmail = buildEnrollmentAdminSignatureRequestEmail({
+    submitterName: options.familyName || options.familyEmail,
+    submitterEmail: options.familyEmail,
+    templateName: options.templateName,
+    submissionId: options.submissionId,
+    docuSealBaseUrl: DOCUSEAL_API_URL,
+  });
+
+  const adminResult = await sendWithResend({
+    to: [SIGNATURE_ADMIN_EMAIL],
+    subject: adminEmail.subject,
+    text: adminEmail.text,
+    html: adminEmail.html,
+  });
+
+  await markAdminPendingNotified(options.submissionId);
+
+  return { action: 'admin_signature_request' as const, admin: adminResult };
+}
+
+async function handleSubmissionFullySigned(options: {
+  submissionId: number;
+  templateId: number | undefined;
+  templateName: string;
+  fallbackValues?: FieldValue[];
+}) {
+  const existing = await getEnrollmentLog(options.submissionId);
+
+  if (existing?.family_notified_at) {
+    return { skipped: 'family_already_notified' as const };
   }
 
-  return true;
+  let familyEmail = String(existing?.family_email || '').trim().toLowerCase();
+  let familyName = String(existing?.family_name || '').trim();
+
+  if (!familyEmail) {
+    const fetched = await fetchFamilyContactFromSubmission(options.submissionId);
+    if (fetched?.email) {
+      familyEmail = fetched.email;
+      familyName = fetched.name || familyName;
+      await upsertFamilySubmissionRecord({
+        submissionId: options.submissionId,
+        templateId: options.templateId,
+        familyEmail,
+        familyName,
+      });
+    }
+  }
+
+  if (!familyEmail) {
+    throw new Error('Could not determine family email for completed enrollment submission');
+  }
+
+  const firstName = extractFirstName(familyName, options.fallbackValues);
+  const familyEmailContent = buildEnrollmentReceivedFamilyEmail(firstName);
+
+  const familyResult = await sendWithResend({
+    to: [familyEmail],
+    subject: familyEmailContent.subject,
+    text: familyEmailContent.text,
+    html: familyEmailContent.html,
+  });
+
+  await markFamilyNotified(options.submissionId);
+
+  return { action: 'family_next_steps' as const, family: familyResult, to: familyEmail };
 }
 
 serve(async (req) => {
@@ -327,8 +460,8 @@ serve(async (req) => {
       });
     }
 
-    if (data.status !== 'completed' || data.submission?.status !== 'completed') {
-      return new Response(JSON.stringify({ ok: true, skipped: 'submission_not_completed' }), {
+    if (data.status !== 'completed') {
+      return new Response(JSON.stringify({ ok: true, skipped: 'submitter_not_completed' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -349,8 +482,6 @@ serve(async (req) => {
     }
 
     const submissionId = data.submission?.id;
-    const submitterEmail = String(data.email || '').trim().toLowerCase();
-
     if (!submissionId) {
       return new Response(JSON.stringify({ ok: false, error: 'Missing submission id' }), {
         status: 400,
@@ -358,63 +489,55 @@ serve(async (req) => {
       });
     }
 
-    if (!submitterEmail) {
-      return new Response(JSON.stringify({ ok: false, error: 'Missing submitter email' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const templateName = String(data.template?.name || 'Enrollment Application');
+    const submissionStatus = String(data.submission?.status || '').toLowerCase();
+    const isFullySigned = submissionStatus === 'completed';
 
-    const shouldSend = await reserveSubmissionSend(submissionId, templateId, submitterEmail);
-    if (!shouldSend) {
-      return new Response(JSON.stringify({ ok: true, skipped: 'already_sent', submission_id: submissionId }), {
+    if (!isFullySigned) {
+      const familyEmail = String(data.email || '').trim().toLowerCase();
+      if (!familyEmail) {
+        return new Response(JSON.stringify({ ok: false, error: 'Missing family submitter email' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const result = await handleFamilySubmitted({
+        submissionId,
+        templateId,
+        familyEmail,
+        familyName: String(data.name || '').trim(),
+        templateName,
+        values: data.values,
+      });
+
+      console.log('Enrollment admin signature request handled', { submissionId, templateId, familyEmail, result });
+
+      return new Response(JSON.stringify({
+        ok: true,
+        submission_id: submissionId,
+        template_id: templateId,
+        ...result,
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const firstName = extractFirstName(data);
-    const attachment = await fetchDocumentAttachment(data.documents);
-    const familyEmail = buildEnrollmentReceivedFamilyEmail(firstName, Boolean(attachment));
-
-    const familyResult = await sendWithResend({
-      to: [submitterEmail],
-      subject: familyEmail.subject,
-      text: familyEmail.text,
-      html: familyEmail.html,
-      attachments: attachment ? [attachment] : undefined,
-    });
-
-    const adminEmail = buildEnrollmentAdminEmail({
-      submitterName: String(data.name || '').trim() || submitterEmail,
-      submitterEmail,
-      templateName: String(data.template?.name || 'Enrollment Application'),
-      submissionId,
-      docuSealBaseUrl: DOCUSEAL_API_URL,
-    });
-
-    const adminResult = await sendWithResend({
-      to: [ADMIN_EMAIL],
-      subject: adminEmail.subject,
-      text: adminEmail.text,
-      html: adminEmail.html,
-    });
-
-    console.log('Enrollment emails sent', {
+    const result = await handleSubmissionFullySigned({
       submissionId,
       templateId,
-      to: submitterEmail,
-      familyResendId: familyResult?.id,
-      adminResendId: adminResult?.id,
-      attachment: Boolean(attachment),
+      templateName,
+      fallbackValues: data.values,
     });
+
+    console.log('Enrollment family notification handled', { submissionId, templateId, result });
 
     return new Response(JSON.stringify({
       ok: true,
       submission_id: submissionId,
       template_id: templateId,
-      family: familyResult,
-      admin: adminResult,
+      ...result,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
