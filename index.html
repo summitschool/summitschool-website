@@ -471,11 +471,11 @@
                         <h3 class="text-2xl font-semibold tracking-tight">Pay Tuition</h3>
                     </div>
                     
-                    <p class="text-sm text-slate-600 mb-6 leading-relaxed">Submit payment only after your application is approved. Tuition rates are in the enrollment packet — choose an option below when you’re ready.</p>
+                    <p class="text-sm text-slate-600 mb-6 leading-relaxed">Once your enrollment application is approved, you may submit annual tuition using either option below.</p>
                     
                     <div class="space-y-3">
-                        <!-- PayPal — update paypal.me username or amount in href if tuition changes -->
-                        <a href="https://paypal.me/macraesmom/110"
+                        <a id="paypal-tuition-link"
+                           href="https://paypal.me/macraesmom/110"
                            target="_blank"
                            rel="noopener noreferrer"
                            class="payment-btn flex items-center justify-center gap-x-3 w-full px-6 py-[17px] bg-[#00457C] hover:bg-[#003366] text-white rounded-2xl font-semibold text-base">
@@ -492,9 +492,10 @@
                         </a>
                     </div>
 
-                    <div class="mt-6 text-xs text-slate-500 leading-relaxed">
-                        Annual tuition is $110 per family. Please include your family name in the PayPal or Cash App note so we can match your payment. Questions? Just ask.
-                    </div>
+                    <p id="tuition-rate-line" class="mt-6 text-sm text-slate-600 leading-relaxed"></p>
+                    <p class="mt-2 text-xs text-slate-500 leading-relaxed">
+                        Include the enrolling parent&rsquo;s <strong class="text-slate-600">full name</strong> and <strong class="text-slate-600">email address</strong> in the payment note so we can match your payment to your application.
+                    </p>
                 </div>
             </div>
         </div>
@@ -890,6 +891,31 @@
             });
         }
 
+        function initTuitionPricing() {
+            const TUITION_INCREASE_AT = new Date(2026, 8, 4);
+            const RATE_EARLY = 110;
+            const RATE_STANDARD = 125;
+            const PAYPAL_USERNAME = 'macraesmom';
+
+            const now = new Date();
+            const useStandardRate = now >= TUITION_INCREASE_AT;
+            const currentRate = useStandardRate ? RATE_STANDARD : RATE_EARLY;
+
+            const paypalLink = document.getElementById('paypal-tuition-link');
+            if (paypalLink) {
+                paypalLink.href = `https://paypal.me/${PAYPAL_USERNAME}/${currentRate}`;
+            }
+
+            const rateLine = document.getElementById('tuition-rate-line');
+            if (rateLine) {
+                if (useStandardRate) {
+                    rateLine.textContent = `Annual tuition is $${RATE_STANDARD} per family.`;
+                } else {
+                    rateLine.textContent = `Annual tuition is $${RATE_EARLY} per family through September 3, 2026, then $${RATE_STANDARD} beginning September 4.`;
+                }
+            }
+        }
+
         async function initializeWebsite() {
             siteSupabaseClient = initSiteSupabase();
             if (siteSupabaseClient) {
@@ -899,6 +925,7 @@
             }
             await updateHeaderAuthState();
 
+            initTuitionPricing();
             initMobileMenu();
             initContactInterestFromUrl();
             initContactForm();
