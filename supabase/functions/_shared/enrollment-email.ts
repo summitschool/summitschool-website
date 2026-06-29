@@ -1,6 +1,8 @@
 import { escapeHtml, LOGO_URL, SITE_URL } from './family-hub-email.ts';
 
 export const ENROLLMENT_COMPLETE_URL = `${SITE_URL}/enrollment-complete.html`;
+export const ENROLLMENT_ADMIN_SIGNED_URL = `${SITE_URL}/enrollment-admin-signed.html`;
+export const ENROLLMENT_TUITION_URL = `${SITE_URL}/index.html#enrollment`;
 export const ENROLLMENT_CONTACT_URL = `${SITE_URL}/index.html#contact`;
 
 type EnrollmentEmailOptions = {
@@ -89,10 +91,9 @@ export function buildEnrollmentReceivedFamilyEmail(firstName: string) {
                 <tr>
                   <td style="padding:18px 20px;font-size:14px;line-height:1.65;color:#64748b;">
                     <p style="margin:0 0 10px;font-size:14px;font-weight:600;color:#1B365D;text-align:center;">What happens next</p>
-                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">1. Application review</strong><br>We will email you once a decision is ready.</p>
-                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">2. Pay tuition after approval</strong><br>Submit annual tuition on our website using PayPal or Cash App.</p>
-                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">3. Family Hub account</strong><br>After approval, create your account and staff will grant access.</p>
-                    <p style="margin:0;"><strong style="color:#1B365D;">4. Enrollment documents</strong><br>Your enrollment letter and other school documents will be available in the Hub once access is approved.</p>
+                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">1. Pay tuition</strong><br>Submit annual tuition on our website using PayPal or Cash App.</p>
+                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">2. Create your Family Hub account</strong><br>Register for the Summit Family Hub and staff will approve your access.</p>
+                    <p style="margin:0;"><strong style="color:#1B365D;">3. Enrollment documents</strong><br>Your signed enrollment letter and other school documents will be available in the Hub once access is approved.</p>
                   </td>
                 </tr>
               </table>
@@ -100,41 +101,45 @@ export function buildEnrollmentReceivedFamilyEmail(firstName: string) {
                 <tr>
                   <td style="padding:14px 16px;background:#F5F0E6;border:1px solid rgba(201,162,39,0.35);border-radius:14px;text-align:center;">
                     <p style="margin:0;font-size:13px;line-height:1.55;color:#1B365D;font-weight:600;">
-                      After approval, include the enrolling parent&rsquo;s full name and email address in the tuition payment note.
+                      Include the enrolling parent&rsquo;s full name and email address in the tuition payment note so we can match your payment to your application.
                     </p>
                   </td>
                 </tr>
               </table>`;
 
   const html = buildEnrollmentEmailHtml({
-    title: 'Application received',
-    preheader: 'Your Summit Church School enrollment application has been received and countersigned.',
+    title: 'Enrollment approved',
+    preheader: 'Your Summit Church School enrollment application has been reviewed and approved.',
     greeting,
     paragraphs: [
-      'Thank you for completing your <strong>Summit Church School</strong> enrollment application. Our team has received and countersigned your submission.',
-      'We will review your application and contact you by email once a decision is ready. You do not need to take further action until then.',
-      'Your signed enrollment documents will be available in the <strong>Summit Family Hub</strong> once your access is approved — no need to save a copy from this email.',
+      'Great news — your <strong>Summit Church School</strong> enrollment application has been reviewed and approved.',
+      'Your signed enrollment documents will be available in the <strong>Summit Family Hub</strong> once you create your account and access is approved. You do not need to save a copy from this email.',
+      'Your next step is to <strong>pay annual tuition</strong> on our website, then create your Family Hub account.',
     ],
     extraHtml: nextStepsHtml,
-    ctaLabel: 'View Full Next Steps',
-    ctaUrl: ENROLLMENT_COMPLETE_URL,
-    footerNote: 'Questions while you wait? Contact us through our website and we will be happy to help.',
+    ctaLabel: 'Pay Tuition & View Next Steps',
+    ctaUrl: ENROLLMENT_TUITION_URL,
+    footerNote: 'Questions? Contact us through our website and we will be happy to help.',
   });
 
   const text = [
     firstName === 'there' ? 'Hello,' : `Hello ${firstName},`,
     '',
-    'Thank you for completing your Summit Church School enrollment application.',
-    'Our team has received and countersigned your submission and will review it carefully.',
-    'Your signed enrollment documents will be available in the Summit Family Hub once your access is approved.',
+    'Great news — your Summit Church School enrollment application has been reviewed and approved.',
+    'Your signed enrollment documents will be available in the Summit Family Hub once you create your account and access is approved.',
     '',
-    `View next steps: ${ENROLLMENT_COMPLETE_URL}`,
+    'Next steps:',
+    '1. Pay tuition on our website (PayPal or Cash App).',
+    '2. Create your Family Hub account.',
+    '3. Access your enrollment documents once access is approved.',
+    '',
+    `Pay tuition and view next steps: ${ENROLLMENT_TUITION_URL}`,
     '',
     'Summit Church School',
   ].filter(Boolean).join('\n');
 
   return {
-    subject: 'Summit enrollment application received',
+    subject: 'Summit enrollment approved — next step: pay tuition',
     html,
     text,
   };
@@ -145,23 +150,25 @@ export function buildEnrollmentAdminSignatureRequestEmail(options: {
   submitterEmail: string;
   templateName: string;
   submissionId: number;
-  docuSealBaseUrl: string;
+  signingUrl: string;
+  fallbackReviewUrl: string;
 }) {
   const name = options.submitterName || 'Unknown';
   const email = options.submitterEmail || 'No email provided';
-  const reviewUrl = `${options.docuSealBaseUrl.replace(/\/$/, '')}/submissions/${options.submissionId}`;
+  const signUrl = options.signingUrl || options.fallbackReviewUrl;
 
   const html = buildEnrollmentEmailHtml({
     title: 'Enrollment application ready to sign',
-    preheader: 'A family submitted an enrollment application that needs the school signature in DocuSeal.',
+    preheader: 'A family submitted an enrollment application that needs the school signature.',
     greeting: 'Hello,',
     paragraphs: [
       'A family has completed their portion of the <strong>Summit Church School</strong> enrollment application.',
-      `<strong>Family:</strong> ${escapeHtml(name)}<br><strong>Email:</strong> ${escapeHtml(email)}<br><strong>Form:</strong> ${escapeHtml(options.templateName)}<br><strong>Submission ID:</strong> ${escapeHtml(options.submissionId)}`,
-      'Please open DocuSeal, review the application, and add the school signature. The family will receive their next-steps email after the submission is fully signed.',
+      `<strong>Family:</strong> ${escapeHtml(name)}<br><strong>Email:</strong> ${escapeHtml(email)}<br><strong>Form:</strong> ${escapeHtml(options.templateName)}`,
+      'Use the button below to open the document and add the school signature. No DocuSeal login is required — this link goes directly to the signing form.',
+      'After you sign, the family will receive their approval email with tuition and Family Hub next steps.',
     ],
-    ctaLabel: 'Sign in DocuSeal',
-    ctaUrl: reviewUrl,
+    ctaLabel: 'Review and Sign',
+    ctaUrl: signUrl,
     footerNote: 'This alert is sent only for the public enrollment application form.',
   });
 
@@ -172,7 +179,7 @@ export function buildEnrollmentAdminSignatureRequestEmail(options: {
     `Email: ${email}`,
     `Form: ${options.templateName}`,
     `Submission ID: ${options.submissionId}`,
-    `Sign in DocuSeal: ${reviewUrl}`,
+    `Review and sign: ${signUrl}`,
   ].join('\n');
 
   return {

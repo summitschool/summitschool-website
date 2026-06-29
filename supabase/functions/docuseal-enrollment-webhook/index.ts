@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   buildEnrollmentAdminSignatureRequestEmail,
   buildEnrollmentReceivedFamilyEmail,
+  ENROLLMENT_ADMIN_SIGNED_URL,
 } from '../_shared/enrollment-email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -32,10 +33,13 @@ type FieldValue = {
 };
 
 type DocuSealSubmitter = {
+  id?: number;
   email?: string;
   name?: string | null;
   role?: string;
   status?: string;
+  slug?: string;
+  embed_src?: string;
 };
 
 type DocuSealWebhookPayload = {
@@ -273,7 +277,19 @@ async function markFamilyNotified(submissionId: number) {
   }
 }
 
-async function fetchFamilyContactFromSubmission(submissionId: number) {
+function buildSubmitterSigningUrl(submitter: DocuSealSubmitter | undefined) {
+  if (!submitter) return null;
+
+  const embedSrc = String(submitter.embed_src || '').trim();
+  if (embedSrc) return embedSrc;
+
+  const slug = String(submitter.slug || '').trim();
+  if (slug) return `${DOCUSEAL_API_URL}/s/${slug}`;
+
+  return null;
+}
+
+async function fetchSubmissionSubmitters(submissionId: number) {
   if (!DOCUSEAL_API_KEY) return null;
 
   try {
@@ -290,24 +306,69 @@ async function fetchFamilyContactFromSubmission(submissionId: number) {
     }
 
     const submission = await response.json() as { submitters?: DocuSealSubmitter[] };
-    const adminEmails = new Set([SIGNATURE_ADMIN_EMAIL]);
-
-    const familySubmitter = (submission.submitters || []).find((submitter) => {
-      const email = String(submitter.email || '').trim().toLowerCase();
-      return email && !adminEmails.has(email);
-    });
-
-    if (!familySubmitter?.email) return null;
-
-    return {
-      email: String(familySubmitter.email).trim().toLowerCase(),
-      name: String(familySubmitter.name || '').trim(),
-      values: undefined as FieldValue[] | undefined,
-    };
+    return submission.submitters || [];
   } catch (error) {
     console.error('docuseal submission lookup error:', error);
     return null;
   }
+}
+
+async function setAdminCompletedRedirect(submitterId: number) {
+  if (!DOCUSEAL_API_KEY) return;
+
+  try {
+    const response = await fetch(`${DOCUSEAL_API_URL}/api/submitters/${submitterId}`, {
+      method: 'PUT',
+      headers: {
+        'X-Auth-Token': DOCUSEAL_API_KEY,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        completed_redirect_url: ENROLLMENT_ADMIN_SIGNED_URL,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('docuseal admin redirect update failed', response.status, await response.text());
+    }
+  } catch (error) {
+    console.error('docuseal admin redirect update error:', error);
+  }
+}
+
+async function resolveAdminSigningUrl(submissionId: number) {
+  const submitters = await fetchSubmissionSubmitters(submissionId);
+  if (!submitters) return null;
+
+  const adminSubmitter = submitters.find((submitter) => (
+    String(submitter.email || '').trim().toLowerCase() === SIGNATURE_ADMIN_EMAIL
+  ));
+
+  if (adminSubmitter?.id) {
+    await setAdminCompletedRedirect(adminSubmitter.id);
+  }
+
+  return buildSubmitterSigningUrl(adminSubmitter);
+}
+
+async function fetchFamilyContactFromSubmission(submissionId: number) {
+  const submitters = await fetchSubmissionSubmitters(submissionId);
+  if (!submitters) return null;
+
+  const adminEmails = new Set([SIGNATURE_ADMIN_EMAIL]);
+  const familySubmitter = submitters.find((submitter) => {
+    const email = String(submitter.email || '').trim().toLowerCase();
+    return email && !adminEmails.has(email);
+  });
+
+  if (!familySubmitter?.email) return null;
+
+  return {
+    email: String(familySubmitter.email).trim().toLowerCase(),
+    name: String(familySubmitter.name || '').trim(),
+    values: undefined as FieldValue[] | undefined,
+  };
 }
 
 async function sendWithResend(options: {
@@ -359,12 +420,16 @@ async function handleFamilySubmitted(options: {
 
   await upsertFamilySubmissionRecord(options);
 
+  const signingUrl = await resolveAdminSigningUrl(options.submissionId);
+  const fallbackReviewUrl = `${DOCUSEAL_API_URL}/submissions/${options.submissionId}`;
+
   const adminEmail = buildEnrollmentAdminSignatureRequestEmail({
     submitterName: options.familyName || options.familyEmail,
     submitterEmail: options.familyEmail,
     templateName: options.templateName,
     submissionId: options.submissionId,
-    docuSealBaseUrl: DOCUSEAL_API_URL,
+    signingUrl: signingUrl || fallbackReviewUrl,
+    fallbackReviewUrl,
   });
 
   const adminResult = await sendWithResend({

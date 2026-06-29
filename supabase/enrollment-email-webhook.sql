@@ -15,7 +15,8 @@
 --      DOCUSEAL_ENROLLMENT_TEMPLATE_SLUGS    = vi3n5SzMfFnRLH
 --      DOCUSEAL_ENROLLMENT_TEMPLATE_IDS     = optional comma-separated numeric template IDs
 --      DOCUSEAL_API_URL                     = https://enroll.summitchurchschool.org
---      DOCUSEAL_API_KEY                     = DocuSeal API key (used to resolve template slugs to IDs)
+--      DOCUSEAL_API_KEY                     = optional DocuSeal API key (slug lookup fallback)
+--      DOCUSEAL_DATABASE_URL                = optional self-hosted Postgres URL (direct signing links + admin redirect)
 --      DOCUSEAL_WEBHOOK_HMAC_SECRET         = optional whsec_... value from DocuSeal webhook Security → HMAC
 -- 4. In DocuSeal → Webhooks → New Webhook:
 --      URL: https://tajyrmydwqsijstyzsjr.supabase.co/functions/v1/docuseal-enrollment-webhook
