@@ -57,13 +57,13 @@
                         <span class="sm:hidden">Sign In</span>
                         <span class="hidden sm:inline">Family Hub Sign In</span>
                     </a>
-                    <button type="button"
-                            id="header-logout-btn"
-                            onclick="handleSiteLogout()"
-                            class="header-logout-btn hidden items-center gap-x-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm rounded-full transition-all active:scale-[0.985] shadow-sm">
-                        <i class="fas fa-sign-out-alt text-[10px] sm:text-xs shrink-0" aria-hidden="true"></i>
-                        <span>Log out</span>
-                    </button>
+                    <a href="members.html"
+                       id="header-hub-return-btn"
+                       class="header-logout-btn hidden items-center gap-x-1.5 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-full transition-all active:scale-[0.985] shadow-sm">
+                        <i class="fas fa-house-chimney text-[10px] sm:text-xs shrink-0" aria-hidden="true"></i>
+                        <span class="sm:hidden">Family Hub</span>
+                        <span class="hidden sm:inline">Return to Family Hub</span>
+                    </a>
                     <button id="mobile-menu-btn"
                             class="md:hidden w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-2xl shadow-sm text-navy hover:shadow-md hover:border-slate-300 active:scale-[0.985] transition-all"
                             aria-label="Open menu"
@@ -88,9 +88,16 @@
                 
                 <div class="pt-3 px-4 space-y-2">
                     <a href="members.html"
+                       id="mobile-login-btn"
                        class="flex w-full items-center justify-center gap-2 px-6 py-3.5 text-base font-semibold rounded-2xl bg-navy text-white active:scale-[0.985]">
                         <i class="fas fa-right-to-bracket text-sm" aria-hidden="true"></i>
                         Family Hub Sign In
+                    </a>
+                    <a href="members.html"
+                       id="mobile-hub-return-btn"
+                       class="hidden w-full items-center justify-center gap-2 px-6 py-3.5 text-base font-semibold rounded-2xl bg-gold text-navy active:scale-[0.985]">
+                        <i class="fas fa-house-chimney text-sm" aria-hidden="true"></i>
+                        Return to Family Hub
                     </a>
                     <a href="#enrollment"
                        class="block w-full text-center px-6 py-3.5 text-base font-semibold rounded-2xl border-2 border-navy text-navy bg-white active:scale-[0.985]">
@@ -572,7 +579,7 @@
                                target="_blank"
                                rel="noopener noreferrer"
                                class="text-sage hover:text-navy underline decoration-sage/30 text-xs block mt-1">
-                                View on Google Maps
+                                Get directions
                             </a>
                             <div class="text-slate-600 text-xs mt-1">Serving families across the entire state</div>
                         </div>
@@ -710,8 +717,10 @@
 
         async function updateHeaderAuthState() {
             const loginBtn = document.getElementById('header-login-btn');
-            const logoutBtn = document.getElementById('header-logout-btn');
-            if (!loginBtn || !logoutBtn) return;
+            const hubReturnBtn = document.getElementById('header-hub-return-btn');
+            const mobileLoginBtn = document.getElementById('mobile-login-btn');
+            const mobileHubReturnBtn = document.getElementById('mobile-hub-return-btn');
+            if (!loginBtn || !hubReturnBtn) return;
 
             let hasSession = false;
             if (siteSupabaseClient) {
@@ -723,18 +732,17 @@
 
             loginBtn.classList.toggle('hidden', hasSession);
             loginBtn.classList.toggle('inline-flex', !hasSession);
-            logoutBtn.classList.toggle('hidden', !hasSession);
-            logoutBtn.classList.toggle('flex', hasSession);
-        }
+            hubReturnBtn.classList.toggle('hidden', !hasSession);
+            hubReturnBtn.classList.toggle('inline-flex', hasSession);
 
-        async function handleSiteLogout() {
-            if (siteSupabaseClient) {
-                await siteSupabaseClient.auth.signOut({ scope: 'local' });
+            if (mobileLoginBtn) {
+                mobileLoginBtn.classList.toggle('hidden', hasSession);
+                mobileLoginBtn.classList.toggle('flex', !hasSession);
             }
-            sessionStorage.removeItem(MEMBER_ACTIVITY_KEY);
-            sessionStorage.removeItem('scsmembers_loggedin');
-            sessionStorage.removeItem('scsmembers_email');
-            await updateHeaderAuthState();
+            if (mobileHubReturnBtn) {
+                mobileHubReturnBtn.classList.toggle('hidden', !hasSession);
+                mobileHubReturnBtn.classList.toggle('flex', hasSession);
+            }
         }
 
         const NAV_HEIGHT = window.matchMedia('(min-width: 640px)').matches ? 80 : 64;
