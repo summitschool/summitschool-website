@@ -4682,8 +4682,16 @@
 
                 html += `
                     <div class="border border-sky-200/80 rounded-xl p-3 bg-white/80">
-                        <div class="font-medium text-navy text-sm">${escapeHtml(name)} <span class="text-slate-500 font-normal">(Grade ${escapeHtml(student.current_grade_level || '—')})</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">Prior years: ${escapeHtml(student.prior_years_status || 'pending')}</div>
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                                <div class="font-medium text-navy text-sm">${escapeHtml(name)} <span class="text-slate-500 font-normal">(Grade ${escapeHtml(student.current_grade_level || '—')})</span></div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Prior years: ${escapeHtml(student.prior_years_status || 'pending')}</div>
+                            </div>
+                            <button type="button"
+                                    class="text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0"
+                                    data-student-id="${student.id}"
+                                    onclick="adminDeleteStudent(this)">Delete student</button>
+                        </div>
                         ${lockedYears.length ? `
                             <div class="mt-2 space-y-1">
                                 ${lockedYears.map((y) => `
@@ -4700,6 +4708,35 @@
             }
             html += '</div>';
             listEl.innerHTML = html;
+        }
+
+        async function adminDeleteStudent(button) {
+            const studentId = button?.dataset?.studentId;
+            const select = document.getElementById('admin-family-select');
+            const familyUserId = select?.value || '';
+            if (!studentId || !supabaseClient) return;
+
+            const studentName = button?.closest('.border')?.querySelector('.font-medium')?.textContent?.trim() || 'this student';
+            const confirmed = await showAppConfirm({
+                title: 'Delete student?',
+                message: `Remove ${studentName} and all grade records for this family? This cannot be undone.`,
+                confirmLabel: 'Delete',
+                tone: 'danger',
+            });
+            if (!confirmed) return;
+
+            button.disabled = true;
+            try {
+                if (!window.AcademicRecords?.adminDeleteStudent) {
+                    throw new Error('Academic records module not loaded.');
+                }
+                await window.AcademicRecords.adminDeleteStudent(studentId, familyUserId);
+                await showAppAlert('Student removed.');
+                loadAdminAcademicRecords();
+            } catch (err) {
+                button.disabled = false;
+                await showAppAlert(err.message || String(err));
+            }
         }
 
         async function adminReopenSchoolYear(yearRecordId, studentName, schoolYear) {

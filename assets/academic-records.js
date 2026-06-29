@@ -69,6 +69,42 @@
         return [student.first_name, student.last_name].filter(Boolean).join(' ').trim();
     }
 
+    function normalizeStudentName(firstName, lastName) {
+        return [firstName, lastName]
+            .map((part) => String(part || '').trim().toLowerCase())
+            .filter(Boolean)
+            .join(' ');
+    }
+
+    function getFocusStudentId() {
+        return sessionStorage.getItem('ar_focus_student') || null;
+    }
+
+    function setFocusStudentId(studentId) {
+        if (studentId) {
+            sessionStorage.setItem('ar_focus_student', studentId);
+        } else {
+            sessionStorage.removeItem('ar_focus_student');
+        }
+    }
+
+    let isAddingStudent = false;
+
+    function getProgressStatusLabel(yearRecord) {
+        if (!yearRecord) return 'No current year record';
+        if (yearRecord.semester_2_locked) return `${yearRecord.school_year} complete`;
+        if (yearRecord.semester_1_locked) return 'Semester 2 due (May)';
+        return 'Semester 1 due (December)';
+    }
+
+    async function findDuplicateStudent(userId, firstName, lastName) {
+        const students = await fetchStudents(userId);
+        const key = normalizeStudentName(firstName, lastName);
+        return students.find((student) => (
+            normalizeStudentName(student.first_name, student.last_name) === key
+        )) || null;
+    }
+
     function parseProgressReportStudentId(taskUrl) {
         const url = String(taskUrl || '');
         if (!url.startsWith(PROGRESS_TASK_URL_PREFIX)) return null;
@@ -494,76 +530,54 @@
             return `<div class="hub-panel hub-panel-padded text-sm text-red-600">Student record not found for this task.</div>`;
         }
 
+        const name = studentDisplayName(student);
         const years = await fetchSchoolYearsForStudent(studentId);
-        const current = years.find((y) => y.school_year === currentSchoolYear() && y.entry_type === 'current')
-            || await ensureCurrentSchoolYearRecord(studentId, student.current_grade_level);
-        const entries = await fetchGradeEntries(current.id);
+        const currentYear = currentSchoolYear();
+        const current = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
+        const statusLabel = getProgressStatusLabel(current);
+        const closed = current && isSchoolYearClosed(current.school_year) && !current.admin_reopened_at;
 
-        const sem1Done = current.semester_1_locked;
-        const sem2Done = current.semester_2_locked;
-        const activeSem = !sem1Done ? '1' : (!sem2Done ? '2' : null);
-        const closed = isSchoolYearClosed(current.school_year) && !current.admin_reopened_at;
-
-        let body = '';
-        if (!activeSem && !closed) {
-            body = `<p class="text-sm text-emerald-700 font-medium">All semesters submitted for ${current.school_year}. View in Academic Records.</p>`;
+        let actionHint = `Enter ${name}'s grades in Academic Records.`;
+        if (current?.semester_2_locked) {
+            actionHint = `${currentYear} progress report is complete for ${name}.`;
         } else if (closed) {
-            body = `<p class="text-sm text-slate-600">The ${current.school_year} school year is closed. Contact the school office to request changes.</p>`;
+            actionHint = `The ${currentYear} school year is closed. Contact the school office for changes.`;
+        } else if (current?.semester_1_locked) {
+            actionHint = `Semester 1 is done — add Semester 2 and final grades for ${name} in Academic Records.`;
         } else {
-            const label = activeSem === '1' ? 'Semester 1 (December)' : 'Semester 2 + Final (May)';
-            body = `
-                <p class="text-sm text-slate-600 mb-3">Enter grades for <strong>${escapeHtml(studentDisplayName(student))}</strong> — ${label}</p>
-                <div id="progress-task-grades-${current.id}">${buildGradeTableHtml(current, entries)}</div>
-                <div class="mt-3 space-y-2">
-                    <label class="block text-xs font-medium text-slate-600">Type your full name to confirm these grades are accurate</label>
-                    <input type="text" id="progress-ack-${current.id}" class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm" placeholder="Parent full name">
-                    <button type="button" class="w-full py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl text-sm transition-all"
-                            onclick="window.AcademicRecords.submitProgressTask('${current.id}', '${activeSem}', '${studentId}')">
-                        Submit ${activeSem === '1' ? 'Semester 1' : 'Semester 2 &amp; Final'}
-                    </button>
-                </div>
-            `;
+            actionHint = `Add Semester 1 grades for ${name} in Academic Records.`;
         }
 
+        const borderClass = options.overdueIcon
+            ? 'border-red-300 ring-1 ring-red-100'
+            : 'border-amber-200';
+
         return `
-            <div class="hub-panel hub-panel-padded border-amber-200 !bg-amber-50/80 relative" id="progress-task-${studentId}">
+            <div class="member-card bg-white border ${borderClass} rounded-3xl p-6 relative" id="progress-task-${studentId}">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex-1 min-w-0">
                         <h4 class="font-semibold text-lg text-navy">${escapeHtml(task.title)}</h4>
-                        ${task.description ? `<p class="text-sm text-slate-600 mt-1">${escapeHtml(task.description)}</p>` : ''}
+                        <p class="text-sm text-slate-600 mt-1">${escapeHtml(actionHint)}</p>
+                        <p class="text-xs font-medium text-slate-500 mt-2">${escapeHtml(statusLabel)}</p>
                         ${options.dueDatesHtml || ''}
                     </div>
                     ${options.overdueIcon || ''}
                 </div>
-                <div class="mt-3">${body}</div>
-                <p class="mt-3 text-xs text-slate-500">
-                    <a href="#" onclick="showDashboardTab('academic-records'); return false;" class="text-navy underline">Open Academic Records</a> for prior years and full history.
-                </p>
+                <button type="button"
+                        class="mt-4 w-full py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl text-sm transition-all active:scale-[0.985]"
+                        onclick="window.AcademicRecords.openStudentRecord('${studentId}')">
+                    Open ${escapeHtml(name)} in Academic Records
+                </button>
             </div>
         `;
     }
 
-    async function submitProgressTask(yearRecordId, semesterKey, studentId) {
-        const container = document.getElementById(`progress-task-grades-${yearRecordId}`);
-        const ackInput = document.getElementById(`progress-ack-${yearRecordId}`);
-        const ackName = (ackInput?.value || '').trim();
-        if (!ackName) {
-            await window.showAppAlert?.('Please type your full name to confirm submission.');
-            return;
-        }
-
-        try {
-            const client = await getClient();
-            const { data: yearRecord } = await client.from('student_school_years').select('*').eq('id', yearRecordId).single();
-            const entries = collectEntriesFromTable(container);
-            await submitSemester(yearRecord, semesterKey, ackName, entries);
-            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();
-            if (typeof window.loadAcademicRecords === 'function') await window.loadAcademicRecords();
-            await window.showAppAlert?.(semesterKey === '1'
-                ? 'Semester 1 saved and locked. Return in May for Semester 2.'
-                : 'Progress report complete for this school year.');
-        } catch (err) {
-            await window.showAppAlert?.(err.message || String(err));
+    function openStudentRecord(studentId) {
+        setFocusStudentId(studentId);
+        if (typeof window.showDashboardTab === 'function') {
+            window.showDashboardTab('academic-records');
+        } else if (typeof window.loadAcademicRecords === 'function') {
+            window.loadAcademicRecords();
         }
     }
 
@@ -602,8 +616,9 @@
                                 ${GRADE_LEVELS.map((g) => `<option value="${g}">${g === 'K3' || g === 'K4' || g === 'K5' ? g : `Grade ${g}`}</option>`).join('')}
                             </select>
                         </div>
-                        <div class="sm:col-span-3">
-                            <button type="submit" class="px-6 py-2.5 bg-navy text-white font-semibold rounded-2xl text-sm hover:bg-[#0F3A5F]">Add student</button>
+                        <div class="sm:col-span-3 flex items-center gap-3">
+                            <button type="submit" id="add-student-submit-btn" class="px-6 py-2.5 bg-navy text-white font-semibold rounded-2xl text-sm hover:bg-[#0F3A5F] disabled:opacity-60 disabled:cursor-not-allowed">Add student</button>
+                            <span id="add-student-status" class="text-sm text-slate-500 hidden"></span>
                         </div>
                     </form>
                 </div>
@@ -615,19 +630,27 @@
                 return;
             }
 
+            html += '<div class="space-y-3">';
+            const focusId = getFocusStudentId();
+
             for (const student of students) {
                 const years = await fetchSchoolYearsForStudent(student.id);
                 const currentYear = currentSchoolYear();
                 const currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
                 const backfills = years.filter((y) => y.entry_type === 'backfill');
+                const statusLabel = getProgressStatusLabel(currentRecord);
+                const isFocused = focusId === student.id;
+                const gradeLabel = student.current_grade_level === 'K3' || student.current_grade_level === 'K4' || student.current_grade_level === 'K5'
+                    ? student.current_grade_level
+                    : `Grade ${student.current_grade_level || '—'}`;
 
                 let priorBlock = '';
                 if (isHighSchoolGrade(student.current_grade_level)) {
                     priorBlock = `
-                        <div class="mt-4 p-4 border border-sky-200 bg-sky-50/50 rounded-2xl">
-                            <div class="text-sm font-semibold text-sky-900 mb-2">Prior school years (high school)</div>
-                            <p class="text-xs text-slate-600 mb-3">Add any years before Summit if this student joined mid-stream. Full-year grades only — no semester breakdown.</p>
-                            <div class="flex flex-wrap gap-2 mb-3">
+                        <details class="border border-sky-200 rounded-2xl bg-sky-50/40">
+                            <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-sky-900">Prior school years (high school)</summary>
+                            <div class="px-4 pb-4 border-t border-sky-100 space-y-3">
+                                <p class="text-xs text-slate-600 pt-3">Add years before Summit if this student joined mid-stream. Full-year grades only.</p>
                                 <form class="flex flex-wrap gap-2 items-end" onsubmit="window.AcademicRecords.handleAddBackfill(event, '${student.id}')">
                                     <select name="school_year" class="form-input px-3 py-2 text-sm border border-slate-300 rounded-xl" required>
                                         <option value="">School year</option>
@@ -641,31 +664,31 @@
                                 ${student.current_grade_level === '9' && student.prior_years_status !== 'not_applicable' ? `
                                     <button type="button" class="px-4 py-2 text-sm border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50"
                                             onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Started with Summit in 9th — no prior years</button>
-                                ` : student.prior_years_status === 'not_applicable' && student.current_grade_level !== '9'
-                                    ? ''
-                                    : student.prior_years_status === 'complete'
-                                        ? '<span class="text-xs text-emerald-700 self-center">Prior years complete</span>'
-                                        : '<span class="text-xs text-amber-700 self-center">Add each prior high school year above</span>'}
+                                ` : student.prior_years_status === 'complete'
+                                    ? '<span class="text-xs text-emerald-700">Prior years complete</span>'
+                                    : student.prior_years_status === 'not_applicable'
+                                        ? '<span class="text-xs text-slate-500">No prior years needed</span>'
+                                        : '<span class="text-xs text-amber-700">Add each prior high school year, then mark complete</span>'}
                             </div>
-                            <div class="text-xs text-slate-600">Status: <strong>${escapeHtml(student.prior_years_status)}</strong></div>
-                        </div>
+                        </details>
                     `;
                 } else {
                     priorBlock = `
-                        <div class="mt-4 text-xs text-slate-500">
-                            Prior-year backfill is optional for this grade level.
-                            <button type="button" class="ml-2 text-navy underline" onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
-                        </div>
+                        <p class="text-xs text-slate-500">
+                            Prior-year backfill is optional for this grade.
+                            <button type="button" class="ml-1 text-navy underline" onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
+                        </p>
                     `;
                 }
 
-                let yearSections = '';
+                let currentYearSection = '';
                 if (currentRecord) {
                     const entries = await fetchGradeEntries(currentRecord.id);
-                    yearSections += `
-                        <details class="border border-slate-200 rounded-2xl mt-4" open>
-                            <summary class="px-4 py-3 cursor-pointer font-semibold text-navy">${currentYear} (current) — Grade ${escapeHtml(currentRecord.grade_level)}</summary>
-                            <div class="p-4 border-t border-slate-100 space-y-4">
+                    currentYearSection = `
+                        <details class="border border-amber-200 rounded-2xl bg-amber-50/30" ${isFocused ? 'open' : ''}>
+                            <summary class="px-4 py-3 cursor-pointer font-semibold text-navy">${currentYear} progress report — ${escapeHtml(statusLabel)}</summary>
+                            <div class="p-4 border-t border-amber-100 space-y-4">
+                                <p class="text-xs text-slate-600">Grade ${escapeHtml(currentRecord.grade_level)} for ${currentYear}</p>
                                 ${buildGradeTableHtml(currentRecord, entries)}
                                 ${renderSemesterActions(currentRecord)}
                             </div>
@@ -673,30 +696,54 @@
                     `;
                 }
 
-                for (const bf of backfills) {
-                    const entries = await fetchGradeEntries(bf.id);
-                    yearSections += `
-                        <details class="border border-slate-200 rounded-2xl mt-4">
-                            <summary class="px-4 py-3 cursor-pointer font-semibold text-navy">${escapeHtml(bf.school_year)} (prior) — Grade ${escapeHtml(bf.grade_level)} ${bf.year_locked ? '✓' : ''}</summary>
-                            <div class="p-4 border-t border-slate-100 space-y-4">
-                                ${buildGradeTableHtml(bf, entries)}
-                                ${renderBackfillActions(bf)}
-                            </div>
+                let backfillSections = '';
+                if (backfills.length) {
+                    const backfillItems = [];
+                    for (const bf of backfills) {
+                        const entries = await fetchGradeEntries(bf.id);
+                        backfillItems.push(`
+                            <details class="border border-slate-200 rounded-xl">
+                                <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy">${escapeHtml(bf.school_year)} — Grade ${escapeHtml(bf.grade_level)} ${bf.year_locked ? '✓' : ''}</summary>
+                                <div class="p-3 border-t border-slate-100 space-y-3">
+                                    ${buildGradeTableHtml(bf, entries)}
+                                    ${renderBackfillActions(bf)}
+                                </div>
+                            </details>
+                        `);
+                    }
+                    backfillSections = `
+                        <details class="border border-slate-200 rounded-2xl">
+                            <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-navy">Prior year records (${backfills.length})</summary>
+                            <div class="p-4 border-t border-slate-100 space-y-2">${backfillItems.join('')}</div>
                         </details>
                     `;
                 }
 
                 html += `
-                    <div class="hub-panel hub-panel-padded mb-6" data-student-id="${student.id}">
-                        <h3 class="text-xl font-semibold text-navy">${escapeHtml(studentDisplayName(student))}</h3>
-                        <p class="text-sm text-slate-600">Current grade: ${escapeHtml(student.current_grade_level || '—')}</p>
-                        ${priorBlock}
-                        ${yearSections}
-                    </div>
+                    <details class="border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
+                        <summary class="px-5 py-4 cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 hover:bg-slate-50">
+                            <span class="font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>
+                            <span class="text-sm text-slate-500">${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}</span>
+                        </summary>
+                        <div class="px-5 pb-5 border-t border-slate-100 space-y-4">
+                            ${priorBlock}
+                            ${currentYearSection}
+                            ${backfillSections}
+                        </div>
+                    </details>
                 `;
             }
 
+            html += '</div>';
             root.innerHTML = html;
+
+            if (focusId) {
+                setFocusStudentId(null);
+                const panel = document.getElementById(`student-panel-${focusId}`);
+                if (panel) {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
         } catch (err) {
             root.innerHTML = `<div class="text-red-600 text-sm p-4">Error loading academic records: ${escapeHtml(err.message || err)}</div>`;
         }
@@ -773,18 +820,93 @@
 
     async function handleAddStudent(event) {
         event.preventDefault();
+        if (isAddingStudent) return;
+
         const form = event.target;
+        const submitBtn = document.getElementById('add-student-submit-btn');
+        const statusEl = document.getElementById('add-student-status');
         const formData = Object.fromEntries(new FormData(form).entries());
+        const firstName = String(formData.first_name || '').trim();
+        const lastName = String(formData.last_name || '').trim();
+        const displayName = [firstName, lastName].filter(Boolean).join(' ');
+
         try {
-            await addStudent(formData);
+            const user = await getCurrentUser();
+            if (!user) throw new Error('You must be logged in.');
+
+            const duplicate = await findDuplicateStudent(user.id, firstName, lastName);
+            if (duplicate) {
+                const proceed = await window.showAppConfirm?.({
+                    title: 'Student already exists',
+                    message: `"${displayName}" is already in your academic records. Add another student with the same name anyway?`,
+                    confirmLabel: 'Add anyway',
+                    tone: 'primary',
+                });
+                if (!proceed) return;
+            }
+
+            isAddingStudent = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Adding student...';
+            }
+            if (statusEl) {
+                statusEl.textContent = 'Creating student record...';
+                statusEl.classList.remove('hidden');
+            }
+
+            const student = await addStudent(formData);
             form.reset();
+            setFocusStudentId(student.id);
             await loadAcademicRecords();
             if (typeof window.OnboardingChecklist?.refresh === 'function') {
                 await window.OnboardingChecklist.refresh();
             }
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
+        } finally {
+            isAddingStudent = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Add student';
+            }
+            if (statusEl) {
+                statusEl.classList.add('hidden');
+                statusEl.textContent = '';
+            }
         }
+    }
+
+    async function adminDeleteStudent(studentId, familyUserId) {
+        const client = await getClient();
+        if (!client || !studentId) throw new Error('Missing student.');
+
+        const { data: student } = await client
+            .from('students')
+            .select('id, first_name, last_name')
+            .eq('id', studentId)
+            .maybeSingle();
+        if (!student) throw new Error('Student not found.');
+
+        const name = studentDisplayName(student);
+        const taskUrl = `${PROGRESS_TASK_URL_PREFIX}${studentId}`;
+
+        if (familyUserId) {
+            await client
+                .from('family_documents')
+                .delete()
+                .eq('user_id', familyUserId)
+                .eq('url', taskUrl)
+                .ilike('category', '%task%');
+        }
+
+        const { error } = await client
+            .from('students')
+            .delete()
+            .eq('id', studentId);
+        if (error) throw error;
+
+        return { name };
     }
 
     async function handleAddBackfill(event, studentId) {
@@ -822,7 +944,7 @@
         isHighSchoolGrade,
         parseProgressReportStudentId,
         renderProgressReportTaskCard,
-        submitProgressTask,
+        openStudentRecord,
         loadAcademicRecords,
         handleAddStudent,
         handleAddBackfill,
@@ -831,7 +953,9 @@
         fetchStudents,
         ensureProgressReportTask,
         adminReopenSchoolYear,
+        adminDeleteStudent,
         defaultProgressDueDates,
+        studentDisplayName,
     };
 
     window.loadAcademicRecords = loadAcademicRecords;
