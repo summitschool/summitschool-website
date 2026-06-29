@@ -49,9 +49,13 @@ type DocuSealTemplate = {
 };
 
 type BackfillPayload = {
+  action?: 'backfill' | 'survey' | 'cleanup';
   template_slug?: string;
   dry_run?: boolean;
+  emails?: string[];
 };
+
+const STORAGE_BUCKET = 'Family-Documents';
 
 async function isAuthorized(req: Request) {
   if (WEBHOOK_SECRET) {
@@ -120,6 +124,140 @@ async function fetchCompletedSubmissions(templateId: number) {
   return submissions;
 }
 
+async function fetchSubmissionsForEmail(templateId: number, email: string) {
+  const submissions: DocuSealSubmission[] = [];
+  let after: number | undefined;
+
+  while (true) {
+    const params = new URLSearchParams({
+      template_id: String(templateId),
+      q: email,
+      limit: '100',
+    });
+    if (after) params.set('after', String(after));
+
+    const response = await fetch(`${DOCUSEAL_API_URL}/api/submissions?${params.toString()}`, {
+      headers: {
+        'X-Auth-Token': DOCUSEAL_API_KEY,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`DocuSeal submissions lookup failed (${response.status}): ${await response.text()}`);
+    }
+
+    const body = await response.json() as {
+      data?: DocuSealSubmission[];
+      pagination?: { next?: number | null };
+    };
+
+    const batch = body.data || [];
+    submissions.push(...batch);
+
+    const next = body.pagination?.next;
+    if (!next || batch.length === 0) break;
+    after = next;
+  }
+
+  return submissions;
+}
+
+async function cleanupEnrollmentEmails(
+  supabase: ReturnType<typeof createClient>,
+  emails: string[],
+  dryRun: boolean,
+) {
+  const normalized = emails.map((email) => email.trim().toLowerCase()).filter(Boolean);
+  const results: Array<Record<string, unknown>> = [];
+
+  for (const email of normalized) {
+    const { data: archiveRows, error: archiveError } = await supabase
+      .from('enrollment_document_archive')
+      .select('submission_id, storage_path, family_document_id')
+      .ilike('family_email', email);
+
+    if (archiveError) {
+      throw new Error(archiveError.message || `Failed to load archive rows for ${email}`);
+    }
+
+    const storagePaths = (archiveRows || [])
+      .map((row) => String(row.storage_path || '').trim())
+      .filter((path) => path && path !== 'pending');
+
+    const documentIds = (archiveRows || [])
+      .map((row) => row.family_document_id)
+      .filter(Boolean) as string[];
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', email)
+      .maybeSingle();
+
+    let extraDocIds: string[] = [];
+    if (profile?.id) {
+      const { data: docs } = await supabase
+        .from('family_documents')
+        .select('id, url')
+        .eq('user_id', profile.id)
+        .eq('category', ENROLLMENT_ARCHIVE_CATEGORY);
+
+      extraDocIds = (docs || []).map((doc) => doc.id);
+      for (const doc of docs || []) {
+        const url = String(doc.url || '').trim();
+        if (url && !/^https?:\/\//i.test(url) && !storagePaths.includes(url)) {
+          storagePaths.push(url);
+        }
+      }
+    }
+
+    const entry = {
+      email,
+      archive_rows: archiveRows?.length || 0,
+      family_document_ids: [...new Set([...documentIds, ...extraDocIds])],
+      storage_paths: storagePaths,
+      dry_run: dryRun,
+    };
+
+    if (!dryRun) {
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove(storagePaths);
+        if (storageError) {
+          console.error(`Failed to remove storage for ${email}:`, storageError.message);
+        }
+      }
+
+      const allDocIds = [...new Set([...documentIds, ...extraDocIds])];
+      if (allDocIds.length > 0) {
+        const { error: docDeleteError } = await supabase
+          .from('family_documents')
+          .delete()
+          .in('id', allDocIds);
+        if (docDeleteError) {
+          throw new Error(docDeleteError.message || `Failed to delete family documents for ${email}`);
+        }
+      }
+
+      if ((archiveRows || []).length > 0) {
+        const { error: archiveDeleteError } = await supabase
+          .from('enrollment_document_archive')
+          .delete()
+          .ilike('family_email', email);
+        if (archiveDeleteError) {
+          throw new Error(archiveDeleteError.message || `Failed to delete archive rows for ${email}`);
+        }
+      }
+    }
+
+    results.push(entry);
+  }
+
+  return results;
+}
+
 function resolveFamilyContact(submission: DocuSealSubmission) {
   const adminEmails = new Set([SIGNATURE_ADMIN_EMAIL]);
   const familySubmitter = (submission.submitters || []).find((submitter) => {
@@ -166,12 +304,89 @@ serve(async (req) => {
 
   try {
     const payload = await req.json().catch(() => ({})) as BackfillPayload;
+    const action = payload.action || 'backfill';
     const templateSlug = String(payload.template_slug || DEFAULT_LEGACY_SLUG).trim();
     const dryRun = payload.dry_run === true;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    if (action === 'cleanup') {
+      const emails = payload.emails || [];
+      if (!emails.length) {
+        return new Response(JSON.stringify({ ok: false, error: 'emails required for cleanup' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const results = await cleanupEnrollmentEmails(supabase, emails, dryRun);
+      return new Response(JSON.stringify({
+        ok: true,
+        action: 'cleanup',
+        dry_run: dryRun,
+        results,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const template = await fetchTemplateBySlug(templateSlug);
+
+    if (action === 'survey') {
+      const emails = payload.emails || [];
+      if (!emails.length) {
+        return new Response(JSON.stringify({ ok: false, error: 'emails required for survey' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const results: Array<Record<string, unknown>> = [];
+      for (const email of emails) {
+        const submissions = await fetchSubmissionsForEmail(template.id, email.trim().toLowerCase());
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, email, approved, denied')
+          .ilike('email', email.trim().toLowerCase())
+          .maybeSingle();
+
+        const { data: archiveRows } = await supabase
+          .from('enrollment_document_archive')
+          .select('submission_id, delivered_at, storage_path')
+          .ilike('family_email', email.trim().toLowerCase());
+
+        results.push({
+          email: email.trim().toLowerCase(),
+          profile_found: Boolean(profile?.id),
+          profile_approved: profile?.approved === true,
+          profile_denied: profile?.denied === true,
+          archive_rows: archiveRows || [],
+          submissions: submissions.map((submission) => ({
+            submission_id: submission.id,
+            status: submission.status,
+            family: resolveFamilyContact(submission),
+            submitters: (submission.submitters || []).map((submitter) => ({
+              email: submitter.email,
+              status: submitter.status,
+              role: submitter.role,
+            })),
+          })),
+        });
+      }
+
+      return new Response(JSON.stringify({
+        ok: true,
+        action: 'survey',
+        template_slug: templateSlug,
+        template_id: template.id,
+        results,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const submissions = await fetchCompletedSubmissions(template.id);
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const results: Array<Record<string, unknown>> = [];
     const emailsToDeliver = new Set<string>();
