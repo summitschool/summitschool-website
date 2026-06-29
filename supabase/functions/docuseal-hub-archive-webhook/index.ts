@@ -52,7 +52,12 @@ type DocuSealTemplate = {
   name?: string;
 };
 
-let cachedHubArchiveTemplateIds: Set<number> | null = null;
+type HubArchiveTemplateCache = {
+  ids: Set<number>;
+  slugById: Map<number, string>;
+};
+
+let cachedHubArchiveTemplates: HubArchiveTemplateCache | null = null;
 let cacheLoadedAt = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -119,14 +124,21 @@ async function isAuthorized(req: Request, rawBody: string) {
   return false;
 }
 
-async function fetchHubArchiveTemplateIds() {
+async function fetchHubArchiveTemplates() {
   const now = Date.now();
-  if (cachedHubArchiveTemplateIds && (now - cacheLoadedAt) < CACHE_TTL_MS) {
-    return cachedHubArchiveTemplateIds;
+  if (cachedHubArchiveTemplates && (now - cacheLoadedAt) < CACHE_TTL_MS) {
+    return cachedHubArchiveTemplates;
   }
 
   const ids = new Set<number>(parseIdList(Deno.env.get('DOCUSEAL_HUB_ARCHIVE_TEMPLATE_IDS')));
   const slugs = parseSlugList(Deno.env.get('DOCUSEAL_HUB_ARCHIVE_TEMPLATE_SLUGS'));
+  const slugById = new Map<number, string>();
+
+  if (slugs.length === 1) {
+    for (const templateId of ids) {
+      slugById.set(templateId, slugs[0]);
+    }
+  }
 
   if (slugs.length > 0 && DOCUSEAL_API_KEY) {
     try {
@@ -142,6 +154,7 @@ async function fetchHubArchiveTemplateIds() {
         for (const template of body.data || []) {
           if (template.slug && slugs.includes(template.slug)) {
             ids.add(template.id);
+            slugById.set(template.id, template.slug);
           }
         }
       } else {
@@ -152,9 +165,9 @@ async function fetchHubArchiveTemplateIds() {
     }
   }
 
-  cachedHubArchiveTemplateIds = ids;
+  cachedHubArchiveTemplates = { ids, slugById };
   cacheLoadedAt = now;
-  return ids;
+  return cachedHubArchiveTemplates;
 }
 
 function isHubArchiveTemplate(templateId: number | undefined, allowedIds: Set<number>) {
@@ -186,7 +199,11 @@ async function fetchSubmissionSubmitters(submissionId: number) {
   }
 }
 
-function resolveTemplateSlug(templateId?: number) {
+function resolveTemplateSlug(templateId?: number, slugById?: Map<number, string>) {
+  if (templateId && slugById?.has(templateId)) {
+    return slugById.get(templateId)!;
+  }
+
   const slugs = parseSlugList(Deno.env.get('DOCUSEAL_HUB_ARCHIVE_TEMPLATE_SLUGS'));
   if (slugs.length === 1) return slugs[0];
   return slugs[0] || DEFAULT_HUB_ARCHIVE_SLUGS;
@@ -225,6 +242,7 @@ async function configureSubmitterRedirect(submitterId: number, templateSlug?: st
 async function handleSubmissionCreated(options: {
   submissionId: number;
   templateId?: number;
+  templateSlug: string;
   submitters?: DocuSealSubmitter[];
 }) {
   const submitters = options.submitters?.length
@@ -236,7 +254,7 @@ async function handleSubmissionCreated(options: {
     return { skipped: 'submitter_not_found' as const };
   }
 
-  const updated = await configureSubmitterRedirect(submitter.id, resolveTemplateSlug(options.templateId));
+  const updated = await configureSubmitterRedirect(submitter.id, options.templateSlug);
   return updated
     ? { action: 'redirect_configured' as const, submitter_id: submitter.id }
     : { skipped: 'redirect_update_failed' as const };
@@ -245,6 +263,7 @@ async function handleSubmissionCreated(options: {
 async function handleFormCompleted(options: {
   submissionId: number;
   templateId?: number;
+  templateSlug: string;
   templateName: string;
   familyEmail: string;
 }) {
@@ -253,6 +272,7 @@ async function handleFormCompleted(options: {
     supabaseServiceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
     submissionId: options.submissionId,
     templateId: options.templateId,
+    templateSlug: options.templateSlug,
     templateName: options.templateName,
     familyEmail: options.familyEmail,
     docusealApiUrl: DOCUSEAL_API_URL,
@@ -297,10 +317,10 @@ serve(async (req) => {
       });
     }
 
-    const allowedTemplateIds = await fetchHubArchiveTemplateIds();
+    const hubArchiveTemplates = await fetchHubArchiveTemplates();
     const templateId = data.template?.id;
 
-    if (!isHubArchiveTemplate(templateId, allowedTemplateIds)) {
+    if (!isHubArchiveTemplate(templateId, hubArchiveTemplates.ids)) {
       return new Response(JSON.stringify({
         ok: true,
         skipped: 'not_hub_archive_template',
@@ -327,6 +347,7 @@ serve(async (req) => {
         submissionId,
         templateId,
         submitters: data.submitters,
+        templateSlug: resolveTemplateSlug(templateId, hubArchiveTemplates.slugById),
       });
 
       console.log('Hub archive redirect configured', { submissionId, templateId, result });
@@ -368,6 +389,7 @@ serve(async (req) => {
     const result = await handleFormCompleted({
       submissionId,
       templateId,
+      templateSlug: resolveTemplateSlug(templateId, hubArchiveTemplates.slugById),
       templateName: String(data.template?.name || 'Signed Form'),
       familyEmail,
     });

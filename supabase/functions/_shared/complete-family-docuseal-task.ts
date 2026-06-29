@@ -11,6 +11,43 @@ export function taskUrlMatchesTemplate(taskUrl: string, templateSlug: string) {
   return String(taskUrl || '').toLowerCase().includes(slug);
 }
 
+type DocuSealSubmitter = {
+  slug?: string;
+};
+
+async function fetchSubmissionSubmitterSlugs(
+  submissionId: number,
+  apiUrl: string,
+  apiKey: string,
+) {
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, '')}/api/submissions/${submissionId}`, {
+      headers: {
+        'X-Auth-Token': apiKey,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('docuseal submission submitter lookup failed', response.status, await response.text());
+      return [];
+    }
+
+    const submission = await response.json() as { submitters?: DocuSealSubmitter[] };
+    return (submission.submitters || [])
+      .map((submitter) => submitter.slug?.trim())
+      .filter((slug): slug is string => Boolean(slug));
+  } catch (error) {
+    console.error('docuseal submission submitter lookup error:', error);
+    return [];
+  }
+}
+
+function taskMatchesSubmissionSubmitters(taskUrl: string, submitterSlugs: string[]) {
+  const normalizedUrl = String(taskUrl || '').toLowerCase();
+  return submitterSlugs.some((slug) => normalizedUrl.includes(slug.toLowerCase()));
+}
+
 export async function fetchDocuSealTemplateSlug(
   templateId: number,
   apiUrl: string,
@@ -63,6 +100,7 @@ export async function completeFamilyDocuSealTasks(options: {
   familyEmail: string;
   templateSlug?: string | null;
   templateId?: number;
+  submissionId?: number;
   docusealApiUrl?: string;
   docusealApiKey?: string;
 }) {
@@ -74,10 +112,6 @@ export async function completeFamilyDocuSealTasks(options: {
       options.docusealApiUrl,
       options.docusealApiKey,
     );
-  }
-
-  if (!templateSlug) {
-    return { skipped: 'template_slug_missing' as const };
   }
 
   const supabase = createClient(options.supabaseUrl, options.supabaseServiceRoleKey);
@@ -96,13 +130,33 @@ export async function completeFamilyDocuSealTasks(options: {
     throw new Error(error.message || 'Failed to load family documents for task completion');
   }
 
-  const matching = (documents || []).filter((doc) => (
-    isTaskCategory(doc.category) && taskUrlMatchesTemplate(String(doc.url || ''), templateSlug!)
+  let matching = (documents || []).filter((doc) => (
+    isTaskCategory(doc.category)
+    && templateSlug
+    && taskUrlMatchesTemplate(String(doc.url || ''), templateSlug)
   ));
+
+  if (
+    matching.length === 0
+    && options.submissionId
+    && options.docusealApiUrl
+    && options.docusealApiKey
+  ) {
+    const submitterSlugs = await fetchSubmissionSubmitterSlugs(
+      options.submissionId,
+      options.docusealApiUrl,
+      options.docusealApiKey,
+    );
+
+    matching = (documents || []).filter((doc) => (
+      isTaskCategory(doc.category)
+      && taskMatchesSubmissionSubmitters(String(doc.url || ''), submitterSlugs)
+    ));
+  }
 
   if (matching.length === 0) {
     return {
-      skipped: 'no_matching_tasks' as const,
+      skipped: templateSlug ? 'no_matching_tasks' as const : 'template_slug_missing' as const,
       template_slug: templateSlug,
       user_id: userId,
     };

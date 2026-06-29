@@ -93,6 +93,7 @@ export async function archiveDocuSealSubmissionToHub(options: {
   supabaseServiceRoleKey: string;
   submissionId: number;
   templateId?: number;
+  templateSlug?: string | null;
   templateName: string;
   familyEmail: string;
   docusealApiUrl: string;
@@ -190,7 +191,9 @@ export async function archiveDocuSealSubmissionToHub(options: {
     supabaseUrl: options.supabaseUrl,
     supabaseServiceRoleKey: options.supabaseServiceRoleKey,
     familyEmail: options.familyEmail,
+    templateSlug: options.templateSlug,
     templateId: options.templateId,
+    submissionId: options.submissionId,
     docusealApiUrl: options.docusealApiUrl,
     docusealApiKey: options.docusealApiKey,
   });
