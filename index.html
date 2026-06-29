@@ -483,8 +483,9 @@
                             <span>Pay with PayPal</span>
                         </a>
                         
-                        <!-- Cash App -->
-                        <a href="https://cash.app/$SummitExplorers" target="_blank"
+                        <a id="cashapp-tuition-link"
+                           href="https://cash.app/$SummitExplorers/110"
+                           target="_blank"
                            rel="noopener noreferrer"
                            class="payment-btn flex items-center justify-center gap-x-3 w-full px-6 py-[17px] bg-[#00D54B] hover:bg-[#00c043] text-black rounded-2xl font-semibold text-base">
                             <svg class="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 14.59L12 18l-1.41-1.41L8.17 15l1.42-1.41 1.41 1.41 3.54-3.54 1.41 1.41-4.54 4.13z"/></svg>
@@ -896,6 +897,7 @@
             const RATE_EARLY = 110;
             const RATE_STANDARD = 125;
             const PAYPAL_USERNAME = 'macraesmom';
+            const CASHAPP_CASHTAG = 'SummitExplorers';
 
             const now = new Date();
             const useStandardRate = now >= TUITION_INCREASE_AT;
@@ -904,6 +906,11 @@
             const paypalLink = document.getElementById('paypal-tuition-link');
             if (paypalLink) {
                 paypalLink.href = `https://paypal.me/${PAYPAL_USERNAME}/${currentRate}`;
+            }
+
+            const cashAppLink = document.getElementById('cashapp-tuition-link');
+            if (cashAppLink) {
+                cashAppLink.href = `https://cash.app/$${CASHAPP_CASHTAG}/${currentRate}`;
             }
 
             const rateLine = document.getElementById('tuition-rate-line');
