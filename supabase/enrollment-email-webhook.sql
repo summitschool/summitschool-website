@@ -14,7 +14,7 @@
 --      FULL_ADMIN_EMAIL                     = sjesimon@gmail.com
 --      ENROLLMENT_SIGNATURE_EMAIL           = info@summitchurchschool.org
 --      DOCUSEAL_ENROLLMENT_WEBHOOK_SECRET   = long random string (same value used in DocuSeal webhook URL/header)
---      DOCUSEAL_ENROLLMENT_TEMPLATE_SLUGS    = vi3n5SzMfFnRLH
+--      DOCUSEAL_ENROLLMENT_TEMPLATE_SLUGS    = vi3n5SzMfFnRLH,hepTZVXKSzmTVE
 --      DOCUSEAL_ENROLLMENT_TEMPLATE_IDS     = optional comma-separated numeric template IDs
 --      DOCUSEAL_API_URL                     = https://enroll.summitchurchschool.org
 --      DOCUSEAL_API_KEY                     = optional DocuSeal API key (slug lookup fallback)
