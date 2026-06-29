@@ -1,9 +1,11 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { completeFamilyDocuSealTasks } from '../_shared/complete-family-docuseal-task.ts';
 import {
   buildEnrollmentAdminSignatureRequestEmail,
   buildEnrollmentReceivedFamilyEmail,
   ENROLLMENT_ADMIN_SIGNED_URL,
+  ENROLLMENT_COMPLETE_URL,
 } from '../_shared/enrollment-email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -380,7 +382,15 @@ function findAdminSubmitter(submitters: DocuSealSubmitter[] | null | undefined) 
   ));
 }
 
-async function configureAdminSubmitter(submitterId: number) {
+function buildEnrollmentFamilyCompleteUrl() {
+  const slug = parseSlugList(Deno.env.get('DOCUSEAL_ENROLLMENT_TEMPLATE_SLUGS'))[0] || DEFAULT_ENROLLMENT_SLUGS;
+  return `${ENROLLMENT_COMPLETE_URL}?template=${encodeURIComponent(slug)}`;
+}
+
+async function updateSubmitterPreferences(
+  submitterId: number,
+  preferences: Record<string, string | boolean>,
+) {
   if (!DOCUSEAL_API_KEY) return false;
 
   try {
@@ -391,22 +401,32 @@ async function configureAdminSubmitter(submitterId: number) {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({
-        send_email: false,
-        completed_redirect_url: ENROLLMENT_ADMIN_SIGNED_URL,
-      }),
+      body: JSON.stringify(preferences),
     });
 
     if (!response.ok) {
-      console.error('docuseal admin submitter update failed', response.status, await response.text());
+      console.error('docuseal submitter update failed', response.status, await response.text());
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('docuseal admin submitter update error:', error);
+    console.error('docuseal submitter update error:', error);
     return false;
   }
+}
+
+async function configureAdminSubmitter(submitterId: number) {
+  return updateSubmitterPreferences(submitterId, {
+    send_email: false,
+    completed_redirect_url: ENROLLMENT_ADMIN_SIGNED_URL,
+  });
+}
+
+async function configureFamilySubmitter(submitterId: number) {
+  return updateSubmitterPreferences(submitterId, {
+    completed_redirect_url: buildEnrollmentFamilyCompleteUrl(),
+  });
 }
 
 async function resolveAdminSigningUrl(submissionId: number) {
@@ -479,27 +499,31 @@ async function handleSubmissionCreated(options: {
   templateId: number | undefined;
   submitters?: DocuSealSubmitter[];
 }) {
-  const adminSubmitter = findAdminSubmitter(options.submitters);
+  const submitters = options.submitters?.length
+    ? options.submitters
+    : await fetchSubmissionSubmitters(options.submissionId);
 
-  if (!adminSubmitter?.id) {
-    const submitters = await fetchSubmissionSubmitters(options.submissionId);
-    const fetchedAdmin = findAdminSubmitter(submitters || undefined);
-
-    if (!fetchedAdmin?.id) {
-      return { skipped: 'admin_submitter_not_found' as const };
-    }
-
-    const updated = await configureAdminSubmitter(fetchedAdmin.id);
-    return updated
-      ? { action: 'admin_docuseal_email_disabled' as const, submitter_id: fetchedAdmin.id }
-      : { skipped: 'admin_submitter_update_failed' as const };
+  if (!submitters?.length) {
+    return { skipped: 'submitters_not_found' as const };
   }
 
-  const updated = await configureAdminSubmitter(adminSubmitter.id);
+  const results: Record<string, unknown> = {};
 
-  return updated
-    ? { action: 'admin_docuseal_email_disabled' as const, submitter_id: adminSubmitter.id }
-    : { skipped: 'admin_submitter_update_failed' as const };
+  for (const submitter of submitters) {
+    if (!submitter.id) continue;
+
+    const isAdmin = String(submitter.email || '').trim().toLowerCase() === SIGNATURE_ADMIN_EMAIL;
+    const updated = isAdmin
+      ? await configureAdminSubmitter(submitter.id)
+      : await configureFamilySubmitter(submitter.id);
+
+    results[isAdmin ? 'admin' : 'family'] = {
+      submitter_id: submitter.id,
+      updated,
+    };
+  }
+
+  return { action: 'submitters_configured' as const, ...results };
 }
 
 async function handleFamilySubmitted(options: {
@@ -539,7 +563,16 @@ async function handleFamilySubmitted(options: {
 
   await markAdminPendingNotified(options.submissionId);
 
-  return { action: 'admin_signature_request' as const, admin: adminResult };
+  const taskResult = await completeFamilyDocuSealTasks({
+    supabaseUrl: SUPABASE_URL,
+    supabaseServiceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
+    familyEmail: options.familyEmail,
+    templateId: options.templateId,
+    docusealApiUrl: DOCUSEAL_API_URL,
+    docusealApiKey: DOCUSEAL_API_KEY,
+  });
+
+  return { action: 'admin_signature_request' as const, admin: adminResult, tasks: taskResult };
 }
 
 async function handleSubmissionFullySigned(options: {

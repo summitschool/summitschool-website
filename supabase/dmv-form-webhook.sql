@@ -19,7 +19,8 @@
 --      Events: submission.created AND form.completed
 --      Security header (optional): x-webhook-secret = your DOCUSEAL_DMV_WEBHOOK_SECRET
 -- 5. On the DMV form template only (vfjkLH3hKczzX9):
---      - Set completion redirect to https://summitchurchschool.org/dmv-permit-form-complete.html
+--      - Set completion redirect to https://summitchurchschool.org/dmv-permit-form-complete.html?template=vfjkLH3hKczzX9
+--        (submission.created webhook also sets this automatically)
 --      - Turn OFF built-in Documents Copy / Completed Notification emails
 --      - Leave enrollment and other DocuSeal forms unchanged
 

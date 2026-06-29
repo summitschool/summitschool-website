@@ -25,7 +25,8 @@
 --        (the template "request email" toggle does not stop the next-signer chain email)
 --      Security header (optional): x-webhook-secret = your DOCUSEAL_ENROLLMENT_WEBHOOK_SECRET
 -- 5. On the enrollment template only (vi3n5SzMfFnRLH):
---      - Set completion redirect to https://summitchurchschool.org/enrollment-complete.html
+--      - Set completion redirect to https://summitchurchschool.org/enrollment-complete.html?template=vi3n5SzMfFnRLH
+--        (submission.created webhook also sets this on the family signer)
 --      - Turn OFF built-in Documents Copy / Completed Notification emails
 --      - Leave other DocuSeal forms unchanged
 

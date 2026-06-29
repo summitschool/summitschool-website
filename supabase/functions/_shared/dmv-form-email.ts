@@ -2,6 +2,10 @@ import { escapeHtml, LOGO_URL, SITE_URL } from './family-hub-email.ts';
 
 export const DMV_PERMIT_FORM_COMPLETE_URL = `${SITE_URL}/dmv-permit-form-complete.html`;
 
+export function buildDmvPermitFormCompleteUrl(templateSlug: string) {
+  return `${DMV_PERMIT_FORM_COMPLETE_URL}?template=${encodeURIComponent(templateSlug)}`;
+}
+
 type DmvFormEmailOptions = {
   title: string;
   preheader?: string;

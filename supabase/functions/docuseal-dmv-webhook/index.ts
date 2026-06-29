@@ -1,8 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { completeFamilyDocuSealTasks } from '../_shared/complete-family-docuseal-task.ts';
 import {
   buildDmvPermitFormCompletedEmail,
-  DMV_PERMIT_FORM_COMPLETE_URL,
+  buildDmvPermitFormCompleteUrl,
 } from '../_shared/dmv-form-email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -265,8 +266,14 @@ async function fetchSubmissionSubmitters(submissionId: number) {
   }
 }
 
-async function configureSubmitterRedirect(submitterId: number) {
+function primaryDmvTemplateSlug() {
+  return parseSlugList(Deno.env.get('DOCUSEAL_DMV_TEMPLATE_SLUGS'))[0] || DEFAULT_DMV_SLUGS;
+}
+
+async function configureSubmitterRedirect(submitterId: number, templateSlug?: string) {
   if (!DOCUSEAL_API_KEY) return false;
+
+  const slug = templateSlug || primaryDmvTemplateSlug();
 
   try {
     const response = await fetch(`${DOCUSEAL_API_URL}/api/submitters/${submitterId}`, {
@@ -277,7 +284,7 @@ async function configureSubmitterRedirect(submitterId: number) {
         Accept: 'application/json',
       },
       body: JSON.stringify({
-        completed_redirect_url: DMV_PERMIT_FORM_COMPLETE_URL,
+        completed_redirect_url: buildDmvPermitFormCompleteUrl(slug),
       }),
     });
 
@@ -452,11 +459,21 @@ async function handleFormCompleted(options: {
 
   await markFamilyNotified(options.submissionId);
 
+  const taskResult = await completeFamilyDocuSealTasks({
+    supabaseUrl: SUPABASE_URL,
+    supabaseServiceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
+    familyEmail: options.familyEmail,
+    templateId: options.templateId,
+    docusealApiUrl: DOCUSEAL_API_URL,
+    docusealApiKey: DOCUSEAL_API_KEY,
+  });
+
   return {
     action: 'family_form_attached' as const,
     family: familyResult,
     to: options.familyEmail,
     attachments: attachments.map((attachment) => attachment.filename),
+    tasks: taskResult,
   };
 }
 
