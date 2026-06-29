@@ -474,16 +474,14 @@
                     <p class="text-sm text-slate-600 mb-6 leading-relaxed">Submit payment only after your application is approved. Tuition rates are in the enrollment packet — choose an option below when you’re ready.</p>
                     
                     <div class="space-y-3">
-                        <!-- PayPal -->
-                        <div class="payment-btn relative flex items-center gap-x-4 w-full px-6 py-[17px] bg-[#00457C] opacity-75 text-white rounded-2xl font-semibold text-base cursor-not-allowed">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944 3.72a.641.641 0 01.632-.54h7.662c3.417 0 5.79 1.97 5.79 5.28 0 3.55-2.74 6.27-6.48 6.27H9.85l-1.3 6.607zM9.85 9.48h2.3c1.48 0 2.38-.75 2.38-2.1 0-1.35-.9-2.1-2.38-2.1H8.8L9.85 9.48z"/></svg>
-                            <span>Pay with PayPal</span>
-                            
-                            <!-- Coming Soon Badge -->
-                            <span class="absolute -top-1.5 -right-1 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                                Coming Soon
-                            </span>
-                        </div>
+                        <!-- PayPal — update paypal.me username or amount in href if tuition changes -->
+                        <a href="https://paypal.me/macraesmom/110"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="payment-btn flex items-center gap-x-4 w-full px-6 py-[17px] bg-[#00457C] hover:bg-[#003366] text-white rounded-2xl font-semibold text-base">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944 3.72a.641.641 0 01.632-.54h7.662c3.417 0 5.79 1.97 5.79 5.28 0 3.55-2.74 6.27-6.48 6.27H9.85l-1.3 6.607zM9.85 9.48h2.3c1.48 0 2.38-.75 2.38-2.1 0-1.35-.9-2.1-2.38-2.1H8.8L9.85 9.48z"/></svg>
+                            <span>Pay with PayPal • $110 tuition</span>
+                        </a>
                         
                         <!-- Cash App -->
                         <a href="https://cash.app/$SummitExplorers" target="_blank"
@@ -494,7 +492,7 @@
                     </div>
 
                     <div class="mt-6 text-xs text-slate-500 leading-relaxed">
-                        Current tuition rates are listed in the enrollment packet. Questions about tuition? Just ask.
+                        Annual tuition is $110 per family. Please include your family name in the PayPal or Cash App note so we can match your payment. Questions? Just ask.
                     </div>
                 </div>
             </div>
