@@ -31,12 +31,12 @@
         if (document.getElementById(DIALOG_ID)) return;
 
         document.body.insertAdjacentHTML('beforeend', `
-            <div id="${DIALOG_ID}" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="${TITLE_ID}" aria-describedby="${MESSAGE_ID}">
-                <button type="button" class="absolute inset-0 w-full h-full border-0 p-0 bg-navy/50" aria-label="Close" data-app-dialog-backdrop></button>
-                <div class="relative z-10 w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-2xl p-6">
+            <div id="${DIALOG_ID}" class="hidden" role="dialog" aria-modal="true" aria-labelledby="${TITLE_ID}" aria-describedby="${MESSAGE_ID}">
+                <button type="button" data-app-dialog-backdrop aria-label="Close"></button>
+                <div class="app-dialog-panel">
                     <h3 id="${TITLE_ID}" class="heading-serif text-xl text-navy tracking-tight"></h3>
                     <p id="${MESSAGE_ID}" class="text-sm text-slate-600 mt-2 leading-relaxed"></p>
-                    <div id="${ACTIONS_ID}" class="flex gap-3 mt-6">
+                    <div id="${ACTIONS_ID}" class="app-dialog-actions">
                         <button type="button" id="${CANCEL_ID}" class="${BTN_SECONDARY}">Cancel</button>
                         <button type="button" id="${OK_ID}" class="${BTN_PRIMARY}">OK</button>
                     </div>
@@ -111,13 +111,13 @@
 
             if (mode === 'alert') {
                 cancelBtn.classList.add('hidden');
+                actionsEl.classList.add('is-alert');
                 actionsEl.classList.remove('flex');
-                actionsEl.classList.add('block');
                 okBtn.className = buttonClassForTone(tone, mode);
             } else {
                 cancelBtn.classList.remove('hidden');
+                actionsEl.classList.remove('is-alert');
                 actionsEl.classList.add('flex');
-                actionsEl.classList.remove('block');
                 okBtn.className = buttonClassForTone(tone, mode);
                 cancelBtn.className = BTN_SECONDARY;
             }

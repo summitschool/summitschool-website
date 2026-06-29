@@ -167,6 +167,10 @@
             .replace(/"/g, '&quot;');
     }
 
+    function escapeJsString(value) {
+        return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
     function isHighSchoolGrade(level) {
         return HIGH_SCHOOL_GRADES.has(String(level || '').trim());
     }
@@ -268,12 +272,16 @@
     }
 
     async function fetchStudents(userId) {
+        return fetchStudentsForFamily(userId);
+    }
+
+    async function fetchStudentsForFamily(familyUserId) {
         const client = await getClient();
-        if (!client || !userId) return [];
+        if (!client || !familyUserId) return [];
         const { data, error } = await client
             .from('students')
             .select('*')
-            .eq('family_user_id', userId)
+            .eq('family_user_id', familyUserId)
             .eq('active', true)
             .order('first_name', { ascending: true });
         if (error) throw error;
@@ -719,6 +727,64 @@
         return totals;
     }
 
+    function formatCumulativeCreditsLine(totals) {
+        if (!totals) return '';
+        return TRANSCRIPT_COURSE_TYPES.map((type) => {
+            const earned = totals[type] || 0;
+            const required = AL_GRAD_CREDIT_REQUIREMENTS[type];
+            return `${courseTypeMeta(type).label} ${earned}/${required}`;
+        }).join(', ');
+    }
+
+    function captureExpandState(root) {
+        if (!root) return null;
+
+        const unique = (items) => [...new Set(items.filter(Boolean))];
+
+        return {
+            studentIds: unique(Array.from(root.querySelectorAll('.student-record-panel[open]')).map((el) => el.dataset.studentId)),
+            progressYearIds: unique(Array.from(root.querySelectorAll('[data-ar-progress-year][open]')).map((el) => el.dataset.arProgressYear)),
+            priorYearStudentIds: unique(Array.from(root.querySelectorAll('[data-ar-prior-years][open]')).map((el) => el.dataset.arPriorYears)),
+            backfillGroupStudentIds: unique(Array.from(root.querySelectorAll('[data-ar-backfill-group][open]')).map((el) => el.dataset.arBackfillGroup)),
+            backfillYearIds: unique(Array.from(root.querySelectorAll('[data-ar-backfill-year][open]')).map((el) => el.dataset.arBackfillYear)),
+            addStudentOpen: Boolean(root.querySelector('#ar-add-student-panel[open]')),
+        };
+    }
+
+    function restoreExpandState(root, state) {
+        if (!root || !state) return;
+
+        state.studentIds.forEach((studentId) => {
+            const panel = root.querySelector(`#student-panel-${studentId}`);
+            if (panel) panel.setAttribute('open', '');
+        });
+
+        state.progressYearIds.forEach((yearId) => {
+            const panel = root.querySelector(`[data-ar-progress-year="${yearId}"]`);
+            if (panel) panel.setAttribute('open', '');
+        });
+
+        state.priorYearStudentIds.forEach((studentId) => {
+            const panel = root.querySelector(`[data-ar-prior-years="${studentId}"]`);
+            if (panel) panel.setAttribute('open', '');
+        });
+
+        state.backfillGroupStudentIds.forEach((studentId) => {
+            const panel = root.querySelector(`[data-ar-backfill-group="${studentId}"]`);
+            if (panel) panel.setAttribute('open', '');
+        });
+
+        state.backfillYearIds.forEach((yearId) => {
+            const panel = root.querySelector(`[data-ar-backfill-year="${yearId}"]`);
+            if (panel) panel.setAttribute('open', '');
+        });
+
+        if (state.addStudentOpen) {
+            const addPanel = root.querySelector('#ar-add-student-panel');
+            if (addPanel) addPanel.setAttribute('open', '');
+        }
+    }
+
     function buildCreditsSummaryHtml(yearRecord, entries, gradeLevel, studentId) {
         if (!isHighSchoolGrade(gradeLevel)) return '';
 
@@ -1021,7 +1087,7 @@
 
         if (collapsed) {
             return `
-                <details class="hub-panel hub-panel-padded mt-6 border border-slate-200 rounded-3xl">
+                <details id="ar-add-student-panel" class="hub-panel hub-panel-padded mt-6 border border-slate-200 rounded-3xl">
                     <summary class="text-lg font-semibold text-navy cursor-pointer list-none">Add another student</summary>
                     <div class="pt-4 mt-2 border-t border-slate-100">${formHtml}</div>
                 </details>
@@ -1081,7 +1147,7 @@
         document.getElementById('ar-grade-chart-close')?.focus({ preventScroll: true });
     }
 
-    async function loadAcademicRecords() {
+    async function loadAcademicRecords(options = {}) {
         const root = document.getElementById('academic-records-root');
         if (!root) return;
 
@@ -1090,6 +1156,9 @@
             root.innerHTML = '<div class="hub-empty-state">Please log in to manage academic records.</div>';
             return;
         }
+
+        const expandState = options.expandState
+            || (root.querySelector('.student-record-panel') ? captureExpandState(root) : null);
 
         root.innerHTML = '<div class="hub-empty-state">Loading academic records...</div>';
 
@@ -1120,10 +1189,19 @@
                     ? student.current_grade_level
                     : `Grade ${student.current_grade_level || '—'}`;
 
+                let creditHeaderHtml = '';
+                if (isHighSchoolGrade(student.current_grade_level)) {
+                    const cumulative = await summarizeCumulativeCredits(student.id, student.current_grade_level);
+                    const creditLine = formatCumulativeCreditsLine(cumulative);
+                    if (creditLine) {
+                        creditHeaderHtml = `<span class="block text-xs text-violet-800 font-medium mt-0.5">Credits: ${escapeHtml(creditLine)}</span>`;
+                    }
+                }
+
                 let priorBlock = '';
                 if (isHighSchoolGrade(student.current_grade_level)) {
                     priorBlock = `
-                        <details class="border border-sky-200 rounded-2xl bg-sky-50/40">
+                        <details class="border border-sky-200 rounded-2xl bg-sky-50/40" data-ar-prior-years="${student.id}">
                             <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-sky-900">Prior school years (high school)</summary>
                             <div class="px-4 pb-4 border-t border-sky-100 space-y-3">
                                 <p class="text-xs text-slate-600 pt-3">Add years before Summit if this student joined mid-stream. Full-year grades only.</p>
@@ -1161,7 +1239,7 @@
                 if (currentRecord) {
                     const entries = await fetchGradeEntries(currentRecord.id);
                     currentYearSection = `
-                        <details class="border border-amber-200 rounded-2xl bg-amber-50/30" ${isFocused ? 'open' : ''}>
+                        <details class="border border-amber-200 rounded-2xl bg-amber-50/30" data-ar-progress-year="${currentRecord.id}" ${isFocused ? 'open' : ''}>
                             <summary class="px-4 py-3 cursor-pointer font-semibold text-navy">${currentYear} progress report — ${escapeHtml(statusLabel)}</summary>
                             <div class="p-4 border-t border-amber-100 space-y-4">
                                 <p class="text-xs text-slate-600">Grade ${escapeHtml(currentRecord.grade_level)} for ${currentYear}</p>
@@ -1179,7 +1257,7 @@
                     for (const bf of backfills) {
                         const entries = await fetchGradeEntries(bf.id);
                         backfillItems.push(`
-                            <details class="border border-slate-200 rounded-xl">
+                            <details class="border border-slate-200 rounded-xl" data-ar-backfill-year="${bf.id}">
                                 <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy">${escapeHtml(bf.school_year)} — Grade ${escapeHtml(bf.grade_level)} ${bf.year_locked ? '✓' : ''}</summary>
                                 <div class="p-3 border-t border-slate-100 space-y-3">
                                     ${buildGradeTableHtml(bf, entries)}
@@ -1190,7 +1268,7 @@
                         `);
                     }
                     backfillSections = `
-                        <details class="border border-slate-200 rounded-2xl">
+                        <details class="border border-slate-200 rounded-2xl" data-ar-backfill-group="${student.id}">
                             <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-navy">Prior year records (${backfills.length})</summary>
                             <div class="p-4 border-t border-slate-100 space-y-2">${backfillItems.join('')}</div>
                         </details>
@@ -1201,7 +1279,10 @@
                     <details class="border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
                         <summary class="px-5 py-4 cursor-pointer list-none flex flex-wrap items-center justify-between gap-2 hover:bg-slate-50">
                             <span class="font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>
-                            <span class="text-sm text-slate-500">${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}</span>
+                            <span class="text-sm text-slate-500 text-right">
+                                ${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}
+                                ${creditHeaderHtml}
+                            </span>
                         </summary>
                         <div class="px-5 pb-5 border-t border-slate-100 space-y-4">
                             ${priorBlock}
@@ -1216,6 +1297,7 @@
             html += buildAddStudentFormHtml(true);
             root.innerHTML = html;
 
+            restoreExpandState(root, expandState);
             bindGradeTableEvents();
             hydrateCumulativeCredits();
 
@@ -1239,7 +1321,7 @@
                     <div class="text-sm font-semibold text-sky-900 mb-2">Submit Semester 1</div>
                     <input type="text" id="ack-s1-${yearRecord.id}" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl mb-2" placeholder="Parent full name">
                     <button type="button" class="px-4 py-2 bg-navy text-white text-sm font-semibold rounded-xl"
-                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1')">Lock Semester 1</button>
+                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1')">Submit Semester 1</button>
                 </div>
             `);
         } else if (yearRecord.semester_1_locked) {
@@ -1252,7 +1334,7 @@
                     <div class="text-sm font-semibold text-violet-900 mb-2">Submit Semester 2 &amp; Final</div>
                     <input type="text" id="ack-s2-${yearRecord.id}" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl mb-2" placeholder="Parent full name">
                     <button type="button" class="px-4 py-2 bg-navy text-white text-sm font-semibold rounded-xl"
-                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '2')">Lock Semester 2 &amp; Final</button>
+                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '2')">Submit Semester 2 &amp; Final</button>
                 </div>
             `);
         } else if (yearRecord.semester_2_locked) {
@@ -1292,8 +1374,10 @@
             const client = await getClient();
             const { data: yearRecord } = await client.from('student_school_years').select('*').eq('id', yearRecordId).single();
             const entries = collectEntriesFromTable(table);
+            const root = document.getElementById('academic-records-root');
+            const expandState = root ? captureExpandState(root) : null;
             await submitSemester(yearRecord, semesterKey, ackName, entries);
-            await loadAcademicRecords();
+            await loadAcademicRecords({ expandState });
             if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
@@ -1405,21 +1489,119 @@
     }
 
     async function handleAddCourse(yearRecordId) {
+        const root = document.getElementById('academic-records-root');
+        const expandState = root ? captureExpandState(root) : null;
+
+        if (expandState) {
+            expandState.progressYearIds = [...new Set([...expandState.progressYearIds, yearRecordId])];
+            const table = document.querySelector(`table[data-year-record-id="${yearRecordId}"]`);
+            const studentPanel = table?.closest('.student-record-panel');
+            if (studentPanel?.dataset.studentId) {
+                expandState.studentIds = [...new Set([...expandState.studentIds, studentPanel.dataset.studentId])];
+            }
+        }
+
         try {
-            const client = await getClient();
-            const { data: yearRecord } = await client
-                .from('student_school_years')
-                .select('*')
-                .eq('id', yearRecordId)
-                .single();
             const entries = await fetchGradeEntries(yearRecordId);
             const nextOrder = entries.length
                 ? Math.max(...entries.map((entry) => entry.sort_order || 0)) + 1
                 : 0;
             await addCourseRow(yearRecordId, nextOrder, 'elective');
-            await loadAcademicRecords();
+            await loadAcademicRecords({ expandState });
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
+        }
+    }
+
+    async function renderAdminFamilyAcademicRecords(container, familyUserId) {
+        if (!container) return;
+
+        if (!familyUserId) {
+            container.innerHTML = '<span class="text-slate-500">Select a family to view academic records.</span>';
+            return;
+        }
+
+        container.innerHTML = '<div class="text-slate-500">Loading academic records...</div>';
+
+        try {
+            const students = await fetchStudentsForFamily(familyUserId);
+            if (!students.length) {
+                container.innerHTML = '<div class="text-slate-500 text-xs italic">No students on file for this family yet.</div>';
+                return;
+            }
+
+            let html = '<div class="space-y-4">';
+            for (const student of students) {
+                const name = studentDisplayName(student);
+                const years = await fetchSchoolYearsForStudent(student.id);
+                const gradeLabel = student.current_grade_level === 'K3' || student.current_grade_level === 'K4' || student.current_grade_level === 'K5'
+                    ? student.current_grade_level
+                    : `Grade ${student.current_grade_level || '—'}`;
+
+                let creditHeaderHtml = '';
+                if (isHighSchoolGrade(student.current_grade_level)) {
+                    const cumulative = await summarizeCumulativeCredits(student.id, student.current_grade_level);
+                    const creditLine = formatCumulativeCreditsLine(cumulative);
+                    if (creditLine) {
+                        creditHeaderHtml = `<div class="text-[11px] text-violet-800 font-medium mt-1">Credits: ${escapeHtml(creditLine)}</div>`;
+                    }
+                }
+
+                let yearSections = '';
+                for (const yearRecord of years) {
+                    const entries = await fetchGradeEntries(yearRecord.id);
+                    const statusLabel = yearRecord.entry_type === 'backfill'
+                        ? (yearRecord.year_locked ? 'Complete' : 'In progress')
+                        : getProgressStatusLabel(yearRecord);
+                    const isLocked = yearRecord.year_locked || yearRecord.semester_1_locked || yearRecord.semester_2_locked;
+                    const yearTitle = yearRecord.entry_type === 'backfill'
+                        ? `${yearRecord.school_year} — Grade ${yearRecord.grade_level} (prior year)`
+                        : `${yearRecord.school_year} progress report — ${statusLabel}`;
+
+                    yearSections += `
+                        <details class="border border-slate-200 rounded-xl mt-2" open>
+                            <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy">${escapeHtml(yearTitle)}</summary>
+                            <div class="p-3 border-t border-slate-100 space-y-3">
+                                ${buildGradeTableHtml(yearRecord, entries, { readonly: true })}
+                                ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
+                                ${isLocked ? `
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        <span class="text-slate-500">Locked — reopen to let the family edit.</span>
+                                        <button type="button" class="px-2 py-0.5 border border-navy text-navy rounded hover:bg-navy hover:text-white"
+                                                onclick="adminReopenSchoolYear('${yearRecord.id}', '${escapeJsString(name)}', '${escapeJsString(yearRecord.school_year)}')">Reopen</button>
+                                    </div>
+                                ` : '<span class="text-xs text-slate-500">In progress — family can still edit.</span>'}
+                            </div>
+                        </details>
+                    `;
+                }
+
+                if (!yearSections) {
+                    yearSections = '<p class="text-xs text-slate-500 mt-2 italic">No school year records yet.</p>';
+                }
+
+                html += `
+                    <div class="border border-sky-200/80 rounded-xl p-3 bg-white/80" data-admin-student="${student.id}">
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                                <div class="font-medium text-navy text-sm">${escapeHtml(name)} <span class="text-slate-500 font-normal">(${escapeHtml(gradeLabel)})</span></div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Prior years: ${escapeHtml(student.prior_years_status || 'pending')}</div>
+                                ${creditHeaderHtml}
+                            </div>
+                            <button type="button"
+                                    class="text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0"
+                                    data-student-id="${student.id}"
+                                    onclick="adminDeleteStudent(this)">Delete student</button>
+                        </div>
+                        <div class="mt-2">${yearSections}</div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+            hydrateCumulativeCredits();
+        } catch (err) {
+            container.innerHTML = `<div class="text-red-600 text-xs">${escapeHtml(err.message || String(err))}</div>`;
         }
     }
 
@@ -1460,6 +1642,7 @@
         ensureProgressReportTask,
         adminReopenSchoolYear,
         adminDeleteStudent,
+        renderAdminFamilyAcademicRecords,
         defaultProgressDueDates,
         studentDisplayName,
     };

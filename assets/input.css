@@ -1182,6 +1182,58 @@ a:focus-visible {
   border-radius: 4px;
 }
 
+/* App dialog (alert / confirm) — explicit layout so popups stay centered */
+#app-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+#app-dialog.hidden {
+  display: none !important;
+}
+
+#app-dialog [data-app-dialog-backdrop] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(10, 37, 64, 0.5);
+  cursor: pointer;
+}
+
+#app-dialog .app-dialog-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 24rem;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+#app-dialog .app-dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+#app-dialog .app-dialog-actions.is-alert {
+  display: block;
+}
+
 @media print {
   .no-print { display: none !important; }
   .hero { min-height: auto !important; }
