@@ -680,6 +680,7 @@
         <span id="toast-message"></span>
     </div>
 
+    <script src="assets/app-dialog.js"></script>
     <script>
         const SUPABASE_URL = 'https://tajyrmydwqsijstyzsjr.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy';
@@ -814,7 +815,7 @@
                     }
                 })
                 .catch(error => {
-                    alert('Sorry, there was a problem sending your message. Please email us directly at info@summitchurchschool.org');
+                    void showAppAlert('Sorry, there was a problem sending your message. Please email us directly at info@summitchurchschool.org', { tone: 'danger' });
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalText;
                     console.error(error);

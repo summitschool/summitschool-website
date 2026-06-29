@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260702">
+    <link rel="stylesheet" href="assets/styles.css?v=20260703">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -924,18 +924,7 @@
         
     </div>
 
-    <div id="admin-confirm-dialog" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title" aria-describedby="admin-confirm-message">
-        <button type="button" class="absolute inset-0 w-full h-full border-0 p-0 bg-navy/50" aria-label="Cancel" data-admin-confirm-cancel></button>
-        <div class="relative z-10 w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-2xl p-6">
-            <h3 id="admin-confirm-title" class="heading-serif text-xl text-navy tracking-tight"></h3>
-            <p id="admin-confirm-message" class="text-sm text-slate-600 mt-2 leading-relaxed"></p>
-            <div class="flex gap-3 mt-6">
-                <button type="button" id="admin-confirm-cancel-btn" class="flex-1 min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 touch-manipulation">Cancel</button>
-                <button type="button" id="admin-confirm-ok-btn" class="flex-1 min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold bg-navy hover:bg-[#0F3A5F] text-white border border-navy touch-manipulation">Confirm</button>
-            </div>
-        </div>
-    </div>
-
+    <script src="assets/app-dialog.js"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -1377,7 +1366,7 @@
 
         async function handleGoogleSignIn() {
             if (!supabaseClient) {
-                alert('Sign-in is not connected yet. Please try again later.');
+                await showAppAlert('Sign-in is not connected yet. Please try again later.');
                 return;
             }
 
@@ -1400,7 +1389,7 @@
             if (error) {
                 clearPendingOAuthAttempt();
                 resetGoogleSignInButton();
-                alert('Google sign-in failed: ' + error.message);
+                await showAppAlert('Google sign-in failed: ' + error.message);
             }
         }
 
@@ -2414,7 +2403,7 @@
                 return;
             }
             if (!fileInput.files || !fileInput.files[0]) {
-                alert('Please select or capture a photo of your ID.');
+                await showAppAlert('Please select or capture a photo of your ID.');
                 return;
             }
 
@@ -2490,7 +2479,7 @@
 
             } catch (err) {
                 console.error(err);
-                alert('Upload failed: ' + (err.message || 'Please try again or contact admin.'));
+                await showAppAlert('Upload failed: ' + (err.message || 'Please try again or contact admin.'));
                 btn.disabled = false;
                 btn.textContent = 'Submit ID Photo &amp; Acknowledgment';
             }
@@ -2827,65 +2816,6 @@
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
-        }
-
-        let adminConfirmResolver = null;
-        const ADMIN_CONFIRM_BTN_BASE = 'flex-1 min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold touch-manipulation';
-        const ADMIN_CONFIRM_BTN_PRIMARY = ADMIN_CONFIRM_BTN_BASE + ' bg-navy hover:bg-[#0F3A5F] text-white border border-navy';
-        const ADMIN_CONFIRM_BTN_DANGER = ADMIN_CONFIRM_BTN_BASE + ' bg-red-600 hover:bg-red-700 text-white border border-red-600';
-
-        function setupAdminConfirmDialog() {
-            const dialog = document.getElementById('admin-confirm-dialog');
-            if (!dialog || dialog.dataset.bound === 'true') return;
-
-            const cancel = () => closeAdminConfirm(false);
-
-            document.getElementById('admin-confirm-cancel-btn')?.addEventListener('click', cancel);
-            dialog.querySelector('[data-admin-confirm-cancel]')?.addEventListener('click', cancel);
-            document.getElementById('admin-confirm-ok-btn')?.addEventListener('click', () => closeAdminConfirm(true));
-
-            dialog.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && !dialog.classList.contains('hidden')) {
-                    cancel();
-                }
-            });
-
-            dialog.dataset.bound = 'true';
-        }
-
-        function showAdminConfirm({ title, message, confirmLabel = 'Confirm', tone = 'primary' }) {
-            return new Promise((resolve) => {
-                setupAdminConfirmDialog();
-
-                const dialog = document.getElementById('admin-confirm-dialog');
-                const titleEl = document.getElementById('admin-confirm-title');
-                const messageEl = document.getElementById('admin-confirm-message');
-                const okBtn = document.getElementById('admin-confirm-ok-btn');
-
-                if (!dialog || !titleEl || !messageEl || !okBtn) {
-                    resolve(false);
-                    return;
-                }
-
-                adminConfirmResolver = resolve;
-                titleEl.textContent = title;
-                messageEl.textContent = message;
-                okBtn.textContent = confirmLabel;
-                okBtn.className = tone === 'danger' ? ADMIN_CONFIRM_BTN_DANGER : ADMIN_CONFIRM_BTN_PRIMARY;
-
-                dialog.classList.remove('hidden');
-                okBtn.focus({ preventScroll: true });
-            });
-        }
-
-        function closeAdminConfirm(result) {
-            const dialog = document.getElementById('admin-confirm-dialog');
-            if (dialog) dialog.classList.add('hidden');
-
-            if (adminConfirmResolver) {
-                adminConfirmResolver(result);
-                adminConfirmResolver = null;
-            }
         }
 
         function showPendingApprovalsStatus(type, message) {
@@ -3344,7 +3274,7 @@
 
             const sections = getStaffSectionCheckboxValues(`staff-sections-${staffRowId}`);
             if (!sections.length) {
-                alert('Select at least one Admin sub-tab for this staff member.');
+                await showAppAlert('Select at least one Admin sub-tab for this staff member.');
                 return;
             }
 
@@ -3355,7 +3285,7 @@
 
             if (error) {
                 const msg = error.message || 'Save failed';
-                alert(msg.includes('admin_sections')
+                await showAppAlert(msg.includes('admin_sections')
                     ? 'Run supabase/staff-admin-sections.sql in the Supabase SQL Editor first.'
                     : `Failed to save staff access: ${msg}`);
                 return;
@@ -3371,13 +3301,13 @@
 
             const userId = addSelect.value;
             if (!userId) {
-                alert('Select a user to add as staff.');
+                await showAppAlert('Select a user to add as staff.');
                 return;
             }
 
             const sections = getStaffSectionCheckboxValues('staff-add-sections');
             if (!sections.length) {
-                alert('Select at least one Admin sub-tab for this staff member.');
+                await showAppAlert('Select at least one Admin sub-tab for this staff member.');
                 return;
             }
 
@@ -3399,7 +3329,7 @@
                         ? 'Setup required: run supabase/staff-members.sql in the Supabase SQL Editor first.'
                         : msg;
                 } else {
-                    alert('Failed to add staff member: ' + msg);
+                    await showAppAlert('Failed to add staff member: ' + msg);
                 }
                 return;
             }
@@ -3422,7 +3352,7 @@
                 return;
             }
 
-            if (!confirm('Remove this staff member? They will lose all staff Admin access.')) return;
+            if (!(await showAppConfirm({ title: 'Remove staff member?', message: 'They will lose all staff Admin access.', confirmLabel: 'Remove', tone: 'danger' }))) return;
 
             const removeBtn = document.querySelector(`[data-action="remove-staff"][data-staff-id="${staffId}"]`);
             if (removeBtn) {
@@ -3570,7 +3500,7 @@
         async function approveFamily(profileId) {
             if (!supabaseClient || !profileId) return;
 
-            const confirmed = await showAdminConfirm({
+            const confirmed = await showAppConfirm({
                 title: 'Approve family?',
                 message: 'Approve this family for Family Hub access?',
                 confirmLabel: 'Approve',
@@ -3627,7 +3557,7 @@
         async function denyFamily(profileId, displayName) {
             if (!supabaseClient || !profileId) return;
 
-            const confirmed = await showAdminConfirm({
+            const confirmed = await showAppConfirm({
                 title: 'Deny access?',
                 message: `Deny access for ${displayName || 'this family'}? They will not be able to use the Family Hub.`,
                 confirmLabel: 'Deny',
@@ -3665,7 +3595,7 @@
             const select = document.getElementById('admin-family-select');
             const userId = select?.value;
             if (!userId) {
-                alert('Select an approved family first.');
+                await showAppAlert('Select an approved family first.');
                 return;
             }
 
@@ -3676,17 +3606,17 @@
                 .maybeSingle();
 
             if (error || !profile) {
-                alert('Failed to load family details: ' + (error?.message || 'Not found'));
+                await showAppAlert('Failed to load family details: ' + (error?.message || 'Not found'));
                 return;
             }
 
             try {
                 await sendApprovalEmail(profile);
                 const name = formatFamilyName(profile);
-                alert(`Approval email sent to ${name} at ${profile.email}.`);
+                await showAppAlert(`Approval email sent to ${name} at ${profile.email}.`, { tone: 'success' });
             } catch (emailErr) {
                 console.error('Resend approval email failed:', emailErr);
-                alert(`Could not send approval email to ${profile.email}: ${emailErr.message || emailErr}`);
+                await showAppAlert(`Could not send approval email to ${profile.email}: ${emailErr.message || emailErr}`);
             }
         }
 
@@ -3878,12 +3808,12 @@
             const familySel = document.getElementById('admin-family-select');
             const userId = familySel ? familySel.value : '';
             if (!userId) {
-                alert('Please select a family first.');
+                await showAppAlert('Please select a family first.');
                 return;
             }
             const checked = document.querySelectorAll('#admin-standard-checkboxes input[type="checkbox"]:checked');
             if (!checked.length) {
-                alert('Please select at least one standard document to assign.');
+                await showAppAlert('Please select at least one standard document to assign.');
                 return;
             }
 
@@ -4299,7 +4229,7 @@
 
             if (!docId || !supabaseClient) return;
 
-            const confirmed = await showAdminConfirm({
+            const confirmed = await showAppConfirm({
                 title: 'Approve ID?',
                 message: 'Approve this ID and add it to the family\'s My ID section?',
                 confirmLabel: 'Approve',
@@ -4397,7 +4327,7 @@
                 loadPendingIDsForAdmin();
             } catch (err) {
                 console.error(err);
-                alert('Failed to approve ID: ' + (err.message || err));
+                await showAppAlert('Failed to approve ID: ' + (err.message || err));
                 button.disabled = false;
             }
         }
@@ -4408,7 +4338,7 @@
             const storagePath = button.dataset.storagePath;
 
             if (!docId || !supabaseClient) return;
-            const confirmed = await showAdminConfirm({
+            const confirmed = await showAppConfirm({
                 title: 'Deny ID?',
                 message: 'Deny and permanently remove this ID submission?',
                 confirmLabel: 'Deny',
@@ -4459,7 +4389,7 @@
                 loadPendingIDsForAdmin();
             } catch (err) {
                 console.error(err);
-                alert('Failed to deny ID: ' + (err.message || err));
+                await showAppAlert('Failed to deny ID: ' + (err.message || err));
                 button.disabled = false;
             }
         }
@@ -4474,7 +4404,7 @@
             const familySel = document.getElementById('admin-family-select');
             const userId = familySel ? familySel.value : '';
             if (!userId) {
-                alert('Select a family first.');
+                await showAppAlert('Select a family first.');
                 return;
             }
 
@@ -4677,7 +4607,7 @@
 
             if (error) {
                 const msg = error.message || '';
-                alert(msg.includes('due_date')
+                await showAppAlert(msg.includes('due_date')
                     ? 'Due date columns missing — run supabase/task-due-dates.sql in Supabase SQL Editor first.'
                     : 'Failed to save due dates: ' + msg);
                 return;
@@ -4694,7 +4624,7 @@
 
         async function clearTaskDueDate1(docId, btnEl) {
             if (!docId || !supabaseClient) return;
-            if (!confirm('Clear the first due date for this task? It will no longer show as overdue for families.')) return;
+            if (!(await showAppConfirm({ title: 'Clear due date?', message: 'Clear the first due date for this task? It will no longer show as overdue for families.', confirmLabel: 'Clear', tone: 'primary' }))) return;
 
             const { error } = await supabaseClient
                 .from('family_documents')
@@ -4702,7 +4632,7 @@
                 .eq('id', docId);
 
             if (error) {
-                alert('Failed to clear due date: ' + (error.message || error));
+                await showAppAlert('Failed to clear due date: ' + (error.message || error));
                 return;
             }
 
@@ -4716,7 +4646,7 @@
         }
 
         async function deleteAdminFamilyDoc(docId, btnEl) {
-            if (!confirm('Delete this document from the family\'s My Documents? This cannot be undone.')) return;
+            if (!(await showAppConfirm({ title: 'Delete document?', message: 'Delete this document from the family\'s My Documents? This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' }))) return;
             if (!supabaseClient) return;
 
             const { error } = await supabaseClient
@@ -4725,7 +4655,7 @@
                 .eq('id', docId);
 
             if (error) {
-                alert('Delete failed: ' + error.message);
+                await showAppAlert('Delete failed: ' + error.message);
                 return;
             }
 
@@ -4748,7 +4678,7 @@
                 .update({ school_year: newYear })
                 .eq('id', docId);
             if (error) {
-                alert('Update failed: ' + error.message);
+                await showAppAlert('Update failed: ' + error.message);
                 return;
             }
             // Refresh the full list to confirm
@@ -4842,7 +4772,7 @@
         }
 
         async function deleteSharedResource(id) {
-            if (!confirm('Delete this shared resource?')) return;
+            if (!(await showAppConfirm({ title: 'Delete resource?', message: 'Delete this shared resource?', confirmLabel: 'Delete', tone: 'danger' }))) return;
 
             const { error } = await supabaseClient
                 .from('shared_resources')
@@ -4850,7 +4780,7 @@
                 .eq('id', id);
 
             if (error) {
-                alert('Delete failed: ' + error.message);
+                await showAppAlert('Delete failed: ' + error.message);
                 return;
             }
 
@@ -4877,12 +4807,12 @@
                 const file = fileInput ? fileInput.files[0] : null;
 
                 if (!title) {
-                    alert('Title is required.');
+                    await showAppAlert('Title is required.');
                     return;
                 }
 
                 if (!urlInput && !file) {
-                    alert('Please provide a URL or select a file to upload.');
+                    await showAppAlert('Please provide a URL or select a file to upload.');
                     return;
                 }
 
@@ -4944,7 +4874,7 @@
 
                 } catch (err) {
                     console.error(err);
-                    alert('Failed to save: ' + (err.message || err));
+                    await showAppAlert('Failed to save: ' + (err.message || err));
                 }
             });
         }
@@ -5028,7 +4958,7 @@
         }
 
         async function deleteStandard(id) {
-            if (!confirm('Delete this standard document definition? (It will not remove copies already assigned to families.)')) return;
+            if (!(await showAppConfirm({ title: 'Delete standard?', message: 'Delete this standard document definition? Copies already assigned to families will not be removed.', confirmLabel: 'Delete', tone: 'danger' }))) return;
 
             const { error } = await supabaseClient
                 .from('standard_documents')
@@ -5036,7 +4966,7 @@
                 .eq('id', id);
 
             if (error) {
-                alert('Delete failed: ' + error.message);
+                await showAppAlert('Delete failed: ' + error.message);
                 return;
             }
             loadAdminStandards();
@@ -5058,11 +4988,11 @@
                 const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
                 if (!title) {
-                    alert('Title is required for a standard document.');
+                    await showAppAlert('Title is required for a standard document.');
                     return;
                 }
                 if (!urlInput && !file) {
-                    alert('Provide a URL (DocuSeal or link) or upload a file for the standard.');
+                    await showAppAlert('Provide a URL (DocuSeal or link) or upload a file for the standard.');
                     return;
                 }
 
@@ -5100,7 +5030,7 @@
 
                 } catch (err) {
                     console.error(err);
-                    alert('Failed to save standard: ' + (err.message || err));
+                    await showAppAlert('Failed to save standard: ' + (err.message || err));
                 }
             });
         }
@@ -5114,7 +5044,7 @@
 
             const userId = select.value;
             if (!userId) {
-                alert('Please select a family first (from the dropdown above).');
+                await showAppAlert('Please select a family first (from the dropdown above).');
                 return;
             }
 
@@ -5131,7 +5061,7 @@
 
             if (error) {
                 if (status) status.textContent = 'Failed to load standards: ' + error.message;
-                alert('Could not load standards. Make sure the standard_documents table exists.');
+                await showAppAlert('Could not load standards. Make sure the standard_documents table exists.');
                 return;
             }
 
@@ -5232,7 +5162,7 @@
         }
 
         async function deactivateCurrentBanner() {
-            if (!confirm('Deactivate the current banner for all Family Hub families?')) return;
+            if (!(await showAppConfirm({ title: 'Deactivate banner?', message: 'Deactivate the current banner for all Family Hub families?', confirmLabel: 'Deactivate', tone: 'danger' }))) return;
 
             try {
                 const { error } = await supabaseClient
@@ -5244,9 +5174,9 @@
 
                 loadCurrentBannerForAdmin();
                 loadMemberBanner();
-                alert('Banner deactivated.');
+                await showAppAlert('Banner deactivated.', { tone: 'success' });
             } catch (err) {
-                alert('Failed to deactivate: ' + (err.message || err));
+                await showAppAlert('Failed to deactivate: ' + (err.message || err));
             }
         }
 
@@ -5257,7 +5187,7 @@
             const notify = notifyEl.checked;
 
             if (!message) {
-                alert('Message is required.');
+                await showAppAlert('Message is required.');
                 return;
             }
 
@@ -5284,7 +5214,7 @@
                 loadCurrentBannerForAdmin();
                 loadMemberBanner();
 
-                alert('Banner published.');
+                await showAppAlert('Banner published.', { tone: 'success' });
 
                 if (notify) {
                     showNotificationPrompt(
@@ -5296,7 +5226,7 @@
 
             } catch (err) {
                 console.error(err);
-                alert('Failed to publish banner: ' + (err.message || err));
+                await showAppAlert('Failed to publish banner: ' + (err.message || err));
             }
         }
 
@@ -5311,7 +5241,7 @@
                 const notify = document.getElementById('admin-banner-notify').checked;
 
                 if (!message) {
-                    alert('Message is required.');
+                    await showAppAlert('Message is required.');
                     return;
                 }
 
@@ -5348,7 +5278,7 @@
 
                 } catch (err) {
                     console.error(err);
-                    alert('Failed to publish banner: ' + (err.message || err));
+                    await showAppAlert('Failed to publish banner: ' + (err.message || err));
                 }
             });
         }
@@ -5368,7 +5298,7 @@
             }
 
             if (!emails || emails.length === 0) {
-                alert('No families to notify.');
+                await showAppAlert('No families to notify.');
                 return;
             }
 
@@ -5433,7 +5363,7 @@
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Sign In';
                 }
-                alert('Login failed: ' + error.message);
+                await showAppAlert('Login failed: ' + error.message);
                 return;
             }
 
@@ -5620,7 +5550,6 @@
             setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
             setupAdminBannerForm();   // banner management
             setupStaffAccessPanel();
-            setupAdminConfirmDialog();
             setupPendingApprovalsPanel();
             setupPendingIdsPanel();
 
