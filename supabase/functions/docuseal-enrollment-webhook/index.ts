@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { archiveEnrollmentSubmissionToHub } from '../_shared/archive-enrollment-to-hub.ts';
 import { completeFamilyDocuSealTasks } from '../_shared/complete-family-docuseal-task.ts';
 import {
   buildEnrollmentAdminSignatureRequestEmail,
@@ -22,6 +23,8 @@ const DOCUSEAL_API_URL = (Deno.env.get('DOCUSEAL_API_URL') || 'https://enroll.su
 const DOCUSEAL_API_KEY = Deno.env.get('DOCUSEAL_API_KEY') || '';
 
 const DEFAULT_ENROLLMENT_SLUGS = 'vi3n5SzMfFnRLH';
+const ENROLLMENT_ARCHIVE_SCHOOL_YEAR = Deno.env.get('DOCUSEAL_ENROLLMENT_ARCHIVE_SCHOOL_YEAR') || '2026-2027';
+const ENROLLMENT_ARCHIVE_CATEGORY = Deno.env.get('DOCUSEAL_ENROLLMENT_ARCHIVE_CATEGORY') || 'Enrollment';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -608,6 +611,32 @@ async function handleSubmissionFullySigned(options: {
     throw new Error('Could not determine family email for completed enrollment submission');
   }
 
+  let archiveResult: Record<string, unknown> = { skipped: 'archive_not_attempted' };
+  try {
+    archiveResult = await archiveEnrollmentSubmissionToHub({
+      supabaseUrl: SUPABASE_URL,
+      supabaseServiceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
+      submissionId: options.submissionId,
+      templateId: options.templateId,
+      templateName: options.templateName,
+      familyEmail,
+      familyName,
+      docusealApiUrl: DOCUSEAL_API_URL,
+      docusealApiKey: DOCUSEAL_API_KEY,
+      schoolYear: ENROLLMENT_ARCHIVE_SCHOOL_YEAR,
+      category: ENROLLMENT_ARCHIVE_CATEGORY,
+    });
+  } catch (error) {
+    console.error('Enrollment archive to hub failed', {
+      submissionId: options.submissionId,
+      familyEmail,
+      error,
+    });
+    archiveResult = {
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
   const firstName = extractFirstName(familyName, options.fallbackValues);
   const familyEmailContent = buildEnrollmentReceivedFamilyEmail(firstName);
 
@@ -620,7 +649,12 @@ async function handleSubmissionFullySigned(options: {
 
   await markFamilyNotified(options.submissionId);
 
-  return { action: 'family_next_steps' as const, family: familyResult, to: familyEmail };
+  return {
+    action: 'family_next_steps' as const,
+    family: familyResult,
+    to: familyEmail,
+    archive: archiveResult,
+  };
 }
 
 serve(async (req) => {

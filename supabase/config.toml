@@ -396,6 +396,9 @@ verify_jwt = false
 [functions.docuseal-hub-archive-webhook]
 verify_jwt = false
 
+[functions.deliver-pending-enrollment-documents]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

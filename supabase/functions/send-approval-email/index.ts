@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { deliverPendingEnrollmentDocuments } from '../_shared/deliver-pending-enrollment-documents.ts';
 import { buildFamilyHubEmailHtml, escapeHtml, FAMILY_HUB_URL } from '../_shared/family-hub-email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -157,7 +158,29 @@ serve(async (req) => {
     const { subject, text, html } = buildEmail(payload);
     const result = await sendWithResend(email, subject, text, html);
 
-    return new Response(JSON.stringify({ ok: true, to: email, result }), {
+    let enrollmentDelivery: Record<string, unknown> = { skipped: 'not_attempted' };
+    try {
+      enrollmentDelivery = await deliverPendingEnrollmentDocuments({
+        supabaseUrl: SUPABASE_URL,
+        supabaseServiceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
+        familyEmail: email,
+      });
+    } catch (deliveryError) {
+      console.error('Pending enrollment delivery on approval failed', {
+        email,
+        error: deliveryError,
+      });
+      enrollmentDelivery = {
+        error: deliveryError instanceof Error ? deliveryError.message : String(deliveryError),
+      };
+    }
+
+    return new Response(JSON.stringify({
+      ok: true,
+      to: email,
+      result,
+      enrollment_delivery: enrollmentDelivery,
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

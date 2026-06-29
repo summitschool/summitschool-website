@@ -1,4 +1,6 @@
 -- Enrollment application emails via DocuSeal webhook + Resend.
+-- Fully signed applications are also archived to My Documents (immediate or queued until signup).
+-- Run enrollment-document-archive.sql and enrollment-pending-delivery.sql for document delivery.
 -- Only submissions from templates listed in DOCUSEAL_ENROLLMENT_TEMPLATE_IDS
 -- or DOCUSEAL_ENROLLMENT_TEMPLATE_SLUGS are emailed by the Edge Function.
 --
