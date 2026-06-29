@@ -1,15 +1,29 @@
 (function () {
     const GRADE_LEVELS = ['K3', 'K4', 'K5', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
     const HIGH_SCHOOL_GRADES = new Set(['9', '10', '11', '12']);
-    const CORE_COURSES = [
-        'English / Language Arts',
-        'Math',
-        'Science',
-        'Social Studies / History',
-        'Reading',
-        'Bible',
-        'Physical Education',
+    const COURSE_TYPES = [
+        { id: 'english', label: 'English', placeholder: 'e.g. English 10' },
+        { id: 'math', label: 'Math', placeholder: 'e.g. Geometry' },
+        { id: 'science', label: 'Science', placeholder: 'e.g. Biology' },
+        { id: 'history', label: 'History', placeholder: 'e.g. World History' },
+        { id: 'elective', label: 'Elective', placeholder: 'e.g. Spanish I' },
+        { id: 'reading', label: 'Reading', placeholder: 'e.g. Reading' },
+        { id: 'bible', label: 'Bible', placeholder: 'e.g. Bible' },
+        { id: 'pe', label: 'PE', placeholder: 'e.g. Physical Education' },
+        { id: 'other', label: 'Other', placeholder: 'Course name' },
     ];
+
+    const TRANSCRIPT_COURSE_TYPES = ['english', 'math', 'science', 'history', 'elective'];
+    const AL_GRAD_CREDIT_REQUIREMENTS = {
+        english: 4,
+        math: 4,
+        science: 4,
+        history: 4,
+        elective: 8,
+    };
+
+    const LOWER_GRADE_SEED_TYPES = ['english', 'math', 'science', 'history', 'reading', 'bible', 'pe'];
+    const HS_SEED_TYPES = ['english', 'math', 'science', 'history', 'elective'];
 
     const PROGRESS_TASK_PREFIX = 'Progress Report —';
     const PROGRESS_TASK_URL_PREFIX = 'hub://progress-report/';
@@ -25,13 +39,124 @@
     ];
 
     function percentToGpa(percent) {
-        const value = Number(percent);
-        if (!Number.isFinite(value)) return null;
+        const value = parsePercent(percent);
+        if (value === null) return null;
         if (value >= 90) return 4.0;
         if (value >= 80) return 3.0;
         if (value >= 70) return 2.0;
         if (value >= 60) return 1.0;
         return 0.0;
+    }
+
+    function courseTypeMeta(typeId) {
+        return COURSE_TYPES.find((item) => item.id === typeId) || COURSE_TYPES[COURSE_TYPES.length - 1];
+    }
+
+    function parsePercent(value) {
+        const raw = String(value ?? '').trim().replace(/%/g, '');
+        if (!raw) return null;
+        const num = Number(raw);
+        if (!Number.isFinite(num) || num < 0 || num > 100) return null;
+        return Math.round(num * 10) / 10;
+    }
+
+    function parseLetterGrade(value) {
+        const letter = String(value ?? '').trim().toUpperCase().charAt(0);
+        return 'ABCDEF'.includes(letter) ? letter : null;
+    }
+
+    function letterToMidPercent(letter) {
+        const map = { A: 95, B: 85, C: 75, D: 65, F: 50 };
+        return map[letter] ?? null;
+    }
+
+    function isPassingGrade(value, requirePercent) {
+        const percent = parsePercent(value);
+        if (percent !== null) return percent >= 60;
+        if (requirePercent) return false;
+        const letter = parseLetterGrade(value);
+        if (!letter) return false;
+        return letter !== 'F';
+    }
+
+    function getCalendarSemester(schoolYear, date = new Date()) {
+        const parts = String(schoolYear || '').split('-');
+        const startYear = parseInt(parts[0], 10);
+        const endYear = parseInt(parts[1], 10);
+        if (!Number.isFinite(startYear) || !Number.isFinite(endYear)) return '1';
+
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+
+        if (year === startYear && month >= 7) return '1';
+        if (year === endYear && month >= 1 && month <= 6) return '2';
+        if (year === endYear && month > 6) return '1';
+        return '2';
+    }
+
+    function computeFinalGrade(s1, s2, requirePercent) {
+        const p1 = parsePercent(s1);
+        const p2 = parsePercent(s2);
+        const hasS1 = String(s1 ?? '').trim();
+        const hasS2 = String(s2 ?? '').trim();
+
+        if (requirePercent) {
+            if (p1 !== null && p2 !== null) return String(Math.round((p1 + p2) / 2));
+            if (p1 !== null && !hasS2) return String(p1);
+            if (p2 !== null && !hasS1) return String(p2);
+            return '';
+        }
+
+        if (p1 !== null && p2 !== null) return String(Math.round((p1 + p2) / 2));
+        if (p1 !== null && !hasS2) return String(p1);
+        if (p2 !== null && !hasS1) return String(p2);
+        return '';
+    }
+
+    function getEffectiveFinal(entry, gradeLevel) {
+        const requirePercent = isHighSchoolGrade(gradeLevel);
+        const computed = computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, requirePercent);
+        if (requirePercent) return computed;
+        if (computed) return computed;
+        return String(entry.final_grade || '').trim();
+    }
+
+    function canEditGradeField(yearRecord, field, gradeLevel) {
+        if (!yearRecord) return false;
+
+        if (yearRecord.entry_type === 'backfill') {
+            if (field !== 'final_grade') return false;
+            return canEditSemester(yearRecord, '1');
+        }
+
+        const reopened = Boolean(yearRecord.admin_reopened_at);
+        const calSem = getCalendarSemester(yearRecord.school_year);
+        const editSem1 = canEditSemester(yearRecord, '1');
+        const editSem2 = canEditSemester(yearRecord, '2');
+        const requirePercent = isHighSchoolGrade(gradeLevel);
+
+        if (field === 'semester_1_grade') {
+            return editSem1 && (reopened || calSem === '1');
+        }
+        if (field === 'semester_2_grade') {
+            return editSem2 && (reopened || calSem === '2');
+        }
+        if (field === 'final_grade') {
+            if (requirePercent) return false;
+            return editSem2 && (reopened || calSem === '2');
+        }
+        return false;
+    }
+
+    function gradePlaceholder(gradeLevel, kind) {
+        const requirePercent = isHighSchoolGrade(gradeLevel);
+        if (requirePercent) {
+            if (kind === 's1') return 'e.g. 88';
+            if (kind === 's2') return 'e.g. 91';
+            return 'Auto';
+        }
+        if (kind === 'final') return 'Letter or %';
+        return 'A–F or %';
     }
 
     function escapeHtml(value) {
@@ -178,16 +303,18 @@
             .select('*')
             .single();
         if (error) throw error;
-        await seedCoreCourses(data.id);
+        await seedCoreCourses(data.id, gradeLevel);
         return data;
     }
 
-    async function seedCoreCourses(schoolYearRecordId) {
+    async function seedCoreCourses(schoolYearRecordId, gradeLevel) {
         const client = await getClient();
-        const rows = CORE_COURSES.map((course, index) => ({
+        const types = isHighSchoolGrade(gradeLevel) ? HS_SEED_TYPES : LOWER_GRADE_SEED_TYPES;
+        const rows = types.map((courseType, index) => ({
             school_year_record_id: schoolYearRecordId,
-            course_name: course,
-            is_core: true,
+            course_name: '',
+            course_type: courseType,
+            is_core: courseType !== 'elective',
             sort_order: index,
         }));
         const { error } = await client.from('grade_entries').insert(rows);
@@ -295,7 +422,7 @@
             .select('*')
             .single();
         if (error) throw error;
-        await seedCoreCourses(data.id);
+        await seedCoreCourses(data.id, gradeLevel);
         return data;
     }
 
@@ -321,29 +448,36 @@
         return data || [];
     }
 
-    async function saveGradeEntries(entries) {
+    async function saveGradeEntries(entries, gradeLevel) {
         const client = await getClient();
+        const requirePercent = isHighSchoolGrade(gradeLevel);
         for (const entry of entries) {
+            const finalGrade = requirePercent
+                ? computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, true)
+                : (computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, false) || entry.final_grade || null);
+
             const { error } = await client
                 .from('grade_entries')
                 .update({
-                    course_name: entry.course_name,
+                    course_name: entry.course_name || '',
+                    course_type: entry.course_type || 'other',
                     semester_1_grade: entry.semester_1_grade || null,
                     semester_2_grade: entry.semester_2_grade || null,
-                    final_grade: entry.final_grade || null,
+                    final_grade: finalGrade || null,
                 })
                 .eq('id', entry.id);
             if (error) throw error;
         }
     }
 
-    async function addElectiveCourse(schoolYearRecordId, sortOrder) {
+    async function addCourseRow(schoolYearRecordId, sortOrder, courseType = 'elective') {
         const client = await getClient();
         const { data, error } = await client
             .from('grade_entries')
             .insert({
                 school_year_record_id: schoolYearRecordId,
                 course_name: '',
+                course_type: courseType,
                 is_core: false,
                 sort_order: sortOrder,
             })
@@ -351,6 +485,71 @@
             .single();
         if (error) throw error;
         return data;
+    }
+
+    function isBlankEntry(entry, semesterKey, isBackfill) {
+        const name = String(entry.course_name || '').trim();
+        const s1 = String(entry.semester_1_grade || '').trim();
+        const s2 = String(entry.semester_2_grade || '').trim();
+        const final = String(entry.final_grade || '').trim();
+        if (isBackfill) return !name && !final;
+        if (semesterKey === '1') return !name && !s1;
+        if (semesterKey === '2') return !name && !s1 && !s2;
+        return !name && !s1 && !s2 && !final;
+    }
+
+    function validateEntriesForSubmit(entries, yearRecord, gradeLevel, semesterKey) {
+        const requirePercent = isHighSchoolGrade(gradeLevel);
+        const isBackfill = yearRecord.entry_type === 'backfill';
+
+        for (const entry of entries) {
+            if (isBlankEntry(entry, semesterKey, isBackfill)) continue;
+
+            const name = String(entry.course_name || '').trim();
+            const type = entry.course_type || 'other';
+
+            if (!name) {
+                throw new Error('Enter a specific course name for every row (e.g. Geometry, not just Math).');
+            }
+
+            if (isHighSchoolGrade(gradeLevel) && !TRANSCRIPT_COURSE_TYPES.includes(type)) {
+                throw new Error(`High school courses must use English, Math, Science, History, or Elective tags. Check "${name}".`);
+            }
+
+            if (isBackfill || semesterKey === '2') {
+                const final = getEffectiveFinal(entry, gradeLevel);
+                if (!final) {
+                    throw new Error(`Enter grades for "${name}" before submitting.`);
+                }
+                if (requirePercent && parsePercent(final) === null) {
+                    throw new Error(`High school grades must be percentages (0–100) for "${name}".`);
+                }
+            }
+
+            if (!isBackfill && semesterKey === '1') {
+                const s1 = String(entry.semester_1_grade || '').trim();
+                if (!s1) {
+                    throw new Error(`Enter Semester 1 grades for "${name}" before submitting.`);
+                }
+                if (requirePercent && parsePercent(s1) === null) {
+                    throw new Error(`High school Semester 1 grades must be percentages for "${name}".`);
+                }
+                if (!requirePercent && !parsePercent(s1) && !parseLetterGrade(s1)) {
+                    throw new Error(`Enter a letter (A–F) or percentage for "${name}" Semester 1.`);
+                }
+            }
+
+            if (!isBackfill && semesterKey === '2') {
+                const s2 = String(entry.semester_2_grade || '').trim();
+                const s1 = String(entry.semester_1_grade || '').trim();
+                if (!s2 && !s1) {
+                    throw new Error(`Enter Semester 2 grades for "${name}" before submitting.`);
+                }
+                if (s2 && requirePercent && parsePercent(s2) === null) {
+                    throw new Error(`High school Semester 2 grades must be percentages for "${name}".`);
+                }
+            }
+        }
     }
 
     function canEditSemester(yearRecord, semesterKey) {
@@ -372,7 +571,9 @@
             throw new Error('This semester is locked. Contact the school office to request changes.');
         }
 
-        await saveGradeEntries(entries);
+        const gradeLevel = yearRecord.grade_level;
+        validateEntriesForSubmit(entries, yearRecord, gradeLevel, semesterKey);
+        await saveGradeEntries(entries, gradeLevel);
 
         const now = new Date().toISOString();
         const patch = { updated_at: now, admin_reopened_at: null, admin_reopened_note: null };
@@ -464,71 +665,252 @@
         return data;
     }
 
+    function buildCourseTypeOptions(selectedType, gradeLevel) {
+        const isHs = isHighSchoolGrade(gradeLevel);
+        const allowed = isHs
+            ? COURSE_TYPES.filter((item) => TRANSCRIPT_COURSE_TYPES.includes(item.id))
+            : COURSE_TYPES;
+        return allowed.map((item) => `
+            <option value="${item.id}" ${item.id === selectedType ? 'selected' : ''}>${escapeHtml(item.label)}</option>
+        `).join('');
+    }
+
+    function computeEntryCredits(entry, gradeLevel, yearComplete) {
+        if (!isHighSchoolGrade(gradeLevel)) return 0;
+        if (!TRANSCRIPT_COURSE_TYPES.includes(entry.course_type)) return 0;
+        if (!yearComplete) return 0;
+
+        const final = getEffectiveFinal(entry, gradeLevel);
+        if (!isPassingGrade(final, true)) return 0;
+        return 1;
+    }
+
+    function summarizeCredits(entries, gradeLevel, yearComplete) {
+        const totals = { english: 0, math: 0, science: 0, history: 0, elective: 0 };
+        for (const entry of entries) {
+            const credits = computeEntryCredits(entry, gradeLevel, yearComplete);
+            if (credits && totals[entry.course_type] !== undefined) {
+                totals[entry.course_type] += credits;
+            }
+        }
+        return totals;
+    }
+
+    async function summarizeCumulativeCredits(studentId, gradeLevel) {
+        if (!isHighSchoolGrade(gradeLevel)) return null;
+
+        const years = await fetchSchoolYearsForStudent(studentId);
+        const totals = { english: 0, math: 0, science: 0, history: 0, elective: 0 };
+
+        for (const year of years) {
+            if (!isHighSchoolGrade(year.grade_level)) continue;
+            const complete = year.entry_type === 'backfill'
+                ? year.year_locked
+                : year.semester_2_locked;
+            if (!complete) continue;
+
+            const entries = await fetchGradeEntries(year.id);
+            const yearTotals = summarizeCredits(entries, year.grade_level, true);
+            TRANSCRIPT_COURSE_TYPES.forEach((type) => {
+                totals[type] += yearTotals[type] || 0;
+            });
+        }
+
+        return totals;
+    }
+
+    function buildCreditsSummaryHtml(yearRecord, entries, gradeLevel, studentId) {
+        if (!isHighSchoolGrade(gradeLevel)) return '';
+
+        const yearComplete = yearRecord.entry_type === 'backfill'
+            ? yearRecord.year_locked
+            : yearRecord.semester_2_locked;
+        const yearTotals = summarizeCredits(entries, gradeLevel, yearComplete);
+
+        const yearParts = TRANSCRIPT_COURSE_TYPES
+            .map((type) => {
+                const count = yearTotals[type] || 0;
+                return count ? `${courseTypeMeta(type).label} ${count}` : null;
+            })
+            .filter(Boolean);
+
+        const yearTotal = TRANSCRIPT_COURSE_TYPES.reduce((sum, type) => sum + (yearTotals[type] || 0), 0);
+        const yearLine = yearComplete
+            ? (yearTotal
+                ? `Credits earned ${yearRecord.school_year}: ${yearParts.join(', ')} (${yearTotal} total)`
+                : `Credits earned ${yearRecord.school_year}: none yet (passing courses earn 1 credit each).`)
+            : `Credits for ${yearRecord.school_year} are calculated when the school year is complete (after Semester 2 is submitted). Each passing course earns 1 credit.`;
+
+        return `
+            <div class="p-3 border border-violet-200 rounded-xl bg-violet-50/40 text-xs text-slate-700 space-y-2"
+                 data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
+                <div class="font-semibold text-violet-900">High school credits</div>
+                <p>${escapeHtml(yearLine)}</p>
+                <p class="text-slate-500">Alabama graduation: 4 English, 4 Math, 4 Science, 4 History, 8 Electives. Tag each course so transcripts count correctly.</p>
+                <div class="text-slate-600" data-cumulative-credits="${studentId}">Loading cumulative totals...</div>
+            </div>
+        `;
+    }
+
     function buildGradeTableHtml(yearRecord, entries, options = {}) {
+        const gradeLevel = yearRecord.grade_level;
         const isBackfill = yearRecord.entry_type === 'backfill';
-        const editSem1 = canEditSemester(yearRecord, '1');
-        const editSem2 = canEditSemester(yearRecord, '2');
+        const isHs = isHighSchoolGrade(gradeLevel);
         const readonly = options.readonly || false;
+        const calSem = getCalendarSemester(yearRecord.school_year);
+        const canEditMeta = !readonly && (canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2'));
 
         let rows = '';
         for (const entry of entries) {
-            const courseReadonly = entry.is_core || readonly || (!editSem1 && !editSem2);
+            const type = entry.course_type || 'other';
+            const meta = courseTypeMeta(type);
+            const editS1 = canEditGradeField(yearRecord, 'semester_1_grade', gradeLevel) && !readonly;
+            const editS2 = canEditGradeField(yearRecord, 'semester_2_grade', gradeLevel) && !readonly;
+            const editFinal = canEditGradeField(yearRecord, 'final_grade', gradeLevel) && !readonly;
+            const autoFinal = isHs;
+            const displayFinal = autoFinal
+                ? computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, true)
+                : (computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, false) || entry.final_grade || '');
+
             rows += `
                 <tr class="border-b border-slate-100" data-entry-id="${entry.id}">
                     <td class="py-2 pr-2 align-top">
+                        <select class="form-input w-full px-2 py-2 text-xs border border-slate-300 rounded-xl mb-1"
+                                data-field="course_type"
+                                ${canEditMeta ? '' : 'disabled'}>
+                            ${buildCourseTypeOptions(type, gradeLevel)}
+                        </select>
                         <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                               value="${escapeHtml(entry.course_name)}"
+                               value="${escapeHtml(entry.course_name || '')}"
                                data-field="course_name"
-                               ${entry.is_core ? 'readonly' : ''}
-                               ${courseReadonly && !entry.is_core ? 'readonly' : ''}>
+                               placeholder="${escapeHtml(meta.placeholder)}"
+                               ${canEditMeta ? '' : 'readonly'}>
                     </td>
                     ${isBackfill ? `
                         <td class="py-2 px-2 align-top">
                             <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
                                    value="${escapeHtml(entry.final_grade || '')}"
                                    data-field="final_grade"
-                                   placeholder="e.g. 92"
-                                   ${(!editSem1 || readonly) ? 'readonly' : ''}>
+                                   placeholder="${escapeHtml(isHs ? 'e.g. 92' : 'A–F or %')}"
+                                   ${editS1 ? '' : 'readonly'}>
                         </td>
                     ` : `
                         <td class="py-2 px-2 align-top">
-                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s1"
                                    value="${escapeHtml(entry.semester_1_grade || '')}"
                                    data-field="semester_1_grade"
-                                   placeholder="e.g. 88"
-                                   ${(!editSem1 || readonly) ? 'readonly' : ''}>
+                                   placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's1'))}"
+                                   ${editS1 ? '' : 'readonly'}>
+                            ${!editS1 && calSem === '2' && !yearRecord.semester_1_locked ? '<span class="text-[10px] text-slate-400">Opens Jul–Dec</span>' : ''}
                         </td>
                         <td class="py-2 px-2 align-top">
-                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s2"
                                    value="${escapeHtml(entry.semester_2_grade || '')}"
                                    data-field="semester_2_grade"
-                                   placeholder="e.g. 91"
-                                   ${(!editSem2 || readonly) ? 'readonly' : ''}>
+                                   placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's2'))}"
+                                   ${editS2 ? '' : 'readonly'}>
+                            ${!editS2 && calSem === '1' ? '<span class="text-[10px] text-slate-400">Opens Jan–May</span>' : ''}
                         </td>
                         <td class="py-2 pl-2 align-top">
-                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                                   value="${escapeHtml(entry.final_grade || '')}"
+                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-final ${autoFinal ? 'bg-slate-50' : ''}"
+                                   value="${escapeHtml(displayFinal)}"
                                    data-field="final_grade"
-                                   placeholder="e.g. 90"
-                                   ${(!editSem2 || readonly) ? 'readonly' : ''}>
+                                   placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 'final'))}"
+                                   ${editFinal ? '' : 'readonly'}
+                                   ${autoFinal ? 'readonly' : ''}>
                         </td>
                     `}
                 </tr>
             `;
         }
 
+        const gradeLabel = isHs ? '%' : '';
         const headers = isBackfill
-            ? '<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final %</th>'
-            : '<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 1 %</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 2 %</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final %</th>';
+            ? `<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final ${gradeLabel}</th>`
+            : `<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 1 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 2 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final ${gradeLabel}</th>`;
+
+        const addCourseBtn = canEditMeta ? `
+            <button type="button" class="mt-3 px-4 py-2 text-sm font-semibold border border-navy text-navy rounded-xl hover:bg-navy hover:text-white"
+                    onclick="window.AcademicRecords.handleAddCourse('${yearRecord.id}')">+ Add course</button>
+        ` : '';
+
+        const semNote = !isBackfill ? `
+            <p class="text-xs text-slate-500 mb-2">
+                ${calSem === '1'
+                    ? 'Semester 1 (Jul–Dec): enter Semester 1 grades only.'
+                    : 'Semester 2 (Jan–May): enter Semester 2 grades. Finals auto-calculate for high school.'}
+            </p>
+        ` : (isHs ? '<p class="text-xs text-slate-500 mb-2">Prior-year backfill: enter percentages only.</p>' : '<p class="text-xs text-slate-500 mb-2">Prior-year backfill: letter or percentage.</p>');
 
         return `
+            ${semNote}
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[520px] text-sm" data-year-record-id="${yearRecord.id}">
+                <table class="w-full min-w-[640px] text-sm ar-grade-table"
+                       data-year-record-id="${yearRecord.id}"
+                       data-grade-level="${escapeHtml(gradeLevel)}">
                     <thead><tr>${headers}</tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>
+            ${addCourseBtn}
         `;
+    }
+
+    function updateFinalForRow(row, gradeLevel) {
+        if (!row) return;
+        const s1 = row.querySelector('[data-field="semester_1_grade"]')?.value || '';
+        const s2 = row.querySelector('[data-field="semester_2_grade"]')?.value || '';
+        const finalInput = row.querySelector('[data-field="final_grade"]');
+        if (!finalInput) return;
+
+        const requirePercent = isHighSchoolGrade(gradeLevel);
+        if (requirePercent) {
+            finalInput.value = computeFinalGrade(s1, s2, true);
+            return;
+        }
+
+        const computed = computeFinalGrade(s1, s2, false);
+        if (computed) {
+            finalInput.value = computed;
+        }
+    }
+
+    function bindGradeTableEvents() {
+        document.querySelectorAll('.ar-grade-table').forEach((table) => {
+            const gradeLevel = table.dataset.gradeLevel || '';
+            table.querySelectorAll('tr[data-entry-id]').forEach((row) => {
+                row.querySelectorAll('.ar-grade-s1, .ar-grade-s2').forEach((input) => {
+                    input.addEventListener('input', () => updateFinalForRow(row, gradeLevel));
+                });
+            });
+        });
+    }
+
+    async function hydrateCumulativeCredits() {
+        const blocks = document.querySelectorAll('[data-cumulative-credits]');
+        for (const block of blocks) {
+            const studentId = block.dataset.cumulativeCredits;
+            const summary = block.closest('[data-credits-summary]');
+            const level = summary?.dataset.gradeLevel || '9';
+
+            try {
+                const totals = await summarizeCumulativeCredits(studentId, level);
+                if (!totals) {
+                    block.textContent = '';
+                    continue;
+                }
+
+                const parts = TRANSCRIPT_COURSE_TYPES.map((type) => {
+                    const earned = totals[type] || 0;
+                    const required = AL_GRAD_CREDIT_REQUIREMENTS[type];
+                    return `${courseTypeMeta(type).label} ${earned}/${required}`;
+                });
+
+                block.textContent = `Cumulative toward graduation: ${parts.join(', ')}`;
+            } catch (err) {
+                block.textContent = '';
+            }
+        }
     }
 
     function collectEntriesFromTable(container) {
@@ -603,9 +985,11 @@
     function buildGradeHelpBanner() {
         return `
             <div class="mb-4 p-3 border border-amber-200 rounded-2xl bg-amber-50/50 text-sm text-slate-700">
-                Enter all grades as <strong>percentages</strong> (0–100). Transcripts will calculate GPA automatically from these numbers.
+                <strong>Grades K–8:</strong> letter (A–F) or percentage.
+                <strong class="ml-2">High school (9–12):</strong> percentages only — finals auto-calculate; credits and GPA apply at transcript time.
+                Name each course specifically (e.g. Geometry, not Math) and tag the subject type.
                 <button type="button" class="ml-1 text-navy font-semibold underline"
-                        onclick="window.AcademicRecords.showGradeEquivalencyChart()">View letter grade chart</button>
+                        onclick="window.AcademicRecords.showGradeEquivalencyChart()">Letter grade chart</button>
             </div>
         `;
     }
@@ -782,6 +1166,7 @@
                             <div class="p-4 border-t border-amber-100 space-y-4">
                                 <p class="text-xs text-slate-600">Grade ${escapeHtml(currentRecord.grade_level)} for ${currentYear}</p>
                                 ${buildGradeTableHtml(currentRecord, entries)}
+                                ${isHighSchoolGrade(currentRecord.grade_level) ? buildCreditsSummaryHtml(currentRecord, entries, currentRecord.grade_level, student.id) : ''}
                                 ${renderSemesterActions(currentRecord)}
                             </div>
                         </details>
@@ -798,6 +1183,7 @@
                                 <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy">${escapeHtml(bf.school_year)} — Grade ${escapeHtml(bf.grade_level)} ${bf.year_locked ? '✓' : ''}</summary>
                                 <div class="p-3 border-t border-slate-100 space-y-3">
                                     ${buildGradeTableHtml(bf, entries)}
+                                    ${isHighSchoolGrade(bf.grade_level) ? buildCreditsSummaryHtml(bf, entries, bf.grade_level, student.id) : ''}
                                     ${renderBackfillActions(bf)}
                                 </div>
                             </details>
@@ -829,6 +1215,9 @@
             html += '</div>';
             html += buildAddStudentFormHtml(true);
             root.innerHTML = html;
+
+            bindGradeTableEvents();
+            hydrateCumulativeCredits();
 
             if (focusId) {
                 setFocusStudentId(null);
@@ -1015,6 +1404,25 @@
         }
     }
 
+    async function handleAddCourse(yearRecordId) {
+        try {
+            const client = await getClient();
+            const { data: yearRecord } = await client
+                .from('student_school_years')
+                .select('*')
+                .eq('id', yearRecordId)
+                .single();
+            const entries = await fetchGradeEntries(yearRecordId);
+            const nextOrder = entries.length
+                ? Math.max(...entries.map((entry) => entry.sort_order || 0)) + 1
+                : 0;
+            await addCourseRow(yearRecordId, nextOrder, 'elective');
+            await loadAcademicRecords();
+        } catch (err) {
+            await window.showAppAlert?.(err.message || String(err));
+        }
+    }
+
     async function markNoPriorYears(studentId) {
         try {
             await setPriorYearsStatus(studentId, 'not_applicable');
@@ -1029,7 +1437,8 @@
 
     window.AcademicRecords = {
         GRADE_LEVELS,
-        CORE_COURSES,
+        COURSE_TYPES,
+        AL_GRAD_CREDIT_REQUIREMENTS,
         LETTER_GRADE_SCALE,
         PROGRESS_TASK_PREFIX,
         PROGRESS_TASK_URL_PREFIX,
@@ -1043,6 +1452,7 @@
         loadAcademicRecords,
         showGradeEquivalencyChart,
         handleAddStudent,
+        handleAddCourse,
         handleAddBackfill,
         markNoPriorYears,
         submitFromSection,

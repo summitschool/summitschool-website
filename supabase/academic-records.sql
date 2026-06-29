@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS public.grade_entries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   school_year_record_id uuid NOT NULL REFERENCES public.student_school_years(id) ON DELETE CASCADE,
   course_name text NOT NULL,
+  course_type text,
   is_core boolean NOT NULL DEFAULT false,
   semester_1_grade text,
   semester_2_grade text,
