@@ -11,9 +11,9 @@ SET search_path = public
 AS $$
 DECLARE
   notify_url text := 'https://tajyrmydwqsijstyzsjr.supabase.co/functions/v1/deliver-pending-enrollment-documents';
-  webhook_secret text := 'REPLACE_WITH_ENROLLMENT_DELIVERY_WEBHOOK_SECRET';
+  webhook_secret text := 'ec3074dc1ef510224d294f110af36dc7e5199f1f5bca435fbd1ec6e53e9a764b';
 BEGIN
-  IF webhook_secret = 'REPLACE_WITH_ENROLLMENT_DELIVERY_WEBHOOK_SECRET' THEN
+  IF webhook_secret = '' THEN
     RAISE WARNING 'enrollment-pending-delivery.sql: set ENROLLMENT_DELIVERY_WEBHOOK_SECRET before expecting delivery.';
     RETURN;
   END IF;
