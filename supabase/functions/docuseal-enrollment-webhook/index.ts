@@ -194,24 +194,66 @@ function isEnrollmentTemplate(templateId: number | undefined, allowedIds: Set<nu
   return allowedIds.has(templateId);
 }
 
+const FAMILY_NAME_FIELDS = [
+  'Enrolling Parent First Name',
+  'Parent First Name',
+  'Mother First Name',
+  'Father First Name',
+  'First Name',
+];
+
+const FAMILY_LAST_NAME_FIELDS = [
+  'Enrolling Parent Last Name',
+  'Parent Last Name',
+  'Mother Last Name',
+  'Father Last Name',
+  'Last Name',
+];
+
+function looksLikeEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function readFieldValue(values: FieldValue[] | undefined, fieldName: string) {
+  const match = (values || []).find((entry) => entry.field === fieldName && entry.value);
+  return match?.value ? String(match.value).trim() : '';
+}
+
+function extractFamilyName(fullName: string, email: string, values: FieldValue[] | undefined) {
+  const trimmed = fullName.trim();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (trimmed && trimmed.toLowerCase() !== normalizedEmail && !looksLikeEmail(trimmed)) {
+    return trimmed;
+  }
+
+  for (const fieldName of FAMILY_NAME_FIELDS) {
+    const firstName = readFieldValue(values, fieldName);
+    if (!firstName) continue;
+
+    const prefix = fieldName.replace(/\s*First Name$/i, '').trim();
+    const lastNameField = prefix
+      ? FAMILY_LAST_NAME_FIELDS.find((name) => name.startsWith(prefix))
+      : undefined;
+    const lastName = lastNameField ? readFieldValue(values, lastNameField) : '';
+    const combined = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+    if (combined) return combined;
+  }
+
+  return '';
+}
+
 function extractFirstName(fullName: string, values: FieldValue[] | undefined) {
   const trimmed = fullName.trim();
-  if (trimmed) {
+  if (trimmed && !looksLikeEmail(trimmed)) {
     return trimmed.split(/\s+/)[0];
   }
 
-  const preferredFields = [
-    'First Name',
-    'Parent First Name',
-    'Enrolling Parent First Name',
-    'Mother First Name',
-    'Father First Name',
-  ];
-
-  for (const fieldName of preferredFields) {
-    const match = (values || []).find((entry) => entry.field === fieldName && entry.value);
-    if (match?.value) {
-      return String(match.value).trim().split(/\s+/)[0];
+  for (const fieldName of FAMILY_NAME_FIELDS) {
+    const match = readFieldValue(values, fieldName);
+    if (match) {
+      return match.split(/\s+/)[0];
     }
   }
 
@@ -636,7 +678,7 @@ serve(async (req) => {
         submissionId,
         templateId,
         familyEmail,
-        familyName: String(data.name || '').trim(),
+        familyName: extractFamilyName(String(data.name || '').trim(), familyEmail, data.values),
         templateName,
         values: data.values,
       });

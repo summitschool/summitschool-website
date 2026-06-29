@@ -145,6 +145,43 @@ export function buildEnrollmentReceivedFamilyEmail(firstName: string) {
   };
 }
 
+function looksLikeEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function formatAdminFamilyDetails(options: {
+  submitterName: string;
+  submitterEmail: string;
+  templateName: string;
+}) {
+  const email = options.submitterEmail || 'No email provided';
+  const rawName = options.submitterName.trim();
+  const normalizedName = rawName.toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
+  const hasDistinctName = Boolean(
+    rawName
+    && normalizedName !== normalizedEmail
+    && !looksLikeEmail(rawName),
+  );
+
+  const htmlLines = hasDistinctName
+    ? `<strong>Family:</strong> ${escapeHtml(rawName)}<br><strong>Email:</strong> ${escapeHtml(email)}`
+    : `<strong>Email:</strong> ${escapeHtml(email)}`;
+
+  const textLines = hasDistinctName
+    ? [`Family: ${rawName}`, `Email: ${email}`]
+    : [`Email: ${email}`];
+
+  const subjectLabel = hasDistinctName ? rawName : email;
+
+  return {
+    email,
+    htmlLines: `${htmlLines}<br><strong>Form:</strong> ${escapeHtml(options.templateName)}`,
+    textLines: [...textLines, `Form: ${options.templateName}`],
+    subjectLabel,
+  };
+}
+
 export function buildEnrollmentAdminSignatureRequestEmail(options: {
   submitterName: string;
   submitterEmail: string;
@@ -153,9 +190,8 @@ export function buildEnrollmentAdminSignatureRequestEmail(options: {
   signingUrl: string;
   fallbackReviewUrl: string;
 }) {
-  const name = options.submitterName || 'Unknown';
-  const email = options.submitterEmail || 'No email provided';
   const signUrl = options.signingUrl || options.fallbackReviewUrl;
+  const details = formatAdminFamilyDetails(options);
 
   const html = buildEnrollmentEmailHtml({
     title: 'Enrollment application ready to sign',
@@ -163,7 +199,7 @@ export function buildEnrollmentAdminSignatureRequestEmail(options: {
     greeting: 'Hello,',
     paragraphs: [
       'A family has completed their portion of the <strong>Summit Church School</strong> enrollment application.',
-      `<strong>Family:</strong> ${escapeHtml(name)}<br><strong>Email:</strong> ${escapeHtml(email)}<br><strong>Form:</strong> ${escapeHtml(options.templateName)}`,
+      details.htmlLines,
       'Use the button below to open the document and add the school signature. No DocuSeal login is required — this link goes directly to the signing form.',
       'After you sign, the family will receive their approval email with tuition and Family Hub next steps.',
     ],
@@ -175,15 +211,13 @@ export function buildEnrollmentAdminSignatureRequestEmail(options: {
   const text = [
     'Enrollment application ready for school signature',
     '',
-    `Family: ${name}`,
-    `Email: ${email}`,
-    `Form: ${options.templateName}`,
+    ...details.textLines,
     `Submission ID: ${options.submissionId}`,
     `Review and sign: ${signUrl}`,
   ].join('\n');
 
   return {
-    subject: `Enrollment application ready to sign — ${name}`,
+    subject: `Enrollment application ready to sign — ${details.subjectLabel}`,
     html,
     text,
   };

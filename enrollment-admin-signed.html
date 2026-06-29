@@ -42,15 +42,12 @@
                     </p>
                 </div>
 
-                <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="https://enroll.summitchurchschool.org/"
-                       class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985]">
-                        Open DocuSeal
-                    </a>
-                    <a href="index.html"
-                       class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
-                        Return to Website
-                    </a>
+                <div class="mt-8 flex justify-center">
+                    <button type="button"
+                            id="close-tab-btn"
+                            class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985]">
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
@@ -68,6 +65,9 @@
 
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
+        document.getElementById('close-tab-btn').addEventListener('click', () => {
+            window.close();
+        });
     </script>
 </body>
 </html>
