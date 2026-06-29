@@ -567,8 +567,10 @@
                                 3225 Rainbow Dr #246<br>
                                 Rainbow City, AL 35906
                             </div>
-                            <a href="https://maps.app.goo.gl/WYN42Fgr3cbXKYTU7" 
-                               target="_blank" 
+                            <a id="location-map-link"
+                               href="https://maps.app.goo.gl/WYN42Fgr3cbXKYTU7"
+                               target="_blank"
+                               rel="noopener noreferrer"
                                class="text-sage hover:text-navy underline decoration-sage/30 text-xs block mt-1">
                                 View on Google Maps
                             </a>
@@ -895,6 +897,36 @@
             });
         }
 
+        const LOCATION_ADDRESS = '3225 Rainbow Dr #246, Rainbow City, AL 35906';
+        const LOCATION_DESKTOP_MAP_URL = 'https://maps.app.goo.gl/WYN42Fgr3cbXKYTU7';
+
+        function getMobileMapsUrl() {
+            const query = encodeURIComponent(LOCATION_ADDRESS);
+            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+            if (isIOS) {
+                return `https://maps.apple.com/?q=${query}`;
+            }
+
+            return `geo:0,0?q=${query}`;
+        }
+
+        function isMobileMapDevice() {
+            return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        }
+
+        function initLocationMapLink() {
+            const link = document.getElementById('location-map-link');
+            if (!link) return;
+
+            link.addEventListener('click', (event) => {
+                if (!isMobileMapDevice()) return;
+
+                event.preventDefault();
+                window.location.href = getMobileMapsUrl();
+            });
+        }
+
         function initTuitionPricing() {
             const TUITION_INCREASE_AT = new Date(2026, 8, 4);
             const RATE_EARLY = 110;
@@ -936,6 +968,7 @@
             await updateHeaderAuthState();
 
             initTuitionPricing();
+            initLocationMapLink();
             initMobileMenu();
             initContactInterestFromUrl();
             initContactForm();
