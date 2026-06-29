@@ -938,8 +938,8 @@
     </div>
 
     <script src="assets/app-dialog.js"></script>
-    <script src="assets/academic-records.js"></script>
-    <script src="assets/onboarding-checklist.js"></script>
+    <script src="assets/academic-records.js?v=20260630"></script>
+    <script src="assets/onboarding-checklist.js?v=20260630"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -4710,6 +4710,8 @@
             listEl.innerHTML = html;
         }
 
+        const PROGRESS_REPORT_TASK_URL_PREFIX = 'hub://progress-report/';
+
         async function adminDeleteStudent(button) {
             const studentId = button?.dataset?.studentId;
             const select = document.getElementById('admin-family-select');
@@ -4727,10 +4729,26 @@
 
             button.disabled = true;
             try {
-                if (!window.AcademicRecords?.adminDeleteStudent) {
-                    throw new Error('Academic records module not loaded.');
+                if (window.AcademicRecords?.adminDeleteStudent) {
+                    await window.AcademicRecords.adminDeleteStudent(studentId, familyUserId);
+                } else {
+                    if (familyUserId) {
+                        const { error: taskError } = await supabaseClient
+                            .from('family_documents')
+                            .delete()
+                            .eq('user_id', familyUserId)
+                            .eq('url', `${PROGRESS_REPORT_TASK_URL_PREFIX}${studentId}`)
+                            .ilike('category', '%task%');
+                        if (taskError) throw taskError;
+                    }
+
+                    const { error } = await supabaseClient
+                        .from('students')
+                        .delete()
+                        .eq('id', studentId);
+                    if (error) throw error;
                 }
-                await window.AcademicRecords.adminDeleteStudent(studentId, familyUserId);
+
                 await showAppAlert('Student removed.');
                 loadAdminAcademicRecords();
             } catch (err) {
@@ -4753,7 +4771,18 @@
                 if (window.AcademicRecords?.adminReopenSchoolYear) {
                     await window.AcademicRecords.adminReopenSchoolYear(yearRecordId, 'Reopened by admin');
                 } else {
-                    throw new Error('Academic records module not loaded.');
+                    const { error } = await supabaseClient
+                        .from('student_school_years')
+                        .update({
+                            semester_1_locked: false,
+                            semester_2_locked: false,
+                            year_locked: false,
+                            admin_reopened_at: new Date().toISOString(),
+                            admin_reopened_note: 'Reopened by admin',
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', yearRecordId);
+                    if (error) throw error;
                 }
                 await showAppAlert('School year reopened for the family.');
                 loadAdminAcademicRecords();
