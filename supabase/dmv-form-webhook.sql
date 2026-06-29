@@ -1,16 +1,17 @@
--- DMV / driver education form emails via DocuSeal webhook + Resend.
--- Single-signer form (vfjkLH3hKczzX9): thank-you redirect + signed PDF emailed to family.
+-- DMV / driver education form via DocuSeal webhook.
+-- Single-signer form (vfjkLH3hKczzX9): thank-you redirect, signed PDF → My Documents,
+-- matching My Tasks row removed. Resources tab (shared_resources) is unchanged.
 --
 -- SETUP (one-time):
--- 1. Run this SQL in the Supabase SQL editor.
+-- 1. Run hub-form-archive-webhook.sql first (hub_form_archive_log table).
 -- 2. Deploy the Edge Function:
 --      supabase functions deploy docuseal-dmv-webhook --no-verify-jwt
 -- 3. Set Edge Function secrets (Dashboard → Edge Functions → docuseal-dmv-webhook → Secrets):
---      RESEND_API_KEY                    = re_...
---      APPROVAL_FROM_EMAIL               = Summit Church School <info@summitchurchschool.org>
 --      DOCUSEAL_DMV_WEBHOOK_SECRET       = long random string (or reuse DOCUSEAL_ENROLLMENT_WEBHOOK_SECRET)
 --      DOCUSEAL_DMV_TEMPLATE_SLUGS       = vfjkLH3hKczzX9
 --      DOCUSEAL_DMV_TEMPLATE_IDS         = optional comma-separated numeric template IDs
+--      DOCUSEAL_DMV_ARCHIVE_SCHOOL_YEAR  = optional, default 2026-2027
+--      DOCUSEAL_DMV_ARCHIVE_CATEGORY     = optional, default Signed Form
 --      DOCUSEAL_API_URL                  = https://enroll.summitchurchschool.org
 --      DOCUSEAL_API_KEY                  = DocuSeal API key (required for PDF download)
 --      DOCUSEAL_WEBHOOK_HMAC_SECRET      = optional whsec_... value from DocuSeal webhook Security → HMAC
@@ -36,4 +37,4 @@ CREATE TABLE IF NOT EXISTS public.dmv_email_log (
 ALTER TABLE public.dmv_email_log ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE public.dmv_email_log IS
-  'Tracks DMV driver education DocuSeal webhook emails with signed PDF attachments.';
+  'Legacy DMV webhook log from the email-attachment flow. New completions use hub_form_archive_log.';

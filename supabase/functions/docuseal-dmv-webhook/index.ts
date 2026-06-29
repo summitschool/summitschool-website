@@ -1,13 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { completeFamilyDocuSealTasks } from '../_shared/complete-family-docuseal-task.ts';
-import {
-  buildDmvPermitFormCompletedEmail,
-  buildDmvPermitFormCompleteUrl,
-} from '../_shared/dmv-form-email.ts';
-
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = Deno.env.get('APPROVAL_FROM_EMAIL') || 'Summit Church School <info@summitchurchschool.org>';
+import { archiveDocuSealSubmissionToHub } from '../_shared/archive-docuseal-to-hub.ts';
+import { buildDmvPermitFormCompleteUrl } from '../_shared/dmv-form-email.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -20,6 +13,8 @@ const DOCUSEAL_API_URL = (Deno.env.get('DOCUSEAL_API_URL') || 'https://enroll.su
 const DOCUSEAL_API_KEY = Deno.env.get('DOCUSEAL_API_KEY') || '';
 
 const DEFAULT_DMV_SLUGS = 'vfjkLH3hKczzX9';
+const DMV_ARCHIVE_SCHOOL_YEAR = Deno.env.get('DOCUSEAL_DMV_ARCHIVE_SCHOOL_YEAR') || '2026-2027';
+const DMV_ARCHIVE_CATEGORY = Deno.env.get('DOCUSEAL_DMV_ARCHIVE_CATEGORY') || 'Signed Form';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +25,6 @@ const corsHeaders = {
 type DocuSealSubmitter = {
   id?: number;
   email?: string;
-  name?: string | null;
   slug?: string;
 };
 
@@ -39,7 +33,6 @@ type DocuSealWebhookPayload = {
   data?: {
     id?: number;
     email?: string;
-    name?: string | null;
     status?: string;
     submission?: {
       id?: number;
@@ -59,18 +52,12 @@ type DocuSealTemplate = {
   name?: string;
 };
 
-type DocuSealDocument = {
-  name?: string;
-  url?: string;
+type DmvTemplateCache = {
+  ids: Set<number>;
+  slugById: Map<number, string>;
 };
 
-type DmvEmailLog = {
-  submission_id: number;
-  family_email: string | null;
-  family_notified_at: string | null;
-};
-
-let cachedDmvTemplateIds: Set<number> | null = null;
+let cachedDmvTemplates: DmvTemplateCache | null = null;
 let cacheLoadedAt = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -137,14 +124,21 @@ async function isAuthorized(req: Request, rawBody: string) {
   return false;
 }
 
-async function fetchDmvTemplateIds() {
+async function fetchDmvTemplates() {
   const now = Date.now();
-  if (cachedDmvTemplateIds && (now - cacheLoadedAt) < CACHE_TTL_MS) {
-    return cachedDmvTemplateIds;
+  if (cachedDmvTemplates && (now - cacheLoadedAt) < CACHE_TTL_MS) {
+    return cachedDmvTemplates;
   }
 
   const ids = new Set<number>(parseIdList(Deno.env.get('DOCUSEAL_DMV_TEMPLATE_IDS')));
   const slugs = parseSlugList(Deno.env.get('DOCUSEAL_DMV_TEMPLATE_SLUGS'));
+  const slugById = new Map<number, string>();
+
+  if (slugs.length === 1) {
+    for (const templateId of ids) {
+      slugById.set(templateId, slugs[0]);
+    }
+  }
 
   if (slugs.length > 0 && DOCUSEAL_API_KEY) {
     try {
@@ -160,6 +154,7 @@ async function fetchDmvTemplateIds() {
         for (const template of body.data || []) {
           if (template.slug && slugs.includes(template.slug)) {
             ids.add(template.id);
+            slugById.set(template.id, template.slug);
           }
         }
       } else {
@@ -170,9 +165,9 @@ async function fetchDmvTemplateIds() {
     }
   }
 
-  cachedDmvTemplateIds = ids;
+  cachedDmvTemplates = { ids, slugById };
   cacheLoadedAt = now;
-  return ids;
+  return cachedDmvTemplates;
 }
 
 function isDmvTemplate(templateId: number | undefined, allowedIds: Set<number>) {
@@ -180,66 +175,14 @@ function isDmvTemplate(templateId: number | undefined, allowedIds: Set<number>) 
   return allowedIds.has(templateId);
 }
 
-function looksLikeEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
-function extractRecipientName(name: string, email: string) {
-  const trimmed = name.trim();
-  if (trimmed && trimmed.toLowerCase() !== email.toLowerCase() && !looksLikeEmail(trimmed)) {
-    return trimmed;
-  }
-  return '';
-}
-
-function supabaseAdmin() {
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-}
-
-async function getDmvLog(submissionId: number) {
-  const { data, error } = await supabaseAdmin()
-    .from('dmv_email_log')
-    .select('submission_id, family_email, family_notified_at')
-    .eq('submission_id', submissionId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message || 'Failed to load DMV email log');
+function resolveTemplateSlug(templateId?: number, slugById?: Map<number, string>) {
+  if (templateId && slugById?.has(templateId)) {
+    return slugById.get(templateId)!;
   }
 
-  return data as DmvEmailLog | null;
-}
-
-async function upsertDmvRecord(options: {
-  submissionId: number;
-  templateId: number | undefined;
-  familyEmail: string;
-  familyName: string;
-}) {
-  const { error } = await supabaseAdmin()
-    .from('dmv_email_log')
-    .upsert({
-      submission_id: options.submissionId,
-      template_id: options.templateId ?? null,
-      family_email: options.familyEmail,
-      family_name: options.familyName,
-    }, { onConflict: 'submission_id' });
-
-  if (error) {
-    throw new Error(error.message || 'Failed to save DMV email record');
-  }
-}
-
-async function markFamilyNotified(submissionId: number) {
-  const { error } = await supabaseAdmin()
-    .from('dmv_email_log')
-    .update({ family_notified_at: new Date().toISOString() })
-    .eq('submission_id', submissionId)
-    .is('family_notified_at', null);
-
-  if (error) {
-    throw new Error(error.message || 'Failed to mark DMV family notification');
-  }
+  const slugs = parseSlugList(Deno.env.get('DOCUSEAL_DMV_TEMPLATE_SLUGS'));
+  if (slugs.length === 1) return slugs[0];
+  return slugs[0] || DEFAULT_DMV_SLUGS;
 }
 
 async function fetchSubmissionSubmitters(submissionId: number) {
@@ -266,14 +209,8 @@ async function fetchSubmissionSubmitters(submissionId: number) {
   }
 }
 
-function primaryDmvTemplateSlug() {
-  return parseSlugList(Deno.env.get('DOCUSEAL_DMV_TEMPLATE_SLUGS'))[0] || DEFAULT_DMV_SLUGS;
-}
-
-async function configureSubmitterRedirect(submitterId: number, templateSlug?: string) {
+async function configureSubmitterRedirect(submitterId: number, templateSlug: string) {
   if (!DOCUSEAL_API_KEY) return false;
-
-  const slug = templateSlug || primaryDmvTemplateSlug();
 
   try {
     const response = await fetch(`${DOCUSEAL_API_URL}/api/submitters/${submitterId}`, {
@@ -284,7 +221,7 @@ async function configureSubmitterRedirect(submitterId: number, templateSlug?: st
         Accept: 'application/json',
       },
       body: JSON.stringify({
-        completed_redirect_url: buildDmvPermitFormCompleteUrl(slug),
+        completed_redirect_url: buildDmvPermitFormCompleteUrl(templateSlug),
       }),
     });
 
@@ -300,181 +237,46 @@ async function configureSubmitterRedirect(submitterId: number, templateSlug?: st
   }
 }
 
-async function fetchSubmissionDocuments(submissionId: number) {
-  if (!DOCUSEAL_API_KEY) {
-    throw new Error('DOCUSEAL_API_KEY must be set to fetch signed documents.');
-  }
-
-  const response = await fetch(
-    `${DOCUSEAL_API_URL}/api/submissions/${submissionId}/documents?merge=true`,
-    {
-      headers: {
-        'X-Auth-Token': DOCUSEAL_API_KEY,
-        Accept: 'application/json',
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`DocuSeal documents lookup failed (${response.status}): ${await response.text()}`);
-  }
-
-  const body = await response.json() as { documents?: DocuSealDocument[] };
-  return body.documents || [];
-}
-
-function bytesToBase64(bytes: Uint8Array) {
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
-}
-
-async function downloadDocumentAttachment(document: DocuSealDocument, fallbackName: string) {
-  const url = String(document.url || '').trim();
-  if (!url) {
-    throw new Error('Signed document URL missing from DocuSeal response');
-  }
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download signed document (${response.status})`);
-  }
-
-  const contentType = response.headers.get('content-type') || 'application/pdf';
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  const rawName = String(document.name || fallbackName).trim() || fallbackName;
-  const filename = rawName.toLowerCase().endsWith('.pdf') ? rawName : `${rawName}.pdf`;
-
-  return {
-    filename,
-    content: bytesToBase64(bytes),
-    content_type: contentType,
-  };
-}
-
-async function sendWithResend(options: {
-  to: string[];
-  subject: string;
-  text: string;
-  html: string;
-  attachments: Array<{ filename: string; content: string; content_type?: string }>;
-}) {
-  if (!RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY must be set on the Edge Function.');
-  }
-
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: options.to,
-      subject: options.subject,
-      text: options.text,
-      html: options.html,
-      attachments: options.attachments,
-    }),
-  });
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(result?.message || result?.error || 'Resend API request failed');
-  }
-
-  return result;
-}
-
 async function handleSubmissionCreated(options: {
   submissionId: number;
+  templateSlug: string;
   submitters?: DocuSealSubmitter[];
 }) {
-  const submitter = options.submitters?.find((entry) => entry.id);
+  const submitters = options.submitters?.length
+    ? options.submitters
+    : await fetchSubmissionSubmitters(options.submissionId);
 
-  if (submitter?.id) {
-    const updated = await configureSubmitterRedirect(submitter.id);
-    return updated
-      ? { action: 'redirect_configured' as const, submitter_id: submitter.id }
-      : { skipped: 'redirect_update_failed' as const };
-  }
-
-  const submitters = await fetchSubmissionSubmitters(options.submissionId);
-  const familySubmitter = submitters?.find((entry) => entry.id);
-
-  if (!familySubmitter?.id) {
+  const submitter = submitters?.find((entry) => entry.id);
+  if (!submitter?.id) {
     return { skipped: 'submitter_not_found' as const };
   }
 
-  const updated = await configureSubmitterRedirect(familySubmitter.id);
+  const updated = await configureSubmitterRedirect(submitter.id, options.templateSlug);
   return updated
-    ? { action: 'redirect_configured' as const, submitter_id: familySubmitter.id }
+    ? { action: 'redirect_configured' as const, submitter_id: submitter.id }
     : { skipped: 'redirect_update_failed' as const };
 }
 
 async function handleFormCompleted(options: {
   submissionId: number;
-  templateId: number | undefined;
+  templateId?: number;
+  templateSlug: string;
   templateName: string;
   familyEmail: string;
-  familyName: string;
 }) {
-  const existing = await getDmvLog(options.submissionId);
-
-  if (existing?.family_notified_at) {
-    return { skipped: 'family_already_notified' as const };
-  }
-
-  await upsertDmvRecord(options);
-
-  const documents = await fetchSubmissionDocuments(options.submissionId);
-  if (documents.length === 0) {
-    throw new Error('No signed documents available for completed DMV submission');
-  }
-
-  const attachments = await Promise.all(
-    documents.map((document, index) => downloadDocumentAttachment(
-      document,
-      `${options.templateName || 'dmv-form'}-${options.submissionId}${documents.length > 1 ? `-${index + 1}` : ''}`,
-    )),
-  );
-
-  const email = buildDmvPermitFormCompletedEmail({
-    recipientName: options.familyName || options.familyEmail,
-    templateName: options.templateName,
-  });
-
-  const familyResult = await sendWithResend({
-    to: [options.familyEmail],
-    subject: email.subject,
-    text: email.text,
-    html: email.html,
-    attachments,
-  });
-
-  await markFamilyNotified(options.submissionId);
-
-  const taskResult = await completeFamilyDocuSealTasks({
+  return archiveDocuSealSubmissionToHub({
     supabaseUrl: SUPABASE_URL,
     supabaseServiceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
-    familyEmail: options.familyEmail,
+    submissionId: options.submissionId,
     templateId: options.templateId,
+    templateSlug: options.templateSlug,
+    templateName: options.templateName,
+    familyEmail: options.familyEmail,
     docusealApiUrl: DOCUSEAL_API_URL,
     docusealApiKey: DOCUSEAL_API_KEY,
+    schoolYear: DMV_ARCHIVE_SCHOOL_YEAR,
+    category: DMV_ARCHIVE_CATEGORY,
   });
-
-  return {
-    action: 'family_form_attached' as const,
-    family: familyResult,
-    to: options.familyEmail,
-    attachments: attachments.map((attachment) => attachment.filename),
-    tasks: taskResult,
-  };
 }
 
 serve(async (req) => {
@@ -510,10 +312,10 @@ serve(async (req) => {
       });
     }
 
-    const allowedTemplateIds = await fetchDmvTemplateIds();
+    const dmvTemplates = await fetchDmvTemplates();
     const templateId = data.template?.id;
 
-    if (!isDmvTemplate(templateId, allowedTemplateIds)) {
+    if (!isDmvTemplate(templateId, dmvTemplates.ids)) {
       return new Response(JSON.stringify({
         ok: true,
         skipped: 'not_dmv_template',
@@ -535,9 +337,12 @@ serve(async (req) => {
       });
     }
 
+    const templateSlug = resolveTemplateSlug(templateId, dmvTemplates.slugById);
+
     if (eventType === 'submission.created') {
       const result = await handleSubmissionCreated({
         submissionId,
+        templateSlug,
         submitters: data.submitters,
       });
 
@@ -580,12 +385,12 @@ serve(async (req) => {
     const result = await handleFormCompleted({
       submissionId,
       templateId,
+      templateSlug,
       templateName: String(data.template?.name || 'Driver Education Form'),
       familyEmail,
-      familyName: extractRecipientName(String(data.name || '').trim(), familyEmail),
     });
 
-    console.log('DMV form family email handled', { submissionId, templateId, familyEmail, result });
+    console.log('DMV form archived to hub', { submissionId, templateId, familyEmail, result });
 
     return new Response(JSON.stringify({
       ok: true,
