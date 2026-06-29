@@ -79,10 +79,11 @@
                 </p>
 
                 <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="index.html"
-                       class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985]">
-                        Return to Website
-                    </a>
+                    <button type="button"
+                            id="close-tab-btn"
+                            class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985]">
+                        Close
+                    </button>
                     <a href="index.html#contact"
                        class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
                         Contact Us
@@ -106,6 +107,9 @@
     <script src="assets/complete-docuseal-task.js"></script>
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
+        document.getElementById('close-tab-btn')?.addEventListener('click', () => {
+            window.close();
+        });
         window.completeDocuSealTask?.('vfjkLH3hKczzX9');
     </script>
 </body>
