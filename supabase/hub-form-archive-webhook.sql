@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.hub_form_archive_log (
   storage_path text,
   family_document_id uuid,
   archived_at timestamptz,
+  processing_started_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
