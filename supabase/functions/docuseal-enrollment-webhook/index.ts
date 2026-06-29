@@ -42,28 +42,31 @@ type DocuSealSubmitter = {
   embed_src?: string;
 };
 
+type DocuSealSubmissionWebhookData = {
+  id?: number;
+  status?: string;
+  email?: string;
+  name?: string | null;
+  role?: string;
+  values?: FieldValue[];
+  submitters?: DocuSealSubmitter[];
+  submission?: {
+    id?: number;
+    status?: string;
+    url?: string;
+  };
+  template?: {
+    id?: number;
+    name?: string;
+    external_id?: string | null;
+    folder_name?: string;
+  };
+};
+
 type DocuSealWebhookPayload = {
   event_type?: string;
   timestamp?: string;
-  data?: {
-    id?: number;
-    email?: string;
-    name?: string | null;
-    status?: string;
-    role?: string;
-    values?: FieldValue[];
-    submission?: {
-      id?: number;
-      status?: string;
-      url?: string;
-    };
-    template?: {
-      id?: number;
-      name?: string;
-      external_id?: string | null;
-      folder_name?: string;
-    };
-  };
+  data?: DocuSealSubmissionWebhookData;
 };
 
 type DocuSealTemplate = {
@@ -313,8 +316,16 @@ async function fetchSubmissionSubmitters(submissionId: number) {
   }
 }
 
-async function setAdminCompletedRedirect(submitterId: number) {
-  if (!DOCUSEAL_API_KEY) return;
+function findAdminSubmitter(submitters: DocuSealSubmitter[] | null | undefined) {
+  if (!submitters?.length) return undefined;
+
+  return submitters.find((submitter) => (
+    String(submitter.email || '').trim().toLowerCase() === SIGNATURE_ADMIN_EMAIL
+  ));
+}
+
+async function configureAdminSubmitter(submitterId: number) {
+  if (!DOCUSEAL_API_KEY) return false;
 
   try {
     const response = await fetch(`${DOCUSEAL_API_URL}/api/submitters/${submitterId}`, {
@@ -325,15 +336,20 @@ async function setAdminCompletedRedirect(submitterId: number) {
         Accept: 'application/json',
       },
       body: JSON.stringify({
+        send_email: false,
         completed_redirect_url: ENROLLMENT_ADMIN_SIGNED_URL,
       }),
     });
 
     if (!response.ok) {
-      console.error('docuseal admin redirect update failed', response.status, await response.text());
+      console.error('docuseal admin submitter update failed', response.status, await response.text());
+      return false;
     }
+
+    return true;
   } catch (error) {
-    console.error('docuseal admin redirect update error:', error);
+    console.error('docuseal admin submitter update error:', error);
+    return false;
   }
 }
 
@@ -341,12 +357,10 @@ async function resolveAdminSigningUrl(submissionId: number) {
   const submitters = await fetchSubmissionSubmitters(submissionId);
   if (!submitters) return null;
 
-  const adminSubmitter = submitters.find((submitter) => (
-    String(submitter.email || '').trim().toLowerCase() === SIGNATURE_ADMIN_EMAIL
-  ));
+  const adminSubmitter = findAdminSubmitter(submitters);
 
   if (adminSubmitter?.id) {
-    await setAdminCompletedRedirect(adminSubmitter.id);
+    await configureAdminSubmitter(adminSubmitter.id);
   }
 
   return buildSubmitterSigningUrl(adminSubmitter);
@@ -402,6 +416,34 @@ async function sendWithResend(options: {
   }
 
   return result;
+}
+
+async function handleSubmissionCreated(options: {
+  submissionId: number;
+  templateId: number | undefined;
+  submitters?: DocuSealSubmitter[];
+}) {
+  const adminSubmitter = findAdminSubmitter(options.submitters);
+
+  if (!adminSubmitter?.id) {
+    const submitters = await fetchSubmissionSubmitters(options.submissionId);
+    const fetchedAdmin = findAdminSubmitter(submitters || undefined);
+
+    if (!fetchedAdmin?.id) {
+      return { skipped: 'admin_submitter_not_found' as const };
+    }
+
+    const updated = await configureAdminSubmitter(fetchedAdmin.id);
+    return updated
+      ? { action: 'admin_docuseal_email_disabled' as const, submitter_id: fetchedAdmin.id }
+      : { skipped: 'admin_submitter_update_failed' as const };
+  }
+
+  const updated = await configureAdminSubmitter(adminSubmitter.id);
+
+  return updated
+    ? { action: 'admin_docuseal_email_disabled' as const, submitter_id: adminSubmitter.id }
+    : { skipped: 'admin_submitter_update_failed' as const };
 }
 
 async function handleFamilySubmitted(options: {
@@ -518,15 +560,8 @@ serve(async (req) => {
     const eventType = String(payload.event_type || '');
     const data = payload.data;
 
-    if (eventType !== 'form.completed' || !data) {
+    if (!data || (eventType !== 'form.completed' && eventType !== 'submission.created')) {
       return new Response(JSON.stringify({ ok: true, skipped: 'unsupported_event' }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (data.status !== 'completed') {
-      return new Response(JSON.stringify({ ok: true, skipped: 'submitter_not_completed' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -546,10 +581,40 @@ serve(async (req) => {
       });
     }
 
-    const submissionId = data.submission?.id;
+    const submissionId = eventType === 'submission.created'
+      ? data.id
+      : data.submission?.id;
+
     if (!submissionId) {
       return new Response(JSON.stringify({ ok: false, error: 'Missing submission id' }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (eventType === 'submission.created') {
+      const result = await handleSubmissionCreated({
+        submissionId,
+        templateId,
+        submitters: data.submitters,
+      });
+
+      console.log('Enrollment admin DocuSeal email disabled', { submissionId, templateId, result });
+
+      return new Response(JSON.stringify({
+        ok: true,
+        submission_id: submissionId,
+        template_id: templateId,
+        ...result,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (data.status !== 'completed') {
+      return new Response(JSON.stringify({ ok: true, skipped: 'submitter_not_completed' }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

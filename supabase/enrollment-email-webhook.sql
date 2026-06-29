@@ -20,7 +20,9 @@
 --      DOCUSEAL_WEBHOOK_HMAC_SECRET         = optional whsec_... value from DocuSeal webhook Security → HMAC
 -- 4. In DocuSeal → Webhooks → New Webhook:
 --      URL: https://tajyrmydwqsijstyzsjr.supabase.co/functions/v1/docuseal-enrollment-webhook
---      Event: form.completed
+--      Events: submission.created AND form.completed
+--        submission.created disables DocuSeal's default admin signature-request email
+--        (the template "request email" toggle does not stop the next-signer chain email)
 --      Security header (optional): x-webhook-secret = your DOCUSEAL_ENROLLMENT_WEBHOOK_SECRET
 -- 5. On the enrollment template only (vi3n5SzMfFnRLH):
 --      - Set completion redirect to https://summitchurchschool.org/enrollment-complete.html
