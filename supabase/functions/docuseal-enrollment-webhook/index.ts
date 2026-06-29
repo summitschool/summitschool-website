@@ -194,6 +194,10 @@ function isEnrollmentTemplate(templateId: number | undefined, allowedIds: Set<nu
   return allowedIds.has(templateId);
 }
 
+const FAMILY_FULL_NAME_FIELDS = [
+  "Teaching Parent's Name",
+];
+
 const FAMILY_NAME_FIELDS = [
   'Enrolling Parent First Name',
   'Parent First Name',
@@ -227,6 +231,11 @@ function extractFamilyName(fullName: string, email: string, values: FieldValue[]
     return trimmed;
   }
 
+  for (const fieldName of FAMILY_FULL_NAME_FIELDS) {
+    const fullName = readFieldValue(values, fieldName);
+    if (fullName) return fullName;
+  }
+
   for (const fieldName of FAMILY_NAME_FIELDS) {
     const firstName = readFieldValue(values, fieldName);
     if (!firstName) continue;
@@ -248,6 +257,11 @@ function extractFirstName(fullName: string, values: FieldValue[] | undefined) {
   const trimmed = fullName.trim();
   if (trimmed && !looksLikeEmail(trimmed)) {
     return trimmed.split(/\s+/)[0];
+  }
+
+  for (const fieldName of FAMILY_FULL_NAME_FIELDS) {
+    const fullName = readFieldValue(values, fieldName);
+    if (fullName) return fullName.split(/\s+/)[0];
   }
 
   for (const fieldName of FAMILY_NAME_FIELDS) {
