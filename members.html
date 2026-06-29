@@ -160,12 +160,36 @@
                     <div id="signup-form-intro" class="auth-card-inset auth-form-intro mb-5 hidden">
                         <h2 class="auth-form-heading">Register your family</h2>
                         <p class="auth-form-subtitle">Continue with Google, or register with email to request Family Hub access.</p>
-                        <ol class="mt-3 space-y-1.5 text-sm text-slate-600 list-decimal list-inside leading-relaxed">
-                            <li>Create your account with Google or email</li>
-                            <li>Confirm your email address (email signups only)</li>
-                            <li>Our team reviews and approves enrolled families</li>
-                            <li>You'll receive an email when your access is approved</li>
-                        </ol>
+                        <div class="auth-signup-flow" role="list" aria-label="Registration steps">
+                            <div class="auth-signup-step" role="listitem">
+                                <div class="auth-signup-step-marker" aria-hidden="true">1</div>
+                                <div class="auth-signup-step-body">
+                                    <p class="auth-signup-step-title">Create your account</p>
+                                    <p class="auth-signup-step-desc">Sign up with Google or the email form below.</p>
+                                </div>
+                            </div>
+                            <div class="auth-signup-step auth-signup-step--highlight" role="listitem">
+                                <div class="auth-signup-step-marker" aria-hidden="true"><i class="fas fa-envelope" aria-hidden="true"></i></div>
+                                <div class="auth-signup-step-body">
+                                    <p class="auth-signup-step-title">Confirm your email <span class="auth-signup-step-tag">Email signups</span></p>
+                                    <p class="auth-signup-step-desc">We'll email you a confirmation link. <strong>Open that email and click the link</strong> to verify your address — you won't be able to sign in until you do. Google sign-in skips this step.</p>
+                                </div>
+                            </div>
+                            <div class="auth-signup-step" role="listitem">
+                                <div class="auth-signup-step-marker" aria-hidden="true">3</div>
+                                <div class="auth-signup-step-body">
+                                    <p class="auth-signup-step-title">Staff review</p>
+                                    <p class="auth-signup-step-desc">Our team reviews and approves enrolled families.</p>
+                                </div>
+                            </div>
+                            <div class="auth-signup-step" role="listitem">
+                                <div class="auth-signup-step-marker" aria-hidden="true">4</div>
+                                <div class="auth-signup-step-body">
+                                    <p class="auth-signup-step-title">Access approved</p>
+                                    <p class="auth-signup-step-desc">You'll receive a separate email when your Family Hub access is approved.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="oauth-section" class="auth-oauth-wrap mb-5">
