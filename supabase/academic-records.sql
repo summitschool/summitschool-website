@@ -108,10 +108,12 @@ TO authenticated
 USING (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR public.staff_has_admin_section('families')
+  OR public.staff_has_admin_section('academic')
 )
 WITH CHECK (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR public.staff_has_admin_section('families')
+  OR public.staff_has_admin_section('academic')
 );
 
 CREATE POLICY "Users manage own student school years"
@@ -140,10 +142,12 @@ TO authenticated
 USING (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR public.staff_has_admin_section('families')
+  OR public.staff_has_admin_section('academic')
 )
 WITH CHECK (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR public.staff_has_admin_section('families')
+  OR public.staff_has_admin_section('academic')
 );
 
 CREATE POLICY "Users manage own grade entries"
@@ -176,10 +180,12 @@ TO authenticated
 USING (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR public.staff_has_admin_section('families')
+  OR public.staff_has_admin_section('academic')
 )
 WITH CHECK (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR public.staff_has_admin_section('families')
+  OR public.staff_has_admin_section('academic')
 );
 
 CREATE POLICY "Users manage own onboarding"
@@ -196,6 +202,7 @@ TO authenticated
 USING (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR public.staff_has_admin_section('families')
+  OR public.staff_has_admin_section('academic')
 );
 
 COMMENT ON TABLE public.students IS

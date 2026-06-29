@@ -15,6 +15,25 @@
     const PROGRESS_TASK_URL_PREFIX = 'hub://progress-report/';
     const PROGRESS_TASK_CATEGORY = 'Progress Report (Task)';
 
+    // Letter-to-percentage scale for parent reference; GPA used when transcripts are generated.
+    const LETTER_GRADE_SCALE = [
+        { letter: 'A', range: '90–100%', gpa: 4.0 },
+        { letter: 'B', range: '80–89%', gpa: 3.0 },
+        { letter: 'C', range: '70–79%', gpa: 2.0 },
+        { letter: 'D', range: '60–69%', gpa: 1.0 },
+        { letter: 'F', range: 'Below 60%', gpa: 0.0 },
+    ];
+
+    function percentToGpa(percent) {
+        const value = Number(percent);
+        if (!Number.isFinite(value)) return null;
+        if (value >= 90) return 4.0;
+        if (value >= 80) return 3.0;
+        if (value >= 70) return 2.0;
+        if (value >= 60) return 1.0;
+        return 0.0;
+    }
+
     function escapeHtml(value) {
         return String(value ?? '')
             .replace(/&/g, '&amp;')
@@ -468,7 +487,7 @@
                             <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
                                    value="${escapeHtml(entry.final_grade || '')}"
                                    data-field="final_grade"
-                                   placeholder="Grade"
+                                   placeholder="e.g. 92"
                                    ${(!editSem1 || readonly) ? 'readonly' : ''}>
                         </td>
                     ` : `
@@ -476,21 +495,21 @@
                             <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
                                    value="${escapeHtml(entry.semester_1_grade || '')}"
                                    data-field="semester_1_grade"
-                                   placeholder="S1"
+                                   placeholder="e.g. 88"
                                    ${(!editSem1 || readonly) ? 'readonly' : ''}>
                         </td>
                         <td class="py-2 px-2 align-top">
                             <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
                                    value="${escapeHtml(entry.semester_2_grade || '')}"
                                    data-field="semester_2_grade"
-                                   placeholder="S2"
+                                   placeholder="e.g. 91"
                                    ${(!editSem2 || readonly) ? 'readonly' : ''}>
                         </td>
                         <td class="py-2 pl-2 align-top">
                             <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
                                    value="${escapeHtml(entry.final_grade || '')}"
                                    data-field="final_grade"
-                                   placeholder="Final"
+                                   placeholder="e.g. 90"
                                    ${(!editSem2 || readonly) ? 'readonly' : ''}>
                         </td>
                     `}
@@ -499,8 +518,8 @@
         }
 
         const headers = isBackfill
-            ? '<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final grade</th>'
-            : '<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 1</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 2</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final</th>';
+            ? '<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final %</th>'
+            : '<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 1 %</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 2 %</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final %</th>';
 
         return `
             <div class="overflow-x-auto">
@@ -581,6 +600,103 @@
         }
     }
 
+    function buildGradeHelpBanner() {
+        return `
+            <div class="mb-4 p-3 border border-amber-200 rounded-2xl bg-amber-50/50 text-sm text-slate-700">
+                Enter all grades as <strong>percentages</strong> (0–100). Transcripts will calculate GPA automatically from these numbers.
+                <button type="button" class="ml-1 text-navy font-semibold underline"
+                        onclick="window.AcademicRecords.showGradeEquivalencyChart()">View letter grade chart</button>
+            </div>
+        `;
+    }
+
+    function buildAddStudentFormHtml(collapsed = false) {
+        const formHtml = `
+            <form id="add-student-form" class="grid sm:grid-cols-3 gap-3 items-end" onsubmit="window.AcademicRecords.handleAddStudent(event)">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">First name</label>
+                    <input name="first_name" required class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Last name</label>
+                    <input name="last_name" class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Current grade</label>
+                    <select name="grade_level" required class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm">
+                        <option value="">Select grade</option>
+                        ${GRADE_LEVELS.map((g) => `<option value="${g}">${g === 'K3' || g === 'K4' || g === 'K5' ? g : `Grade ${g}`}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="sm:col-span-3 flex items-center gap-3">
+                    <button type="submit" id="add-student-submit-btn" class="px-6 py-2.5 bg-navy text-white font-semibold rounded-2xl text-sm hover:bg-[#0F3A5F] disabled:opacity-60 disabled:cursor-not-allowed">Add student</button>
+                    <span id="add-student-status" class="text-sm text-slate-500 hidden"></span>
+                </div>
+            </form>
+        `;
+
+        if (collapsed) {
+            return `
+                <details class="hub-panel hub-panel-padded mt-6 border border-slate-200 rounded-3xl">
+                    <summary class="text-lg font-semibold text-navy cursor-pointer list-none">Add another student</summary>
+                    <div class="pt-4 mt-2 border-t border-slate-100">${formHtml}</div>
+                </details>
+            `;
+        }
+
+        return `
+            <div class="hub-panel hub-panel-padded mb-6">
+                <h3 class="text-lg font-semibold text-navy mb-2">Add a student</h3>
+                ${formHtml}
+            </div>
+        `;
+    }
+
+    function showGradeEquivalencyChart() {
+        let modal = document.getElementById('ar-grade-chart-modal');
+        if (!modal) {
+            const rows = LETTER_GRADE_SCALE.map((row) => `
+                <tr class="border-b border-slate-100">
+                    <td class="py-2 pr-4 font-semibold text-navy">${escapeHtml(row.letter)}</td>
+                    <td class="py-2 pr-4">${escapeHtml(row.range)}</td>
+                    <td class="py-2 text-slate-600">${row.gpa.toFixed(1)}</td>
+                </tr>
+            `).join('');
+
+            document.body.insertAdjacentHTML('beforeend', `
+                <div id="ar-grade-chart-modal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="ar-grade-chart-title">
+                    <button type="button" class="absolute inset-0 w-full h-full border-0 p-0 bg-navy/50" aria-label="Close" data-ar-grade-chart-backdrop></button>
+                    <div class="relative z-10 w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-2xl p-6">
+                        <h3 id="ar-grade-chart-title" class="heading-serif text-xl text-navy tracking-tight">Letter to Percentage</h3>
+                        <p class="text-sm text-slate-600 mt-2">If you graded with letters, use this chart to enter the matching percentage. GPA is calculated from the percentage when transcripts are generated.</p>
+                        <table class="w-full text-sm mt-4">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-left text-xs font-semibold text-slate-500">
+                                    <th class="pb-2 pr-4">Letter</th>
+                                    <th class="pb-2 pr-4">Use this %</th>
+                                    <th class="pb-2">GPA</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                        <button type="button" id="ar-grade-chart-close" class="mt-6 w-full min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold bg-navy hover:bg-[#0F3A5F] text-white border border-navy">Got it</button>
+                    </div>
+                </div>
+            `);
+
+            modal = document.getElementById('ar-grade-chart-modal');
+            const close = () => modal?.classList.add('hidden');
+            modal?.querySelector('[data-ar-grade-chart-backdrop]')?.addEventListener('click', close);
+            document.getElementById('ar-grade-chart-close')?.addEventListener('click', close);
+            modal?.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && modal && !modal.classList.contains('hidden')) close();
+            });
+        }
+
+        modal.classList.remove('hidden');
+        document.getElementById('ar-grade-chart-close')?.focus({ preventScroll: true });
+    }
+
     async function loadAcademicRecords() {
         const root = document.getElementById('academic-records-root');
         if (!root) return;
@@ -597,34 +713,10 @@
             const students = await fetchStudents(user.id);
             const backfillYears = priorSchoolYears(5);
 
-            let html = `
-                <div class="hub-panel hub-panel-padded mb-6">
-                    <h3 class="text-lg font-semibold text-navy mb-2">Add a student</h3>
-                    <form id="add-student-form" class="grid sm:grid-cols-3 gap-3 items-end" onsubmit="window.AcademicRecords.handleAddStudent(event)">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1">First name</label>
-                            <input name="first_name" required class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1">Last name</label>
-                            <input name="last_name" class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1">Current grade</label>
-                            <select name="grade_level" required class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm">
-                                <option value="">Select grade</option>
-                                ${GRADE_LEVELS.map((g) => `<option value="${g}">${g === 'K3' || g === 'K4' || g === 'K5' ? g : `Grade ${g}`}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="sm:col-span-3 flex items-center gap-3">
-                            <button type="submit" id="add-student-submit-btn" class="px-6 py-2.5 bg-navy text-white font-semibold rounded-2xl text-sm hover:bg-[#0F3A5F] disabled:opacity-60 disabled:cursor-not-allowed">Add student</button>
-                            <span id="add-student-status" class="text-sm text-slate-500 hidden"></span>
-                        </div>
-                    </form>
-                </div>
-            `;
+            let html = buildGradeHelpBanner();
 
             if (!students.length) {
+                html += buildAddStudentFormHtml(false);
                 html += '<div class="hub-empty-state">No students yet. Add each enrolled child above to begin tracking grades.</div>';
                 root.innerHTML = html;
                 return;
@@ -735,6 +827,7 @@
             }
 
             html += '</div>';
+            html += buildAddStudentFormHtml(true);
             root.innerHTML = html;
 
             if (focusId) {
@@ -937,15 +1030,18 @@
     window.AcademicRecords = {
         GRADE_LEVELS,
         CORE_COURSES,
+        LETTER_GRADE_SCALE,
         PROGRESS_TASK_PREFIX,
         PROGRESS_TASK_URL_PREFIX,
         currentSchoolYear,
         priorSchoolYears,
         isHighSchoolGrade,
         parseProgressReportStudentId,
+        percentToGpa,
         renderProgressReportTaskCard,
         openStudentRecord,
         loadAcademicRecords,
+        showGradeEquivalencyChart,
         handleAddStudent,
         handleAddBackfill,
         markNoPriorYears,

@@ -465,7 +465,7 @@
             <div id="dashboard-academic-records" class="hidden">
                 <div class="hub-section-intro">
                     <h2 class="hub-section-heading">Academic Records</h2>
-                    <p class="hub-section-subtitle">Add each enrolled student, backfill prior high school years if needed, and enter semester grades. Progress report tasks in My Tasks link here for the current school year.</p>
+                    <p class="hub-section-subtitle">Add each enrolled student, backfill prior high school years if needed, and enter semester grades as percentages. Progress report tasks in My Tasks link here for the current school year.</p>
                 </div>
                 <div id="academic-records-root">
                     <div class="hub-empty-state">Loading academic records...</div>
@@ -530,6 +530,8 @@
                                 class="hub-admin-tab-btn admin-nav-btn is-active" aria-selected="true">Signups</button>
                         <button type="button" onclick="showAdminSection('families')" id="admin-nav-families" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Families</button>
+                        <button type="button" onclick="showAdminSection('academic')" id="admin-nav-academic" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Academic Records</button>
                         <button type="button" onclick="showAdminSection('site')" id="admin-nav-site" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Site Content</button>
                         <button type="button" onclick="showAdminSection('access')" id="admin-nav-access" role="tab"
@@ -563,7 +565,31 @@
                     </div>
                 </div>
 
-                <!-- 2. Families: per-family document management -->
+                <!-- 2. Academic Records: per-family grade management -->
+                <div id="admin-section-academic" class="hidden">
+                    <div class="hub-admin-block">
+                        <h3 class="hub-admin-block-title mb-1">Academic Records</h3>
+                        <p class="hub-section-subtitle mb-6">View each family's students, reopen locked school years when corrections are needed, or remove duplicate student records.</p>
+
+                        <div class="hub-panel hub-panel-padded">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
+                                <select id="admin-academic-family-select" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="loadAdminAcademicRecords()">
+                                    <option value="">Loading families...</option>
+                                </select>
+                            </div>
+
+                            <div class="mt-6 pt-4 border-t border-slate-200">
+                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Students &amp; locked years</label>
+                                <div id="admin-academic-records-standalone-list" class="text-sm text-slate-600 border border-sky-200 rounded-2xl p-3 min-h-[60px] bg-sky-50/30">
+                                    Select a family above to view students and reopen locked years.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Families: per-family document management -->
                 <div id="admin-section-families" class="hidden">
                 <div id="admin-upload-section" class="pt-2">
                     <h3 class="hub-admin-block-title mb-1">Family Documents &amp; Tasks</h3>
@@ -938,7 +964,7 @@
     </div>
 
     <script src="assets/app-dialog.js"></script>
-    <script src="assets/academic-records.js?v=20260630"></script>
+    <script src="assets/academic-records.js?v=20260701"></script>
     <script src="assets/onboarding-checklist.js?v=20260630"></script>
     <script>
         // =============================================
@@ -977,6 +1003,7 @@
         const STAFF_ASSIGNABLE_ADMIN_SECTIONS = [
             { id: 'members', label: 'Signups' },
             { id: 'families', label: 'Families' },
+            { id: 'academic', label: 'Academic Records' },
             { id: 'records', label: 'Family Records' },
             { id: 'site', label: 'Site Content' },
             { id: 'library', label: 'Document Library' }
@@ -1695,7 +1722,7 @@
         }
 
         function getFirstAllowedAdminSection() {
-            const order = ['members', 'families', 'site', 'records', 'library', 'access'];
+            const order = ['members', 'families', 'academic', 'site', 'records', 'library', 'access'];
             const allowed = new Set(getAllowedAdminSections());
             return order.find(section => allowed.has(section)) || 'records';
         }
@@ -1980,6 +2007,7 @@
             const sections = {
                 members: document.getElementById('admin-section-members'),
                 families: document.getElementById('admin-section-families'),
+                academic: document.getElementById('admin-section-academic'),
                 records: document.getElementById('admin-section-records'),
                 access: document.getElementById('admin-section-access'),
                 library: document.getElementById('admin-section-library'),
@@ -1988,6 +2016,7 @@
             const navButtons = {
                 members: document.getElementById('admin-nav-members'),
                 families: document.getElementById('admin-nav-families'),
+                academic: document.getElementById('admin-nav-academic'),
                 records: document.getElementById('admin-nav-records'),
                 access: document.getElementById('admin-nav-access'),
                 library: document.getElementById('admin-nav-library'),
@@ -2008,6 +2037,9 @@
                 }
                 if (section === 'families' && typeof loadAdminFamilies === 'function') {
                     loadAdminFamilies();
+                }
+                if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
+                    loadAdminAcademicFamilies();
                 }
                 if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
                     loadAdminRecordsFamilies();
@@ -4634,12 +4666,75 @@
             listEl.innerHTML = html;
         }
 
-        async function loadAdminAcademicRecords() {
-            const select = document.getElementById('admin-family-select');
-            const listEl = document.getElementById('admin-academic-records-list');
-            if (!select || !listEl || !supabaseClient) return;
+        function getAdminAcademicContext() {
+            const academicSelect = document.getElementById('admin-academic-family-select');
+            const familiesSelect = document.getElementById('admin-family-select');
+            const standaloneList = document.getElementById('admin-academic-records-standalone-list');
+            const familiesList = document.getElementById('admin-academic-records-list');
 
-            const userId = select.value;
+            if (academicSelect?.value) {
+                return {
+                    userId: academicSelect.value,
+                    listEl: standaloneList,
+                    selectEl: academicSelect,
+                };
+            }
+
+            if (familiesSelect?.value) {
+                return {
+                    userId: familiesSelect.value,
+                    listEl: familiesList,
+                    selectEl: familiesSelect,
+                };
+            }
+
+            if (standaloneList && !standaloneList.classList.contains('hidden')) {
+                return { userId: '', listEl: standaloneList, selectEl: academicSelect };
+            }
+
+            return { userId: '', listEl: familiesList || standaloneList, selectEl: familiesSelect || academicSelect };
+        }
+
+        async function loadAdminAcademicFamilies(preserveUserId = null) {
+            const select = document.getElementById('admin-academic-family-select');
+            if (!select || !supabaseClient) return;
+
+            const { data: families, error } = await supabaseClient
+                .from('profiles')
+                .select('id, first_name, last_name, email')
+                .eq('approved', true)
+                .order('created_at', { ascending: false });
+
+            if (error || !families || families.length === 0) {
+                select.innerHTML = '<option value="">No approved families found</option>';
+                const listEl = document.getElementById('admin-academic-records-standalone-list');
+                if (listEl) {
+                    listEl.innerHTML = '<span class="text-slate-500">Select a family to view students and reopen locked years.</span>';
+                }
+                return;
+            }
+
+            let options = '<option value="">Select a family...</option>';
+            families.forEach((fam) => {
+                const displayName = (fam.first_name && fam.last_name)
+                    ? `${fam.first_name} ${fam.last_name}`
+                    : (fam.email || 'Unknown');
+                options += `<option value="${fam.id}">${displayName} (${fam.email})</option>`;
+            });
+            select.innerHTML = options;
+
+            if (preserveUserId) {
+                select.value = preserveUserId;
+                if (select.value === preserveUserId) {
+                    loadAdminAcademicRecords();
+                }
+            }
+        }
+
+        async function loadAdminAcademicRecords() {
+            const { userId, listEl } = getAdminAcademicContext();
+            if (!listEl || !supabaseClient) return;
+
             if (!userId) {
                 listEl.innerHTML = '<span class="text-slate-500">Select a family to view students and reopen locked years.</span>';
                 return;
@@ -4714,8 +4809,7 @@
 
         async function adminDeleteStudent(button) {
             const studentId = button?.dataset?.studentId;
-            const select = document.getElementById('admin-family-select');
-            const familyUserId = select?.value || '';
+            const { userId: familyUserId } = getAdminAcademicContext();
             if (!studentId || !supabaseClient) return;
 
             const studentName = button?.closest('.border')?.querySelector('.font-medium')?.textContent?.trim() || 'this student';
