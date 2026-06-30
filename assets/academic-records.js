@@ -788,6 +788,12 @@
                 return;
             }
 
+            if (event.target.closest('[data-ar-add-close]')) {
+                event.preventDefault();
+                closeAddPanel();
+                return;
+            }
+
             const modeBtn = event.target.closest('[data-ar-add-mode]');
             if (modeBtn) {
                 event.preventDefault();
@@ -806,6 +812,8 @@
             summary.addEventListener('click', () => {
                 const willOpen = !panel.hasAttribute('open');
                 if (!willOpen) return;
+
+                closeAddPanel();
 
                 root.querySelectorAll('.student-record-panel[open]').forEach((other) => {
                     if (other !== panel) other.removeAttribute('open');
@@ -2247,13 +2255,29 @@
         `;
     }
 
+    function buildAddPanelHeaderHtml() {
+        return `
+            <div class="ar-add-panel-header">
+                <div class="ar-add-panel-header-text">
+                    <h3 class="ar-add-panel-title">Add student or prior year</h3>
+                    <p class="ar-add-panel-hint">Tap <strong>Close</strong> to cancel if you opened this by mistake.</p>
+                </div>
+                <button type="button" class="ar-add-close-btn" data-ar-add-close aria-label="Close add form">
+                    <span class="ar-add-close-icon" aria-hidden="true">×</span>
+                    <span>Close</span>
+                </button>
+            </div>
+        `;
+    }
+
     function buildAddPanelHtml(students, backfillYears, options = {}) {
-        const { expanded = false, showModeSwitch = true } = options;
+        const { expanded = false, showModeSwitch = true, showClose = showModeSwitch } = options;
         const schoolYear = currentSchoolYear();
 
         return `
             <div id="ar-add-panel" class="ar-add-panel ${expanded ? '' : 'hidden'}" data-ar-add-mode="${ADD_MODE_STUDENT}" role="region" aria-label="Add student or prior year">
                 <div class="ar-add-panel-body">
+                    ${showClose ? buildAddPanelHeaderHtml() : ''}
                     ${showModeSwitch ? buildAddModeSwitchHtml() : ''}
                     <div id="ar-add-student-form-wrap" class="ar-add-form-wrap mt-4">
                         <p class="ar-add-help">Add each enrolled child. A ${escapeHtml(schoolYear)} progress report is created automatically.</p>
@@ -2281,16 +2305,18 @@
         }
 
         return `
-            <div class="ar-add-toolbar mb-4">
-                <button type="button"
-                        class="ar-add-trigger"
-                        aria-expanded="false"
-                        aria-controls="ar-add-panel">
-                    <span class="ar-add-trigger-icon" aria-hidden="true">+</span>
-                    <span>Add</span>
-                </button>
+            <div class="ar-add-zone">
+                <div class="ar-add-toolbar">
+                    <button type="button"
+                            class="ar-add-trigger"
+                            aria-expanded="false"
+                            aria-controls="ar-add-panel">
+                        <span class="ar-add-trigger-icon" aria-hidden="true">+</span>
+                        <span>Add</span>
+                    </button>
+                </div>
+                ${buildAddPanelHtml(students, backfillYears, { expanded: false, showModeSwitch: true })}
             </div>
-            ${buildAddPanelHtml(students, backfillYears, { expanded: false, showModeSwitch: true })}
         `;
     }
 

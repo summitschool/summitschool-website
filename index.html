@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
 
     <!-- Pre-compiled Tailwind + custom styles (blocking — eliminates runtime CDN FOUC) -->
-    <link rel="stylesheet" href="assets/styles.css?v=20260629">
+    <link rel="stylesheet" href="assets/styles.css?v=20260705">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -785,6 +785,23 @@
             if (match) select.value = match.value;
         }
 
+        function scrollToContactForm(behavior = 'smooth') {
+            const form = document.getElementById('contact-form');
+            if (!form) return;
+
+            const offsetPosition = form.getBoundingClientRect().top + window.pageYOffset - NAV_HEIGHT - 12;
+            window.scrollTo({ top: Math.max(0, offsetPosition), behavior });
+        }
+
+        function initContactHashScroll() {
+            const hash = window.location.hash.replace('#', '');
+            if (hash !== 'contact' && hash !== 'contact-form') return;
+
+            requestAnimationFrame(() => {
+                setTimeout(() => scrollToContactForm('auto'), 50);
+            });
+        }
+
         // Contact form handler
         function initContactForm() {
             const form = document.getElementById('contact-form');
@@ -843,6 +860,12 @@
                 anchor.addEventListener('click', function(e) {
                     const href = this.getAttribute('href');
                     if (!href || href === '#') return;
+
+                    if (href === '#contact' || href === '#contact-form') {
+                        e.preventDefault();
+                        scrollToContactForm('smooth');
+                        return;
+                    }
 
                     const target = document.querySelector(href);
                     if (!target) return;
@@ -980,6 +1003,7 @@
             initLocationMapLink();
             initMobileMenu();
             initContactInterestFromUrl();
+            initContactHashScroll();
             initContactForm();
             initSmoothScroll();
             setFooterYear();
