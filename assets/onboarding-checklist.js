@@ -3,6 +3,8 @@
     const ONBOARDING_TASK_URL = 'hub://onboarding';
     const ONBOARDING_TASK_CATEGORY = 'Onboarding (Task)';
     const CODE_OF_CONDUCT_TITLE = 'Sign Code of Conduct (required)';
+    const CODE_OF_CONDUCT_URL = 'https://enroll.summitchurchschool.org/d/3oBpb3Knk9GsNB';
+    const CODE_OF_CONDUCT_SLUG = '3oBpb3Knk9GsNB';
     const ID_TASK_TITLE = 'Upload Government Issued ID (required)';
 
     const INCOMPLETE_MESSAGES = {
@@ -157,9 +159,9 @@
         );
     }
 
-    async function assignCodeOfConductTaskOnApproval(userId) {
+    async function fetchCodeOfConductStandard() {
         const client = window.supabaseClient;
-        if (!client || !userId) return;
+        if (!client) return null;
 
         const { data: stds } = await client
             .from('standard_documents')
@@ -167,7 +169,45 @@
             .ilike('title', '%code of conduct%')
             .limit(1);
 
-        const std = stds?.[0];
+        return stds?.[0] || null;
+    }
+
+    function resolveCodeOfConductUrl(std) {
+        const url = String(std?.url || '').trim();
+        if (url) return url;
+        return CODE_OF_CONDUCT_URL;
+    }
+
+    async function syncCodeOfConductTaskUrl(userId) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return;
+
+        const std = await fetchCodeOfConductStandard();
+        const url = resolveCodeOfConductUrl(std);
+        const tasks = await fetchActiveTasks(userId);
+        const conductTasks = tasks.filter(isCodeOfConductTask);
+
+        for (const task of conductTasks) {
+            const currentUrl = String(task.url || '').trim();
+            const needsUrl = !currentUrl || !currentUrl.toLowerCase().includes(CODE_OF_CONDUCT_SLUG.toLowerCase());
+            if (!needsUrl && (!std?.title || task.title === std.title)) continue;
+
+            const { error } = await client
+                .from('family_documents')
+                .update({
+                    url,
+                    title: std?.title || task.title || CODE_OF_CONDUCT_TITLE,
+                    description: std?.description || task.description || 'Read and sign the Summit Church School Code of Conduct.',
+                })
+                .eq('id', task.id);
+            if (error) console.warn('[Onboarding] Could not sync Code of Conduct task URL:', error.message);
+        }
+    }
+
+    async function assignCodeOfConductTaskOnApproval(userId) {
+        if (!window.supabaseClient || !userId) return;
+
+        const std = await fetchCodeOfConductStandard();
         const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
         await insertTaskIfMissing(
             userId,
@@ -176,13 +216,14 @@
                 user_id: userId,
                 title: std?.title || CODE_OF_CONDUCT_TITLE,
                 description: std?.description || 'Read and sign the Summit Church School Code of Conduct.',
-                url: std?.url || '',
+                url: resolveCodeOfConductUrl(std),
                 category: (std?.category || 'Policy') + ' (Task)',
                 school_year: schoolYear,
                 due_date_1: softDueDate(14),
                 due_date_1_cleared: false,
             }
         );
+        await syncCodeOfConductTaskUrl(userId);
     }
 
     async function assignIdTaskOnApproval(userId) {
@@ -265,6 +306,7 @@
             if (activeTasks.some(isOnboardingTask)) {
                 await assignCodeOfConductTaskOnApproval(userId);
                 await assignIdTaskOnApproval(userId);
+                await syncCodeOfConductTaskUrl(userId);
             }
         }
 
@@ -510,6 +552,8 @@
         ONBOARDING_TASK_TITLE,
         ONBOARDING_TASK_URL,
         CODE_OF_CONDUCT_TITLE,
+        CODE_OF_CONDUCT_URL,
+        CODE_OF_CONDUCT_SLUG,
         ID_TASK_TITLE,
         isOnboardingTask,
         isCodeOfConductTask,
