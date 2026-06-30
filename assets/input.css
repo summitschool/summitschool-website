@@ -2095,16 +2095,18 @@ body.app-dialog-open {
   display: none;
 }
 
-.student-record-panel[open] .ar-student-close-btn {
-  display: inline-flex;
-  position: absolute;
-  top: 0.85rem;
-  right: 0.85rem;
-  z-index: 3;
-}
+@media (max-width: 639px) {
+  .student-record-panel[open] .ar-student-close-btn {
+    display: inline-flex;
+    position: absolute;
+    top: 0.85rem;
+    right: 0.85rem;
+    z-index: 3;
+  }
 
-.student-record-panel[open] > summary.ar-student-panel-trigger {
-  padding-right: 5.75rem;
+  .student-record-panel[open] > summary.ar-student-panel-trigger {
+    padding-right: 5.75rem;
+  }
 }
 
 #academic-records-root .student-record-panel[open],
