@@ -1595,8 +1595,8 @@
                         : `${yearRecord.school_year} progress report — ${statusLabel}`;
 
                     yearSections += `
-                        <details class="border border-slate-200 rounded-xl mt-2" open>
-                            <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy">${escapeHtml(yearTitle)}</summary>
+                        <details class="border border-slate-200 rounded-xl mt-2">
+                            <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy list-none">${escapeHtml(yearTitle)}</summary>
                             <div class="p-3 border-t border-slate-100 space-y-3">
                                 ${buildGradeTableHtml(yearRecord, entries, { readonly: true })}
                                 ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
@@ -1617,9 +1617,9 @@
                 }
 
                 html += `
-                    <div class="border border-sky-200/80 rounded-xl p-3 bg-white/80" data-admin-student="${student.id}">
-                        <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div>
+                    <details class="border border-sky-200/80 rounded-xl bg-white/80" data-admin-student="${student.id}">
+                        <summary class="px-3 py-2 cursor-pointer list-none flex flex-wrap items-start justify-between gap-2">
+                            <div class="min-w-0">
                                 <div class="font-medium text-navy text-sm">${escapeHtml(name)} <span class="text-slate-500 font-normal">(${escapeHtml(gradeLabel)})</span></div>
                                 <div class="text-[10px] text-slate-500 mt-0.5">Prior years: ${escapeHtml(student.prior_years_status || 'pending')}</div>
                                 ${creditHeaderHtml}
@@ -1627,10 +1627,10 @@
                             <button type="button"
                                     class="text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0"
                                     data-student-id="${student.id}"
-                                    onclick="adminDeleteStudent(this)">Delete student</button>
-                        </div>
-                        <div class="mt-2">${yearSections}</div>
-                    </div>
+                                    onclick="event.preventDefault(); event.stopPropagation(); adminDeleteStudent(this)">Delete student</button>
+                        </summary>
+                        <div class="px-3 pb-3 border-t border-sky-100">${yearSections}</div>
+                    </details>
                 `;
             }
             html += '</div>';
