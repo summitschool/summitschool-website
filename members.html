@@ -4132,6 +4132,165 @@
             }
         }
 
+        async function gatherPendingStoragePathsForUser(userId) {
+            const paths = new Set();
+
+            const { data: uploads } = await supabaseClient
+                .from('id_uploads')
+                .select('storage_path')
+                .eq('user_id', userId);
+
+            (uploads || []).forEach((row) => {
+                if (isPendingIdStoragePath(row.storage_path)) {
+                    paths.add(normalizeStoragePath(row.storage_path));
+                }
+            });
+
+            const { data: docs } = await supabaseClient
+                .from('family_documents')
+                .select('url')
+                .eq('user_id', userId);
+
+            (docs || []).forEach((doc) => {
+                if (isPendingIdStoragePath(doc.url)) {
+                    paths.add(normalizeStoragePath(doc.url));
+                }
+            });
+
+            return paths;
+        }
+
+        async function removePendingIdStoragePaths(paths) {
+            const bucket = supabaseClient.storage.from('Family-Documents');
+            const toRemove = new Set();
+
+            for (const rawPath of paths) {
+                const normalized = normalizeStoragePath(rawPath);
+                if (!normalized || normalized.startsWith('http') || !isPendingIdStoragePath(normalized)) {
+                    continue;
+                }
+
+                toRemove.add(normalized);
+                getStoragePathCandidates(normalized).forEach((candidate) => {
+                    if (isPendingIdStoragePath(candidate)) {
+                        toRemove.add(candidate);
+                    }
+                });
+
+                const resolved = await resolveStoragePathOptional(normalized);
+                if (resolved && isPendingIdStoragePath(resolved)) {
+                    toRemove.add(resolved);
+                    getStoragePathCandidates(resolved).forEach((candidate) => {
+                        if (isPendingIdStoragePath(candidate)) {
+                            toRemove.add(candidate);
+                        }
+                    });
+                }
+            }
+
+            const batch = [...toRemove];
+            if (!batch.length) return [];
+
+            const { error } = await bucket.remove(batch);
+            if (error) {
+                console.warn('[Storage] Pending ID cleanup remove failed:', error.message);
+            }
+
+            return batch;
+        }
+
+        async function cleanupPendingIdStorageForUser(userId, seedPaths = []) {
+            if (!userId || !supabaseClient) return [];
+
+            const paths = new Set(seedPaths.filter(Boolean).map(normalizeStoragePath));
+
+            (await gatherPendingStoragePathsForUser(userId)).forEach((path) => paths.add(path));
+
+            const pendingFolder = `${userId}/ids/pending`;
+            const { data: pendingFiles, error: listPendingError } = await supabaseClient.storage
+                .from('Family-Documents')
+                .list(pendingFolder, { limit: 500 });
+
+            if (!listPendingError && pendingFiles?.length) {
+                pendingFiles.forEach((file) => {
+                    if (file?.name) {
+                        paths.add(`${pendingFolder}/${file.name}`);
+                    }
+                });
+            }
+
+            const knownNames = new Set();
+            paths.forEach((path) => {
+                const name = path.split('/').pop();
+                if (name) knownNames.add(name);
+            });
+
+            const { data: tempFiles, error: listTempError } = await supabaseClient.storage
+                .from('Family-Documents')
+                .list('temp-ids', { limit: 500 });
+
+            if (!listTempError && tempFiles?.length) {
+                tempFiles.forEach((file) => {
+                    if (file?.name && knownNames.has(file.name)) {
+                        paths.add(`temp-ids/${file.name}`);
+                    }
+                });
+            }
+
+            return removePendingIdStoragePaths(paths);
+        }
+
+        async function purgePendingIdDocumentRows(userId, keepDocId = null) {
+            if (!userId || !supabaseClient) return;
+
+            let query = supabaseClient
+                .from('family_documents')
+                .delete()
+                .eq('user_id', userId)
+                .or('title.ilike.%Pending Admin Review%,url.ilike.%/ids/pending/%,url.ilike.temp-ids/%');
+
+            if (keepDocId) {
+                query = query.neq('id', keepDocId);
+            }
+
+            const { error } = await query;
+            if (error) {
+                console.warn('[ID Approve] Could not purge pending ID document rows:', error.message);
+            }
+        }
+
+        async function cleanupStalePendingIdStorageForApprovedFamilies() {
+            if (!supabaseClient) return;
+
+            try {
+                const userIds = new Set();
+
+                const { data: approvedUploads } = await supabaseClient
+                    .from('id_uploads')
+                    .select('user_id')
+                    .eq('status', 'approved');
+
+                (approvedUploads || []).forEach((row) => {
+                    if (row.user_id) userIds.add(row.user_id);
+                });
+
+                const { data: onFileDocs } = await supabaseClient
+                    .from('family_documents')
+                    .select('user_id')
+                    .ilike('title', '%Government ID on File%');
+
+                (onFileDocs || []).forEach((row) => {
+                    if (row.user_id) userIds.add(row.user_id);
+                });
+
+                for (const userId of userIds) {
+                    await cleanupPendingIdStorageForUser(userId, []);
+                }
+            } catch (err) {
+                console.warn('[ID Storage] Stale pending cleanup skipped:', err.message);
+            }
+        }
+
         async function getSignedStorageUrl(storagePath) {
             const path = normalizeStoragePath(storagePath);
             if (!path || path.startsWith('http')) return storagePath;
@@ -4239,13 +4398,7 @@
 
             if (uploadError) throw uploadError;
 
-            const { error: removeError } = await supabaseClient.storage
-                .from('Family-Documents')
-                .remove([sourcePath]);
-
-            if (removeError) {
-                console.warn('[Storage] Could not remove pending ID source file:', removeError.message);
-            }
+            await cleanupPendingIdStorageForUser(userId, [sourcePathInput, sourcePath]);
 
             return permanentPath;
         }
@@ -4420,7 +4573,7 @@
                                         class="hub-admin-action-btn px-3 py-2 bg-navy hover:bg-[#0F3A5F] text-white text-xs font-semibold rounded-lg transition-all">
                                     Approve
                                 </button>
-                                <button type="button" data-action="deny-pending-id" data-doc-id="${item.id}" data-source="${item.source}" data-storage-path="${item.storage_path || ''}"
+                                <button type="button" data-action="deny-pending-id" data-doc-id="${item.id}" data-source="${item.source}" data-user-id="${item.user_id || ''}" data-storage-path="${item.storage_path || ''}"
                                         class="hub-admin-action-btn px-3 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-all">
                                     Deny
                                 </button>
@@ -4440,6 +4593,7 @@
             }
 
             list.innerHTML = html;
+            void cleanupStalePendingIdStorageForApprovedFamilies();
         }
 
         async function approvePendingID(button) {
@@ -4495,7 +4649,9 @@
                         console.warn('[ID Approve] id_uploads sync skipped:', uploadSyncError.message);
                     }
 
-                    approveStorageMoved = storageMoved;
+                    await purgePendingIdDocumentRows(doc.user_id, docId);
+                    await cleanupPendingIdStorageForUser(doc.user_id, [originalUrl, finalUrl]);
+                    approveStorageMoved = storageMoved || !isPendingIdStoragePath(finalUrl);
                 } else if (source === 'id_uploads') {
                     const { data: upload, error: fetchError } = await supabaseClient
                         .from('id_uploads')
@@ -4527,7 +4683,9 @@
                         .update({ status: 'approved' })
                         .eq('id', docId);
 
-                    approveStorageMoved = storageMoved;
+                    await purgePendingIdDocumentRows(upload.user_id);
+                    await cleanupPendingIdStorageForUser(upload.user_id, [originalUrl, finalUrl]);
+                    approveStorageMoved = storageMoved || !isPendingIdStoragePath(finalUrl);
                 }
 
                 const statusDiv = document.getElementById('admin-pending-ids-status');
@@ -4592,10 +4750,12 @@
                     }
                 }
 
-                if (storagePath && !storagePath.startsWith('http')) {
-                    await supabaseClient.storage
-                        .from('Family-Documents')
-                        .remove([storagePath]);
+                const deniedUserId = button.dataset.userId || null;
+
+                if (deniedUserId) {
+                    await cleanupPendingIdStorageForUser(deniedUserId, [storagePath]);
+                } else if (storagePath && !storagePath.startsWith('http')) {
+                    await removePendingIdStoragePaths([storagePath]);
                 }
 
                 const statusDiv = document.getElementById('admin-pending-ids-status');
