@@ -2889,6 +2889,47 @@ html.auth-transition-active #pending-view {
   }
 }
 
+/* Mobile floating return-to-top */
+.mobile-return-top {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .mobile-return-top {
+    position: fixed;
+    right: 1rem;
+    bottom: 1.25rem;
+    z-index: 60;
+    width: 2.75rem;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgb(255 255 255 / 0.5);
+    background: rgb(255 255 255 / 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #0a2540;
+    box-shadow: 0 4px 18px rgb(10 37 64 / 0.14);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+  }
+
+  .mobile-return-top.is-visible {
+    display: inline-flex;
+  }
+
+  .mobile-return-top:active {
+    transform: scale(0.96);
+  }
+
+  .mobile-return-top i {
+    font-size: 1rem;
+    line-height: 1;
+  }
+}
+
 @media print {
   .no-print { display: none !important; }
   .hero { min-height: auto !important; }

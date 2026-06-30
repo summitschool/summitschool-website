@@ -993,6 +993,19 @@
         });
     }
 
+    function attachScrollAfterStudentOpen(panel) {
+        if (!panel) return;
+
+        const scrollAfterOpen = () => {
+            panel.removeEventListener('toggle', scrollAfterOpen);
+            if (!panel.open) return;
+            requestAnimationFrame(() => {
+                scrollToElementWithOffset(panel.querySelector('summary') || panel, { extra: 10 });
+            });
+        };
+        panel.addEventListener('toggle', scrollAfterOpen);
+    }
+
     function bindStudentPanelBehavior(root) {
         if (!root) return;
 
@@ -1007,6 +1020,7 @@
                 root.querySelectorAll('.student-record-panel[open]').forEach((other) => {
                     if (other !== panel) other.removeAttribute('open');
                 });
+                attachScrollAfterStudentOpen(panel);
                 panel.setAttribute('open', '');
             });
         });
@@ -1038,14 +1052,7 @@
                     if (other !== panel) other.removeAttribute('open');
                 });
 
-                const scrollAfterOpen = () => {
-                    panel.removeEventListener('toggle', scrollAfterOpen);
-                    if (!panel.open) return;
-                    requestAnimationFrame(() => {
-                        scrollToElementWithOffset(panel.querySelector('summary') || panel, { extra: 10 });
-                    });
-                };
-                panel.addEventListener('toggle', scrollAfterOpen);
+                attachScrollAfterStudentOpen(panel);
             });
 
             panel.addEventListener('toggle', () => {
@@ -1933,7 +1940,20 @@
             .ilike('category', '%task%')
             .maybeSingle();
 
-        if (existing?.id) return;
+        if (existing?.id) {
+            const { data: existingTask } = await client
+                .from('family_documents')
+                .select('due_date_2')
+                .eq('id', existing.id)
+                .maybeSingle();
+            if (!existingTask?.due_date_2) {
+                await client
+                    .from('family_documents')
+                    .update({ due_date_2: dues.due_date_2 })
+                    .eq('id', existing.id);
+            }
+            return;
+        }
 
         const { error } = await client.from('family_documents').insert({
             user_id: user.id,
@@ -2989,6 +3009,55 @@
         });
     }
 
+    function formatProgressDueDate(isoDate) {
+        const raw = String(isoDate || '').split('T')[0];
+        const parts = raw.split('-');
+        if (parts.length === 3) return `${parts[1]}/${parts[2]}/${parts[0]}`;
+        return raw;
+    }
+
+    function isProgressDueDatePast(isoDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dueDay = new Date(`${String(isoDate).split('T')[0]}T00:00:00`);
+        return dueDay < today;
+    }
+
+    function renderProgressReportDueDatesHtml(student, years, schoolYear = currentSchoolYear()) {
+        const dues = defaultProgressDueDates(schoolYear, student?.current_grade_level);
+        const current = (years || []).find((year) => (
+            year.school_year === schoolYear && year.entry_type === 'current'
+        ));
+
+        const dueEntries = [
+            {
+                label: 'First Semester Due',
+                date: dues.due_date_1,
+                colorClass: 'text-sky-700',
+                relevant: !current?.semester_1_locked,
+            },
+            {
+                label: 'Second Semester Due',
+                date: dues.due_date_2,
+                colorClass: 'text-violet-700',
+                relevant: !current?.semester_2_locked,
+            },
+        ];
+
+        let overdue = false;
+        const lines = dueEntries.map((entry) => {
+            const entryOverdue = entry.relevant && isProgressDueDatePast(entry.date);
+            if (entryOverdue) overdue = true;
+            const overdueClass = entryOverdue ? 'text-red-600' : entry.colorClass;
+            return `<div class="text-xs font-semibold ${overdueClass}">${escapeHtml(entry.label)} ${escapeHtml(formatProgressDueDate(entry.date))}</div>`;
+        }).join('');
+
+        return {
+            html: `<div class="mt-2 space-y-0.5">${lines}</div>`,
+            overdue,
+        };
+    }
+
     async function renderProgressReportTaskCard(task, studentId, options = {}) {
         const client = await getClient();
         let student = options.student;
@@ -3006,6 +3075,10 @@
         const current = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
         const statusLabel = getProgressStatusLabel(current, student?.current_grade_level);
         const closed = current && isSchoolYearClosed(current.school_year) && !current.admin_reopened_at;
+        const dueDates = renderProgressReportDueDatesHtml(student, years, currentYear);
+        const overdueIcon = dueDates.overdue
+            ? '<span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-red-100 text-red-600" title="Overdue"><i class="fas fa-exclamation text-sm"></i></span>'
+            : (options.overdueIcon || '');
 
         let actionHint = `Enter ${name}'s grades in Academic Records.`;
         if (current?.semester_2_locked) {
@@ -3025,9 +3098,9 @@
                         <h4 class="font-semibold text-lg text-navy">${escapeHtml(task.title)}</h4>
                         <p class="text-sm text-slate-600 mt-1">${escapeHtml(actionHint)}</p>
                         <p class="text-xs font-medium text-slate-500 mt-2">${escapeHtml(statusLabel)}</p>
-                        ${options.dueDatesHtml || ''}
+                        ${dueDates.html}
                     </div>
-                    ${options.overdueIcon || ''}
+                    ${overdueIcon}
                 </div>
                 <button type="button"
                         class="mt-4 w-full py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl text-sm transition-all active:scale-[0.985]"

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260717">
+    <link rel="stylesheet" href="assets/styles.css?v=20260719">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1033,8 +1033,15 @@
         
     </div>
 
+    <button type="button"
+            id="mobile-return-top"
+            class="mobile-return-top hidden"
+            aria-label="Return to top">
+        <i class="fas fa-chevron-up" aria-hidden="true"></i>
+    </button>
+
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260718"></script>
+    <script src="assets/academic-records.js?v=20260719"></script>
     <script src="assets/onboarding-checklist.js?v=20260711"></script>
     <script>
         // =============================================
@@ -2314,6 +2321,7 @@
 
             activateHubTabButtons(hubTabs, activeTab);
             lastDashboardTab = tab;
+            window.dispatchEvent(new Event('scroll'));
         }
 
         function isTaskDocument(doc) {
@@ -6292,6 +6300,27 @@
         }
 
         // Mobile menu
+        function setupMobileReturnTop() {
+            const btn = document.getElementById('mobile-return-top');
+            if (!btn) return;
+
+            const threshold = 240;
+            const updateVisibility = () => {
+                const dashboardView = document.getElementById('dashboard-view');
+                const dashboardVisible = dashboardView && !dashboardView.classList.contains('hidden');
+                const shouldShow = dashboardVisible && window.scrollY > threshold;
+                btn.classList.toggle('is-visible', shouldShow);
+                btn.classList.toggle('hidden', !shouldShow);
+            };
+
+            window.addEventListener('scroll', updateVisibility, { passive: true });
+            window.addEventListener('resize', updateVisibility);
+            btn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            updateVisibility();
+        }
+
         function setupMobileMenu() {
             const btn = document.getElementById('mobile-menu-btn');
             const menu = document.getElementById('mobile-menu');
@@ -6367,6 +6396,7 @@
             setupForms();
             setupAuthTabs();
             setupMobileMenu();
+            setupMobileReturnTop();
             setupAdminUpload();       // personal uploads (now supports URL for DocuSeal + file)
             setupAdminSharedForm();   // shared resources management
             setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
