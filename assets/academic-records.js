@@ -574,8 +574,6 @@
         }
     }
 
-    let userOpenedStudentId = null;
-
     function bindAcademicRecordsDelegation() {
         const root = document.getElementById('academic-records-root');
         if (!root || root.dataset.arDelegationBound === '1') return;
@@ -592,34 +590,34 @@
             if (modeBtn) {
                 event.preventDefault();
                 setAddPanelMode(modeBtn.dataset.arAddMode);
-                return;
             }
+        });
+    }
 
-            const studentSummary = event.target.closest('.student-record-panel > summary');
-            if (studentSummary) {
-                const panel = studentSummary.closest('.student-record-panel');
-                if (panel?.dataset.studentId && !panel.open) {
-                    userOpenedStudentId = panel.dataset.studentId;
-                }
-            }
-        }, true);
+    function bindStudentPanelBehavior(root) {
+        if (!root) return;
 
-        root.addEventListener('toggle', (event) => {
-            const panel = event.target;
-            if (!(panel instanceof HTMLDetailsElement) || !panel.classList.contains('student-record-panel') || !panel.open) {
-                return;
-            }
+        root.querySelectorAll('.student-record-panel').forEach((panel) => {
+            const summary = panel.querySelector('summary');
+            if (!summary) return;
 
-            root.querySelectorAll('.student-record-panel[open]').forEach((other) => {
-                if (other !== panel) other.removeAttribute('open');
-            });
+            summary.addEventListener('click', () => {
+                const willOpen = !panel.hasAttribute('open');
+                if (!willOpen) return;
 
-            if (panel.dataset.studentId && panel.dataset.studentId === userOpenedStudentId) {
-                userOpenedStudentId = null;
-                requestAnimationFrame(() => {
-                    scrollToElementWithOffset(panel.querySelector('summary') || panel, { extra: 10 });
+                root.querySelectorAll('.student-record-panel[open]').forEach((other) => {
+                    if (other !== panel) other.removeAttribute('open');
                 });
-            }
+
+                const scrollAfterOpen = () => {
+                    panel.removeEventListener('toggle', scrollAfterOpen);
+                    if (!panel.open) return;
+                    requestAnimationFrame(() => {
+                        scrollToElementWithOffset(panel.querySelector('summary') || panel, { extra: 10 });
+                    });
+                };
+                panel.addEventListener('toggle', scrollAfterOpen);
+            });
         });
     }
 
@@ -1389,27 +1387,40 @@
         };
     }
 
+    function normalizeExpandState(state) {
+        if (!state) return null;
+        return {
+            studentIds: Array.isArray(state.studentIds) ? state.studentIds : [],
+            studentYearTabs: state.studentYearTabs && typeof state.studentYearTabs === 'object'
+                ? state.studentYearTabs
+                : {},
+            addStudentOpen: Boolean(state.addStudentOpen),
+            addPanelMode: state.addPanelMode || ADD_MODE_STUDENT,
+        };
+    }
+
     function restoreExpandState(root, state) {
-        if (!root || !state) return;
+        const normalized = normalizeExpandState(state);
+        if (!root || !normalized) return;
 
-        state.studentIds.forEach((studentId) => {
-            const panel = root.querySelector(`#student-panel-${studentId}`);
+        const openStudentId = normalized.studentIds[normalized.studentIds.length - 1];
+        if (openStudentId) {
+            const panel = root.querySelector(`#student-panel-${openStudentId}`);
             if (panel) panel.setAttribute('open', '');
-        });
+        }
 
-        const yearTabs = state.studentYearTabs || {};
-        Object.entries(yearTabs).forEach(([studentId, yearId]) => {
+        Object.entries(normalized.studentYearTabs).forEach(([studentId, yearId]) => {
             if (yearId) showStudentYearTab(studentId, yearId);
         });
 
-        if (state.addStudentOpen) {
+        if (normalized.addStudentOpen) {
             toggleAddPanel(true);
         } else {
             closeAddPanel();
         }
 
-        if (state.addPanelMode) {
-            setAddPanelMode(state.addPanelMode);
+        if (normalized.addPanelMode) {
+            setAddPanelMode(normalized.addPanelMode);
         }
     }
 
@@ -1942,6 +1953,7 @@
                 root.innerHTML = html;
                 bindAcademicRecordsDelegation();
                 bindAddFormHandlers(root);
+                bindStudentPanelBehavior(root);
                 bindAddPanelControls(root);
                 return;
             }
@@ -2027,6 +2039,7 @@
 
             bindAcademicRecordsDelegation();
             bindAddFormHandlers(root);
+            bindStudentPanelBehavior(root);
             restoreExpandState(root, expandState);
             bindGradeTableEvents();
             bindAttendanceEvents(root);
@@ -2165,7 +2178,13 @@
             form.reset();
             closeAddPanel();
             setFocusStudentId(student.id);
-            await loadAcademicRecords({ expandState: { addStudentOpen: false } });
+            await loadAcademicRecords({
+                expandState: {
+                    studentIds: [],
+                    studentYearTabs: {},
+                    addStudentOpen: false,
+                },
+            });
             if (typeof window.OnboardingChecklist?.refresh === 'function') {
                 await window.OnboardingChecklist.refresh();
             }
