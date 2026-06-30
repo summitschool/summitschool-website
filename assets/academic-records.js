@@ -1287,29 +1287,32 @@
     function buildGradeHelpBanner() {
         const schoolYear = currentSchoolYear();
         return `
-            <div class="ar-grade-help hub-panel hub-panel-padded mb-4 border border-amber-200/90 bg-gradient-to-br from-amber-50/90 via-amber-50/40 to-white">
-                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div class="min-w-0 space-y-2">
-                        <h3 class="text-base font-semibold text-navy">${escapeHtml(schoolYear)} progress reports</h3>
-                        <ul class="text-sm text-slate-600 space-y-1.5">
-                            <li><span class="font-semibold text-navy">K–8:</span> enter letter grades or percentages.</li>
-                            <li><span class="font-semibold text-navy">9–12:</span> percentages only — finals calculate automatically.</li>
-                            <li>Name each course specifically (e.g. Geometry) and tag the subject type.</li>
-                            <li>Record attendance for each semester before you submit.</li>
-                        </ul>
-                    </div>
-                    <div class="shrink-0 lg:max-w-[14rem] lg:text-right">
-                        <div class="text-sm font-semibold text-navy mb-1.5">Due dates</div>
-                        <dl class="text-sm text-slate-600 space-y-1">
-                            <div class="flex lg:justify-end gap-2"><dt class="text-slate-500">Semester 1</dt><dd class="font-medium text-navy">Dec 31</dd></div>
-                            <div class="flex lg:justify-end gap-2"><dt class="text-slate-500">Semester 2</dt><dd class="font-medium text-navy">May 31</dd></div>
-                            <div class="flex lg:justify-end gap-2"><dt class="text-slate-500">Seniors</dt><dd class="font-medium text-navy">May 15</dd></div>
-                        </dl>
-                        <p class="text-xs text-slate-500 mt-2 leading-relaxed">School year ends May 31. Grades submitted after a due date still belong to this school year.</p>
-                    </div>
+            <div class="ar-grade-help">
+                <div class="ar-grade-help-header">
+                    <span class="ar-grade-help-year">${escapeHtml(schoolYear)}</span>
+                    <h3 class="ar-grade-help-title">Progress reports</h3>
                 </div>
-                <button type="button"
-                        class="ar-grade-chart-btn mt-4 text-sm font-semibold text-navy underline underline-offset-2 hover:text-[#0F3A5F]"
+                <div class="ar-grade-help-grid">
+                    <section class="ar-grade-help-block">
+                        <h4 class="ar-grade-help-label">Entering grades</h4>
+                        <ul class="ar-grade-help-list">
+                            <li><strong>K–8</strong> Letter or percentage</li>
+                            <li><strong>9–12</strong> Percentages only; finals auto-calculate</li>
+                            <li>Name each course (e.g. Geometry) and tag the subject</li>
+                            <li>Record attendance each semester before submitting</li>
+                        </ul>
+                    </section>
+                    <section class="ar-grade-help-block ar-grade-help-dates">
+                        <h4 class="ar-grade-help-label">Due dates</h4>
+                        <dl class="ar-grade-help-dl">
+                            <div><dt>Semester 1</dt><dd>Dec 31</dd></div>
+                            <div><dt>Semester 2</dt><dd>May 31</dd></div>
+                            <div><dt>Seniors</dt><dd>May 15</dd></div>
+                        </dl>
+                        <p class="ar-grade-help-note">School year ends May 31. Late grades still count for this year.</p>
+                    </section>
+                </div>
+                <button type="button" class="ar-grade-chart-btn"
                         onclick="event.stopPropagation(); window.AcademicRecords.showGradeEquivalencyChart()">Letter-to-percentage chart (K–8)</button>
             </div>
         `;

@@ -1396,6 +1396,180 @@ body.app-dialog-open {
   cursor: default;
 }
 
+/* Academic records — gold help panel */
+.ar-grade-help {
+  margin-bottom: 1.25rem;
+  padding: 1.25rem 1.35rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(201, 162, 39, 0.42);
+  background: linear-gradient(145deg, #fdf9f0 0%, #f5f0e6 42%, #f9f3e3 100%);
+  box-shadow: 0 2px 12px rgba(201, 162, 39, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.ar-grade-help-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.85rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.22);
+}
+
+.ar-grade-help-year {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background: #c9a227;
+  color: #0a2540;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ar-grade-help-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0a2540;
+  letter-spacing: -0.01em;
+}
+
+.ar-grade-help-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .ar-grade-help-grid {
+    grid-template-columns: 1.2fr 0.9fr;
+    gap: 1rem;
+  }
+}
+
+.ar-grade-help-block {
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(201, 162, 39, 0.18);
+}
+
+.ar-grade-help-dates {
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.ar-grade-help-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a7b1a;
+}
+
+.ar-grade-help-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.ar-grade-help-list li {
+  position: relative;
+  padding-left: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.ar-grade-help-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 9999px;
+  background: #c9a227;
+}
+
+.ar-grade-help-list li:last-child {
+  margin-bottom: 0;
+}
+
+.ar-grade-help-list strong {
+  color: #0a2540;
+  font-weight: 600;
+}
+
+.ar-grade-help-dl {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.ar-grade-help-dl > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.12);
+}
+
+.ar-grade-help-dl > div:last-of-type {
+  border-bottom: 0;
+}
+
+.ar-grade-help-dl dt {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.ar-grade-help-dl dd {
+  margin: 0;
+  font-weight: 700;
+  color: #0a2540;
+}
+
+.ar-grade-help-note {
+  margin: 0.65rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.ar-grade-chart-btn {
+  margin-top: 1rem;
+  width: 100%;
+  min-height: 2.65rem;
+  padding: 0.6rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  background: rgba(255, 255, 255, 0.75);
+  color: #0a2540;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ar-grade-chart-btn:hover {
+  background: #fff;
+  border-color: #c9a227;
+}
+
+@media (min-width: 640px) {
+  .ar-grade-help {
+    padding: 1.5rem 1.65rem;
+  }
+
+  .ar-grade-chart-btn {
+    width: auto;
+  }
+}
+
 #ar-grade-chart-modal {
   position: fixed;
   top: 0;
@@ -1508,18 +1682,11 @@ body.app-dialog-open {
   }
 
   #academic-records-root .ar-grade-help {
-    font-size: 0.75rem;
-    line-height: 1.45;
-    padding: 0.75rem !important;
+    padding: 1rem !important;
   }
 
-  #academic-records-root .ar-grade-help strong {
-    display: block;
-    margin-top: 0.4rem;
-  }
-
-  #academic-records-root .ar-grade-help strong:first-child {
-    margin-top: 0;
+  #academic-records-root .ar-grade-help-grid {
+    grid-template-columns: 1fr;
   }
 
   #academic-records-root .ar-grade-scroll {
