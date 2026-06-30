@@ -837,9 +837,11 @@
             ? computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, true)
             : (computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, false) || entry.final_grade || '');
 
+        const finalLabel = `Final${isHs ? ' %' : ''}`;
+
         return `
             <tr class="border-b border-slate-100" data-entry-id="${entry.id}">
-                <td class="py-2 pr-2 align-top">
+                <td class="py-2 pr-2 align-top" data-label="Course">
                     <select class="form-input w-full px-2 py-2 text-xs border border-slate-300 rounded-xl mb-1"
                             data-field="course_type"
                             ${canEditMeta ? '' : 'disabled'}>
@@ -852,7 +854,7 @@
                            ${canEditMeta ? '' : 'readonly'}>
                 </td>
                 ${isBackfill ? `
-                    <td class="py-2 px-2 align-top">
+                    <td class="py-2 px-2 align-top" data-label="${finalLabel || 'Final'}">
                         <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
                                value="${escapeHtml(entry.final_grade || '')}"
                                data-field="final_grade"
@@ -860,7 +862,7 @@
                                ${editS1 ? '' : 'readonly'}>
                     </td>
                 ` : `
-                    <td class="py-2 px-2 align-top">
+                    <td class="py-2 px-2 align-top" data-label="Semester 1${isHs ? ' %' : ''}">
                         <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s1"
                                value="${escapeHtml(entry.semester_1_grade || '')}"
                                data-field="semester_1_grade"
@@ -868,7 +870,7 @@
                                ${editS1 ? '' : 'readonly'}>
                         ${!editS1 && calSem === '2' && !yearRecord.semester_1_locked ? '<span class="text-[10px] text-slate-400">Opens Jul–Dec</span>' : ''}
                     </td>
-                    <td class="py-2 px-2 align-top">
+                    <td class="py-2 px-2 align-top" data-label="Semester 2${isHs ? ' %' : ''}">
                         <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s2"
                                value="${escapeHtml(entry.semester_2_grade || '')}"
                                data-field="semester_2_grade"
@@ -876,7 +878,7 @@
                                ${editS2 ? '' : 'readonly'}>
                         ${!editS2 && calSem === '1' ? '<span class="text-[10px] text-slate-400">Opens Jan–May</span>' : ''}
                     </td>
-                    <td class="py-2 pl-2 align-top">
+                    <td class="py-2 pl-2 align-top" data-label="${finalLabel || 'Final'}">
                         <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-final ${autoFinal ? 'bg-slate-50' : ''}"
                                value="${escapeHtml(displayFinal)}"
                                data-field="final_grade"
@@ -922,7 +924,7 @@
 
         return `
             ${semNote}
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto ar-grade-scroll">
                 <table class="w-full min-w-[640px] text-sm ar-grade-table"
                        data-year-record-id="${yearRecord.id}"
                        data-grade-level="${escapeHtml(gradeLevel)}">
@@ -1078,7 +1080,7 @@
 
     function buildGradeHelpBanner() {
         return `
-            <div class="mb-4 p-3 border border-amber-200 rounded-2xl bg-amber-50/50 text-sm text-slate-700">
+            <div class="ar-grade-help mb-4 p-3 border border-amber-200 rounded-2xl bg-amber-50/50 text-sm text-slate-700">
                 <strong>Grades K–8:</strong> letter (A–F) or percentage.
                 <strong class="ml-2">High school (9–12):</strong> percentages only — finals auto-calculate; credits and GPA apply at transcript time.
                 Name each course specifically (e.g. Geometry, not Math) and tag the subject type.

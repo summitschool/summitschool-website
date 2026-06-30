@@ -10,7 +10,9 @@
     const BTN_SECONDARY = BTN_BASE + ' flex-1 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50';
     const BTN_PRIMARY = BTN_BASE + ' flex-1 bg-navy hover:bg-[#0F3A5F] text-white border border-navy';
     const BTN_DANGER = BTN_BASE + ' flex-1 bg-red-600 hover:bg-red-700 text-white border border-red-600';
-    const BTN_SUCCESS = BTN_BASE + ' w-full bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600';
+    const BTN_ALERT_PRIMARY = BTN_BASE + ' w-full bg-navy hover:bg-[#0F3A5F] text-white border border-navy';
+    const BTN_ALERT_DANGER = BTN_BASE + ' w-full bg-red-600 hover:bg-red-700 text-white border border-red-600';
+    const BTN_ALERT_SUCCESS = BTN_BASE + ' w-full bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600';
 
     let dialogResolver = null;
     let listenersBound = false;
@@ -22,7 +24,11 @@
     }
 
     function buttonClassForTone(tone, mode) {
-        if (mode === 'alert' && tone === 'success') return BTN_SUCCESS;
+        if (mode === 'alert') {
+            if (tone === 'success') return BTN_ALERT_SUCCESS;
+            if (tone === 'danger') return BTN_ALERT_DANGER;
+            return BTN_ALERT_PRIMARY;
+        }
         if (tone === 'danger') return BTN_DANGER;
         return BTN_PRIMARY;
     }
@@ -46,8 +52,8 @@
             <div id="${DIALOG_ID}" class="hidden" role="dialog" aria-modal="true" aria-labelledby="${TITLE_ID}" aria-describedby="${MESSAGE_ID}">
                 <button type="button" data-app-dialog-backdrop aria-label="Close"></button>
                 <div class="app-dialog-panel">
-                    <h3 id="${TITLE_ID}" class="heading-serif text-xl text-navy tracking-tight"></h3>
-                    <p id="${MESSAGE_ID}" class="text-sm text-slate-600 mt-2 leading-relaxed"></p>
+                    <h3 id="${TITLE_ID}" class="app-dialog-title heading-serif text-xl text-navy tracking-tight"></h3>
+                    <p id="${MESSAGE_ID}" class="app-dialog-message text-sm text-slate-600 mt-2 leading-relaxed"></p>
                     <div id="${ACTIONS_ID}" class="app-dialog-actions">
                         <button type="button" id="${CANCEL_ID}" class="${BTN_SECONDARY}">Cancel</button>
                         <button type="button" id="${OK_ID}" class="${BTN_PRIMARY}">OK</button>
@@ -126,12 +132,10 @@
             if (mode === 'alert') {
                 cancelBtn.classList.add('hidden');
                 actionsEl.classList.add('is-alert');
-                actionsEl.classList.remove('flex');
                 okBtn.className = buttonClassForTone(tone, mode);
             } else {
                 cancelBtn.classList.remove('hidden');
                 actionsEl.classList.remove('is-alert');
-                actionsEl.classList.add('flex');
                 okBtn.className = buttonClassForTone(tone, mode);
                 cancelBtn.className = BTN_SECONDARY;
             }
