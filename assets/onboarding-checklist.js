@@ -499,12 +499,12 @@
         `;
     }
 
-    async function renderOnboardingTaskCard(task) {
+    async function renderOnboardingTaskCard(task, cachedState = null) {
         const client = window.supabaseClient;
         const { data: { user } } = await client.auth.getUser();
         if (!user) return '';
 
-        const { items, canFinish } = await getChecklistState(user.id);
+        const { items, canFinish } = cachedState || await getChecklistState(user.id);
         const list = items.map((item) => buildChecklistItemHtml(item)).join('');
 
         return `

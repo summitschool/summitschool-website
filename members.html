@@ -968,8 +968,8 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260709"></script>
-    <script src="assets/onboarding-checklist.js?v=20260704"></script>
+    <script src="assets/academic-records.js?v=20260710"></script>
+    <script src="assets/onboarding-checklist.js?v=20260710"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -2290,9 +2290,40 @@
                 return;
             }
 
-            let html = '';
+            const hasOnboardingTask = tasks.some((task) => window.OnboardingChecklist?.isOnboardingTask?.(task));
+            const onboardingState = hasOnboardingTask && window.OnboardingChecklist?.getChecklistState
+                ? await window.OnboardingChecklist.getChecklistState(user.id)
+                : null;
 
-            for (const task of tasks) {
+            const progressStudentIds = [...new Set(tasks
+                .map((task) => window.AcademicRecords?.parseProgressReportStudentId?.(task.url))
+                .filter(Boolean))];
+
+            const progressStudentsById = {};
+            const progressYearsByStudent = {};
+            if (progressStudentIds.length && window.AcademicRecords) {
+                const { data: progressStudents } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .in('id', progressStudentIds);
+                (progressStudents || []).forEach((student) => {
+                    progressStudentsById[student.id] = student;
+                });
+
+                const { data: progressYears } = await supabaseClient
+                    .from('student_school_years')
+                    .select('*')
+                    .in('student_id', progressStudentIds)
+                    .order('school_year', { ascending: false });
+                (progressYears || []).forEach((yearRecord) => {
+                    if (!progressYearsByStudent[yearRecord.student_id]) {
+                        progressYearsByStudent[yearRecord.student_id] = [];
+                    }
+                    progressYearsByStudent[yearRecord.student_id].push(yearRecord);
+                });
+            }
+
+            const taskCards = await Promise.all(tasks.map(async (task) => {
                 const isOnboardingTask = window.OnboardingChecklist?.isOnboardingTask?.(task);
                 const progressStudentId = window.AcademicRecords?.parseProgressReportStudentId?.(task.url);
                 const isProgressReportTask = Boolean(progressStudentId);
@@ -2304,21 +2335,20 @@
                     : '';
 
                 if (isOnboardingTask && window.OnboardingChecklist?.renderOnboardingTaskCard) {
-                    html += await window.OnboardingChecklist.renderOnboardingTaskCard(task);
-                    continue;
+                    return window.OnboardingChecklist.renderOnboardingTaskCard(task, onboardingState);
                 }
 
                 if (isProgressReportTask && window.AcademicRecords?.renderProgressReportTaskCard) {
-                    html += await window.AcademicRecords.renderProgressReportTaskCard(task, progressStudentId, {
+                    return window.AcademicRecords.renderProgressReportTaskCard(task, progressStudentId, {
                         dueDatesHtml: dueDates.html,
                         overdueIcon,
+                        student: progressStudentsById[progressStudentId],
+                        years: progressYearsByStudent[progressStudentId] || [],
                     });
-                    continue;
                 }
 
                 if (isIDTask) {
-                    // Special ID task: render the upload form (will be removed after submit)
-                    html += `
+                    return `
                         <div class="hub-panel hub-panel-padded border-amber-300 !bg-amber-50/80 relative" id="id-task-card">
                             <div class="flex items-start justify-between gap-3 mb-1">
                                 <div class="font-semibold text-navy flex-1">${escapeHtml(task.title)}</div>
@@ -2328,7 +2358,6 @@
                             <p class="text-sm text-slate-700 mb-3 mt-2">${escapeHtml(task.description || 'Upload a clear, current photo of your valid driver\'s license or government-issued photo ID.')}</p>
 
                             <form id="id-upload-form" onsubmit="submitIDUpload(event)" class="space-y-4">
-                                <!-- Professional acknowledgment -->
                                 <div>
                                     <p class="text-sm text-slate-700 leading-relaxed">
                                         I acknowledge and confirm that the photograph I am submitting is a true, accurate, and current image of my own valid government-issued photo identification document, and that I am the individual depicted in the photograph. I understand that providing false information may result in denial of enrollment or other consequences.
@@ -2355,39 +2384,38 @@
                             </form>
                         </div>
                     `;
-                } else {
-                    // Regular task standard: render as a card (viewable, perhaps mark complete later)
-                    let href = task.url || '#';
-                    let icon = 'fas fa-external-link-alt';
-                    if (task.url && !task.url.startsWith('http')) {
-                        const { data } = await supabaseClient
-                            .storage
-                            .from('Family-Documents')
-                            .createSignedUrl(task.url, 60 * 60 * 24);
-                        if (data?.signedUrl) href = data.signedUrl;
-                        icon = 'fas fa-download';
-                    }
-                    html += `
-                        <div class="hub-surface-card relative">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-semibold text-lg text-navy">${escapeHtml(task.title)}</h4>
-                                    ${task.description ? `<p class="text-sm text-slate-600 mt-1">${escapeHtml(task.description)}</p>` : ''}
-                                    ${dueDates.html}
-                                </div>
-                                <div class="flex items-start gap-2 shrink-0">
-                                    ${overdueIcon}
-                                    <a href="${href}" target="_blank" rel="noopener noreferrer" class="text-navy hover:text-gold transition">
-                                        <i class="${icon} text-xl"></i>
-                                    </a>
-                                </div>
+                }
+
+                let href = task.url || '#';
+                let icon = 'fas fa-external-link-alt';
+                if (task.url && !task.url.startsWith('http')) {
+                    const { data } = await supabaseClient
+                        .storage
+                        .from('Family-Documents')
+                        .createSignedUrl(task.url, 60 * 60 * 24);
+                    if (data?.signedUrl) href = data.signedUrl;
+                    icon = 'fas fa-download';
+                }
+                return `
+                    <div class="hub-surface-card relative">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-semibold text-lg text-navy">${escapeHtml(task.title)}</h4>
+                                ${task.description ? `<p class="text-sm text-slate-600 mt-1">${escapeHtml(task.description)}</p>` : ''}
+                                ${dueDates.html}
+                            </div>
+                            <div class="flex items-start gap-2 shrink-0">
+                                ${overdueIcon}
+                                <a href="${href}" target="_blank" rel="noopener noreferrer" class="text-navy hover:text-gold transition">
+                                    <i class="${icon} text-xl"></i>
+                                </a>
                             </div>
                         </div>
-                    `;
-                }
-            }
+                    </div>
+                `;
+            }));
 
-            list.innerHTML = html;
+            list.innerHTML = taskCards.join('');
         }
 
         function contactAdminForID() {

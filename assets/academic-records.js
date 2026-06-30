@@ -506,7 +506,18 @@
             <div class="ar-year-tab-panel ${isActive ? '' : 'hidden'}"
                  role="tabpanel"
                  data-ar-year-panel="${yearRecordId}"
-                 data-ar-student-panel="${studentId}">${content}</div>
+                 data-ar-student-panel="${studentId}"
+                 data-ar-year-loaded="1">${content}</div>
+        `;
+    }
+
+    function buildLazyYearTabPanel(studentId, yearRecordId, isActive) {
+        return `
+            <div class="ar-year-tab-panel ${isActive ? '' : 'hidden'}"
+                 role="tabpanel"
+                 data-ar-year-panel="${yearRecordId}"
+                 data-ar-student-panel="${studentId}"
+                 data-ar-year-lazy="1"></div>
         `;
     }
 
@@ -542,6 +553,51 @@
         container.querySelectorAll('[data-ar-year-panel]').forEach((panel) => {
             panel.classList.toggle('hidden', panel.dataset.arYearPanel !== yearRecordId);
         });
+
+        void ensureYearPanelLoaded(studentId, yearRecordId);
+    }
+
+    function bindYearPanelEvents(panel) {
+        bindGradeTableEvents();
+        const root = panel?.closest('#academic-records-root, .ar-admin-records-root')
+            || document.getElementById('academic-records-root');
+        if (root) {
+            bindAttendanceEvents(root);
+            bindTranscriptHandlers(root);
+            bindBackToStudentTop(root);
+        }
+        void hydrateCumulativeCredits(panel);
+    }
+
+    async function ensureYearPanelLoaded(studentId, yearRecordId) {
+        const container = getStudentTabsContainer(studentId);
+        if (!container) return;
+
+        const panel = container.querySelector(`[data-ar-year-panel="${yearRecordId}"]`);
+        if (!panel || panel.dataset.arYearLoaded === '1') return;
+
+        const ctx = recordsLoadContext;
+        const student = ctx?.studentsById?.[studentId];
+        const yearRecord = ctx?.yearRecordsById?.[yearRecordId];
+        if (!student || !yearRecord) return;
+
+        panel.innerHTML = '<div class="text-sm text-slate-500 py-2">Loading year details...</div>';
+
+        let entries = ctx?.entriesByYearId?.[yearRecordId];
+        if (!entries) {
+            entries = await fetchGradeEntries(yearRecordId);
+            if (ctx?.entriesByYearId) {
+                ctx.entriesByYearId[yearRecordId] = entries;
+            }
+        }
+
+        const detailOptions = ctx?.readonly
+            ? { readonly: true, admin: Boolean(ctx.admin) }
+            : {};
+        panel.innerHTML = buildSchoolYearDetailHtml(yearRecord, entries, student, detailOptions);
+        panel.dataset.arYearLoaded = '1';
+        panel.removeAttribute('data-ar-year-lazy');
+        bindYearPanelEvents(panel);
     }
 
     function resetStudentYearTab(studentId) {
@@ -1238,6 +1294,7 @@
     }
 
     let isAddingStudent = false;
+    let recordsLoadContext = null;
 
     function getProgressStatusLabel(yearRecord, gradeLevel = '') {
         if (!yearRecord) return 'No current year record';
@@ -1301,9 +1358,9 @@
         ));
     }
 
-    async function reconcileStaleCurrentYearRecords(studentId, activeYear) {
+    async function reconcileStaleCurrentYearRecords(studentId, activeYear, years) {
         const client = await getClient();
-        const years = await fetchSchoolYearsForStudent(studentId);
+        years = years || await fetchSchoolYearsForStudent(studentId);
         const staleRecords = years.filter((record) => (
             record.entry_type === 'current'
             && record.school_year !== activeYear
@@ -1320,11 +1377,19 @@
         }
     }
 
-    async function ensureCurrentSchoolYearRecord(studentId, gradeLevel) {
+    async function ensureCurrentSchoolYearRecord(studentId, gradeLevel, options = {}) {
         const client = await getClient();
         const year = currentSchoolYear();
+        const { years, skipReconcile = false } = options;
 
-        await reconcileStaleCurrentYearRecords(studentId, year);
+        if (!skipReconcile) {
+            await reconcileStaleCurrentYearRecords(studentId, year, years);
+        }
+
+        const cached = years?.find((record) => (
+            record.school_year === year && record.entry_type === 'current'
+        ));
+        if (cached) return cached;
 
         const { data: existing, error: fetchError } = await client
             .from('student_school_years')
@@ -1490,6 +1555,43 @@
             .order('sort_order', { ascending: true });
         if (error) throw error;
         return data || [];
+    }
+
+    async function fetchSchoolYearsForStudents(studentIds) {
+        if (!studentIds.length) return {};
+        const client = await getClient();
+        const { data, error } = await client
+            .from('student_school_years')
+            .select('*')
+            .in('student_id', studentIds)
+            .order('school_year', { ascending: false });
+        if (error) throw error;
+
+        const byStudent = {};
+        (data || []).forEach((record) => {
+            if (!byStudent[record.student_id]) byStudent[record.student_id] = [];
+            byStudent[record.student_id].push(record);
+        });
+        return byStudent;
+    }
+
+    async function fetchGradeEntriesForYearRecords(yearRecordIds) {
+        if (!yearRecordIds.length) return {};
+        const client = await getClient();
+        const { data, error } = await client
+            .from('grade_entries')
+            .select('*')
+            .in('school_year_record_id', yearRecordIds)
+            .order('sort_order', { ascending: true });
+        if (error) throw error;
+
+        const byYear = {};
+        (data || []).forEach((entry) => {
+            const yearId = entry.school_year_record_id;
+            if (!byYear[yearId]) byYear[yearId] = [];
+            byYear[yearId].push(entry);
+        });
+        return byYear;
     }
 
     async function saveGradeEntries(entries, gradeLevel) {
@@ -1782,10 +1884,11 @@
         return totals;
     }
 
-    async function summarizeCumulativeCredits(studentId, gradeLevel) {
+    async function summarizeCumulativeCredits(studentId, gradeLevel, options = {}) {
         if (!isHighSchoolGrade(gradeLevel)) return null;
 
-        const years = await fetchSchoolYearsForStudent(studentId);
+        const years = options.years || await fetchSchoolYearsForStudent(studentId);
+        const entriesByYear = options.entriesByYear || null;
         const totals = { english: 0, math: 0, science: 0, history: 0, elective: 0 };
 
         for (const year of years) {
@@ -1795,7 +1898,9 @@
                 : year.semester_2_locked;
             if (!complete) continue;
 
-            const entries = await fetchGradeEntries(year.id);
+            const entries = entriesByYear
+                ? (entriesByYear[year.id] || [])
+                : await fetchGradeEntries(year.id);
             const yearTotals = summarizeCredits(entries, year.grade_level, true);
             TRANSCRIPT_COURSE_TYPES.forEach((type) => {
                 totals[type] += yearTotals[type] || 0;
@@ -2166,25 +2271,60 @@
         return data;
     }
 
-    async function hydrateCumulativeCredits() {
-        const blocks = document.querySelectorAll('[data-cumulative-credits]');
-        for (const block of blocks) {
+    async function hydrateCumulativeCredits(scope) {
+        const root = scope && scope.querySelectorAll ? scope : document;
+        const blocks = root.querySelectorAll
+            ? root.querySelectorAll('[data-cumulative-credits]')
+            : document.querySelectorAll('[data-cumulative-credits]');
+
+        await Promise.all(Array.from(blocks).map(async (block) => {
+            if (block.dataset.cumulativeCreditsHydrated === '1') return;
+
             const studentId = block.dataset.cumulativeCredits;
             const summary = block.closest('[data-credits-summary]');
             const level = summary?.dataset.gradeLevel || '9';
 
             try {
-                const totals = await summarizeCumulativeCredits(studentId, level);
+                const totals = await summarizeCumulativeCredits(studentId, level, {
+                    years: recordsLoadContext?.yearsByStudent?.[studentId],
+                    entriesByYear: recordsLoadContext?.entriesByYearId,
+                });
                 if (!totals) {
                     block.textContent = '';
-                    continue;
+                    return;
                 }
 
                 block.innerHTML = buildCreditChipsHtml(totals, { showRequired: true });
+                block.dataset.cumulativeCreditsHydrated = '1';
             } catch (err) {
                 block.textContent = '';
             }
-        }
+        }));
+    }
+
+    async function hydrateHeaderCredits() {
+        const headers = document.querySelectorAll('[data-ar-header-credits]');
+        await Promise.all(Array.from(headers).map(async (el) => {
+            if (el.dataset.arHeaderCreditsHydrated === '1') return;
+
+            const studentId = el.dataset.arHeaderCredits;
+            const level = el.dataset.gradeLevel || '';
+            if (!studentId || !isHighSchoolGrade(level)) return;
+
+            try {
+                const totals = await summarizeCumulativeCredits(studentId, level, {
+                    years: recordsLoadContext?.yearsByStudent?.[studentId],
+                    entriesByYear: recordsLoadContext?.entriesByYearId,
+                });
+                const creditLine = formatCumulativeCreditsLine(totals);
+                if (creditLine) {
+                    el.textContent = `Credits: ${creditLine}`;
+                }
+                el.dataset.arHeaderCreditsHydrated = '1';
+            } catch (err) {
+                el.textContent = '';
+            }
+        }));
     }
 
     function collectEntriesFromTable(container) {
@@ -2200,13 +2340,17 @@
 
     async function renderProgressReportTaskCard(task, studentId, options = {}) {
         const client = await getClient();
-        const { data: student } = await client.from('students').select('*').eq('id', studentId).maybeSingle();
+        let student = options.student;
+        if (!student) {
+            const { data } = await client.from('students').select('*').eq('id', studentId).maybeSingle();
+            student = data;
+        }
         if (!student) {
             return `<div class="hub-panel hub-panel-padded text-sm text-red-600">Student record not found for this task.</div>`;
         }
 
         const name = studentDisplayName(student);
-        const years = await fetchSchoolYearsForStudent(studentId);
+        const years = options.years || await fetchSchoolYearsForStudent(studentId);
         const currentYear = currentSchoolYear();
         const current = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
         const statusLabel = getProgressStatusLabel(current, student?.current_grade_level);
@@ -2492,6 +2636,7 @@
             || (root.querySelector('.student-record-panel') ? captureExpandState(root) : null);
 
         root.innerHTML = '<div class="hub-empty-state">Loading academic records...</div>';
+        recordsLoadContext = null;
 
         try {
             const students = await fetchStudents(user.id);
@@ -2510,6 +2655,52 @@
                 return;
             }
 
+            const currentYear = currentSchoolYear();
+            const studentIds = students.map((student) => student.id);
+            let yearsByStudent = await fetchSchoolYearsForStudents(studentIds);
+
+            await Promise.all(students
+                .filter((student) => student.current_grade_level)
+                .map((student) => reconcileStaleCurrentYearRecords(
+                    student.id,
+                    currentYear,
+                    yearsByStudent[student.id] || []
+                )));
+
+            yearsByStudent = await fetchSchoolYearsForStudents(studentIds);
+
+            await Promise.all(students
+                .filter((student) => student.current_grade_level)
+                .map(async (student) => {
+                    const years = yearsByStudent[student.id] || [];
+                    const hasCurrent = years.some((record) => (
+                        record.school_year === currentYear && record.entry_type === 'current'
+                    ));
+                    if (hasCurrent) return;
+
+                    await ensureCurrentSchoolYearRecord(student.id, student.current_grade_level, {
+                        years,
+                        skipReconcile: true,
+                    });
+                    yearsByStudent[student.id] = await fetchSchoolYearsForStudent(student.id);
+                }));
+
+            const yearRecordsById = {};
+            Object.values(yearsByStudent).forEach((years) => {
+                years.forEach((record) => {
+                    yearRecordsById[record.id] = record;
+                });
+            });
+
+            const entriesByYearId = await fetchGradeEntriesForYearRecords(Object.keys(yearRecordsById));
+
+            recordsLoadContext = {
+                studentsById: Object.fromEntries(students.map((student) => [student.id, student])),
+                yearsByStudent,
+                yearRecordsById,
+                entriesByYearId,
+            };
+
             html += buildAddToolbarHtml(students, backfillYears);
             html += '<div class="space-y-3">';
             const focusId = getFocusStudentId();
@@ -2518,29 +2709,16 @@
             for (let studentIndex = 0; studentIndex < students.length; studentIndex += 1) {
                 const student = students[studentIndex];
                 const studentAccent = getStudentAccentClass(studentIndex);
-                const currentYear = currentSchoolYear();
-                if (student.current_grade_level) {
-                    await reconcileStaleCurrentYearRecords(student.id, currentYear);
-                }
-                let years = await fetchSchoolYearsForStudent(student.id);
-                let currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
-                if (!currentRecord && student.current_grade_level) {
-                    currentRecord = await ensureCurrentSchoolYearRecord(student.id, student.current_grade_level);
-                    years = await fetchSchoolYearsForStudent(student.id);
-                }
+                const years = yearsByStudent[student.id] || [];
+                const currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
                 const statusLabel = getProgressStatusLabel(currentRecord, student.current_grade_level);
                 const isFocused = focusId === student.id;
                 const gradeLabel = formatGradeLabel(student.current_grade_level);
                 const sortedYears = sortSchoolYearsForDisplay(years, currentYear);
 
-                let creditHeaderHtml = '';
-                if (isHighSchoolGrade(student.current_grade_level)) {
-                    const cumulative = await summarizeCumulativeCredits(student.id, student.current_grade_level);
-                    const creditLine = formatCumulativeCreditsLine(cumulative);
-                    if (creditLine) {
-                        creditHeaderHtml = `<span class="ar-student-panel-credits">Credits: ${escapeHtml(creditLine)}</span>`;
-                    }
-                }
+                const creditHeaderHtml = isHighSchoolGrade(student.current_grade_level)
+                    ? `<span class="ar-student-panel-credits" data-ar-header-credits="${student.id}" data-grade-level="${escapeHtml(student.current_grade_level)}"></span>`
+                    : '';
 
                 const defaultYearId = currentRecord?.id || sortedYears[0]?.id || null;
                 const savedYearTab = expandState?.studentYearTabs?.[student.id] || null;
@@ -2558,13 +2736,17 @@
                     for (const yearRecord of sortedYears) {
                         const isActiveYear = activeYearId === yearRecord.id;
                         yearTabButtonsHtml += buildYearTabButton(student.id, yearRecord, isActiveYear);
-                        const entries = await fetchGradeEntries(yearRecord.id);
-                        yearTabPanelsHtml += buildYearTabPanel(
-                            student.id,
-                            yearRecord.id,
-                            buildSchoolYearDetailHtml(yearRecord, entries, student),
-                            isActiveYear
-                        );
+                        if (isActiveYear) {
+                            const entries = entriesByYearId[yearRecord.id] || [];
+                            yearTabPanelsHtml += buildYearTabPanel(
+                                student.id,
+                                yearRecord.id,
+                                buildSchoolYearDetailHtml(yearRecord, entries, student),
+                                true
+                            );
+                        } else {
+                            yearTabPanelsHtml += buildLazyYearTabPanel(student.id, yearRecord.id, false);
+                        }
                     }
                 }
 
@@ -2602,7 +2784,10 @@
             bindBackToStudentTop(root);
             bindTranscriptHandlers(root);
             bindAddPanelControls(root);
-            await hydrateCumulativeCredits();
+            void Promise.all([
+                hydrateCumulativeCredits(),
+                hydrateHeaderCredits(),
+            ]);
 
             if (focusId) {
                 const focusYearId = focusYearByStudent[focusId] || expandState?.studentYearTabs?.[focusId];
