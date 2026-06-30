@@ -1392,25 +1392,93 @@ body.app-dialog-open {
   display: block;
 }
 
-/* Academic records — per-student section tabs */
-.ar-student-tabs {
+/* Academic records — add student + school year navigation */
+.ar-add-student-summary {
+  display: block;
+}
+
+.ar-add-student-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ar-student-shell {
   width: 100%;
 }
 
-.ar-student-tab-group {
-  width: 100%;
+.ar-school-year-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ar-school-year-link {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0a2540;
+  text-align: left;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  touch-action: manipulation;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.ar-student-tab-panels {
-  margin-top: 1rem;
+.ar-school-year-link:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
 }
 
-.ar-student-tab-panel {
-  animation: ar-tab-fade-in 0.15s ease;
+.ar-school-year-link:active {
+  transform: scale(0.995);
 }
 
-@keyframes ar-tab-fade-in {
+.ar-school-year-link-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ar-school-year-link-year {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0a2540;
+}
+
+.ar-school-year-link-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.ar-school-year-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.ar-school-year-badge--prior {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.ar-student-year-panel {
+  animation: ar-year-fade-in 0.15s ease;
+}
+
+@keyframes ar-year-fade-in {
   from {
     opacity: 0;
   }
@@ -1418,10 +1486,6 @@ body.app-dialog-open {
   to {
     opacity: 1;
   }
-}
-
-.ar-prior-year-card + .ar-prior-year-card {
-  margin-top: 0;
 }
 
 .ar-attendance-panel input[readonly] {

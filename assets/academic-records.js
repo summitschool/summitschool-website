@@ -342,67 +342,154 @@
         });
     }
 
-    const STUDENT_TAB_PROGRESS = 'progress';
-    const STUDENT_TAB_PRIOR = 'prior';
+    const STUDENT_VIEW_PICKER = 'picker';
 
-    function buildStudentTabButton(studentId, tabId, label, isActive) {
+    function getYearStatusLabel(yearRecord) {
+        if (!yearRecord) return 'No record';
+        if (yearRecord.entry_type === 'backfill') {
+            return yearRecord.year_locked ? 'Complete' : 'In progress';
+        }
+        return getProgressStatusLabel(yearRecord, yearRecord.grade_level);
+    }
+
+    function sortSchoolYearsForDisplay(years, activeSchoolYear) {
+        return [...years].sort((a, b) => {
+            const aCurrent = a.school_year === activeSchoolYear && a.entry_type === 'current';
+            const bCurrent = b.school_year === activeSchoolYear && b.entry_type === 'current';
+            if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
+            return String(b.school_year).localeCompare(String(a.school_year));
+        });
+    }
+
+    function buildSchoolYearLinkButton(studentId, yearRecord, statusLabel) {
+        const isCurrent = yearRecord.entry_type === 'current';
+        const badge = isCurrent
+            ? '<span class="ar-school-year-badge">Current</span>'
+            : '<span class="ar-school-year-badge ar-school-year-badge--prior">Prior</span>';
+
         return `
             <button type="button"
-                    class="ar-student-tab-btn hub-tab-btn ${isActive ? 'is-active' : ''}"
-                    role="tab"
-                    aria-selected="${isActive ? 'true' : 'false'}"
-                    data-ar-student-tab="${studentId}"
-                    data-ar-tab="${tabId}"
-                    onclick="window.AcademicRecords.showStudentTab('${studentId}', '${tabId}')">${escapeHtml(label)}</button>
+                    class="ar-school-year-link"
+                    data-ar-school-year-link="${studentId}"
+                    data-ar-year-id="${yearRecord.id}"
+                    onclick="window.AcademicRecords.showStudentYear('${studentId}', '${yearRecord.id}')">
+                <span class="ar-school-year-link-main">
+                    <span class="ar-school-year-link-year">${escapeHtml(yearRecord.school_year)}</span>
+                    ${badge}
+                </span>
+                <span class="ar-school-year-link-meta">${escapeHtml(formatGradeLabel(yearRecord.grade_level))} · ${escapeHtml(statusLabel)}</span>
+            </button>
         `;
     }
 
-    function buildStudentTabPanel(studentId, tabId, content, isActive) {
+    function buildBackToYearsBar(studentId) {
         return `
-            <div class="ar-student-tab-panel ${isActive ? '' : 'hidden'}"
-                 role="tabpanel"
-                 data-ar-student-panel="${studentId}"
-                 data-ar-tab-panel="${tabId}">${content}</div>
-        `;
-    }
-
-    function buildStudentTabsShell(studentId, tabButtonsHtml, tabPanelsHtml, activeTab) {
-        return `
-            <div class="ar-student-tabs" data-ar-student-tabs="${studentId}" data-ar-active-tab="${activeTab}">
-                <div class="ar-student-tab-group hub-tab-group" role="tablist" aria-label="Student records sections">
-                    ${tabButtonsHtml}
-                </div>
-                <div class="ar-student-tab-panels">${tabPanelsHtml}</div>
+            <div class="ar-accordion-closebar ar-accordion-closebar--bottom">
+                <button type="button" class="ar-accordion-close-btn" data-ar-back-to-years="${studentId}">
+                    <span class="ar-accordion-close-icon" aria-hidden="true">←</span>
+                    Back to school years
+                </button>
             </div>
         `;
     }
 
-    function showStudentTab(studentId, tabId) {
-        const root = document.getElementById('academic-records-root');
-        const container = root?.querySelector(`[data-ar-student-tabs="${studentId}"]`);
-        if (!container) return;
+    function buildSchoolYearDetailHtml(yearRecord, entries, student) {
+        const statusLabel = getYearStatusLabel(yearRecord);
+        const reportLabel = yearRecord.entry_type === 'backfill' ? 'prior year record' : 'progress report';
+        const actionsHtml = yearRecord.entry_type === 'backfill'
+            ? renderBackfillActions(yearRecord)
+            : renderSemesterActions(yearRecord);
 
-        container.dataset.arActiveTab = tabId;
-        container.querySelectorAll('[data-ar-student-tab]').forEach((button) => {
-            const isActive = button.dataset.arTab === tabId;
-            button.classList.toggle('is-active', isActive);
-            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-        });
-        container.querySelectorAll('[data-ar-tab-panel]').forEach((panel) => {
-            panel.classList.toggle('hidden', panel.dataset.arTabPanel !== tabId);
+        return `
+            <div class="ar-year-detail-intro mb-4 pb-3 border-b border-slate-100">
+                <p class="text-sm font-semibold text-navy">${escapeHtml(yearRecord.school_year)} ${reportLabel}</p>
+                <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(formatGradeLabel(yearRecord.grade_level))} · ${escapeHtml(statusLabel)}</p>
+            </div>
+            <div class="space-y-4">
+                ${buildAttendanceHtml(yearRecord)}
+                ${buildGradeTableHtml(yearRecord, entries)}
+                ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
+                ${actionsHtml}
+            </div>
+            ${buildBackToYearsBar(student.id)}
+        `;
+    }
+
+    function buildStudentYearsShell(studentId, pickerHtml, yearPanelsHtml, viewState) {
+        const { view = STUDENT_VIEW_PICKER, yearId = '' } = viewState || {};
+        return `
+            <div class="ar-student-shell"
+                 data-ar-student-shell="${studentId}"
+                 data-ar-student-view="${view}"
+                 data-ar-active-year="${yearId}">
+                <div class="ar-student-years-picker ${view === STUDENT_VIEW_PICKER ? '' : 'hidden'}">${pickerHtml}</div>
+                <div class="ar-student-year-panels ${view === STUDENT_VIEW_PICKER ? 'hidden' : ''}">${yearPanelsHtml}</div>
+            </div>
+        `;
+    }
+
+    function getStudentShell(root, studentId) {
+        return root?.querySelector(`[data-ar-student-shell="${studentId}"]`) || null;
+    }
+
+    function showStudentYear(studentId, yearRecordId) {
+        const root = document.getElementById('academic-records-root');
+        const shell = getStudentShell(root, studentId);
+        if (!shell) return;
+
+        shell.dataset.arStudentView = 'year';
+        shell.dataset.arActiveYear = yearRecordId;
+
+        shell.querySelector('.ar-student-years-picker')?.classList.add('hidden');
+        const panelsWrap = shell.querySelector('.ar-student-year-panels');
+        panelsWrap?.classList.remove('hidden');
+
+        shell.querySelectorAll('[data-ar-year-panel]').forEach((panel) => {
+            panel.classList.toggle('hidden', panel.dataset.arYearPanel !== yearRecordId);
         });
     }
 
-    function buildExpandStateForStudent(studentId, tabId = STUDENT_TAB_PROGRESS) {
+    function showStudentYearPicker(studentId) {
+        const root = document.getElementById('academic-records-root');
+        const shell = getStudentShell(root, studentId);
+        if (!shell) return;
+
+        shell.dataset.arStudentView = STUDENT_VIEW_PICKER;
+        shell.dataset.arActiveYear = '';
+
+        shell.querySelector('.ar-student-years-picker')?.classList.remove('hidden');
+        shell.querySelector('.ar-student-year-panels')?.classList.add('hidden');
+        shell.querySelectorAll('[data-ar-year-panel]').forEach((panel) => {
+            panel.classList.add('hidden');
+        });
+    }
+
+    function bindStudentYearNavigation(root) {
+        if (!root) return;
+
+        root.querySelectorAll('[data-ar-back-to-years]').forEach((button) => {
+            if (button.dataset.arBackToYearsBound === '1') return;
+            button.dataset.arBackToYearsBound = '1';
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                showStudentYearPicker(button.dataset.arBackToYears);
+            });
+        });
+    }
+
+    function buildExpandStateForStudent(studentId, yearRecordId = null) {
         const root = document.getElementById('academic-records-root');
         const expandState = root?.querySelector('.student-record-panel')
             ? captureExpandState(root)
-            : { studentIds: [], studentTabs: {}, addStudentOpen: false };
+            : { studentIds: [], studentYearViews: {}, addStudentOpen: false };
 
         if (!expandState.studentIds.includes(studentId)) {
             expandState.studentIds.push(studentId);
         }
-        expandState.studentTabs = { ...(expandState.studentTabs || {}), [studentId]: tabId };
+        expandState.studentYearViews = {
+            ...(expandState.studentYearViews || {}),
+            [studentId]: yearRecordId || STUDENT_VIEW_PICKER,
+        };
         return expandState;
     }
 
@@ -455,24 +542,7 @@
         `;
     }
 
-    function buildPriorYearRecordCardHtml(bf, entries, student) {
-        const statusText = bf.year_locked
-            ? 'Complete ✓'
-            : 'In progress';
 
-        return `
-            <div class="ar-prior-year-card border border-slate-200 rounded-xl bg-white p-4 space-y-3" data-ar-backfill-year="${bf.id}">
-                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                    <span class="font-semibold text-navy">${escapeHtml(bf.school_year)}</span>
-                    <span class="text-xs text-slate-500">${escapeHtml(formatGradeLabel(bf.grade_level))} · ${escapeHtml(statusText)}</span>
-                </div>
-                ${buildAttendanceHtml(bf)}
-                ${buildGradeTableHtml(bf, entries)}
-                ${isHighSchoolGrade(bf.grade_level) ? buildCreditsSummaryHtml(bf, entries, bf.grade_level, student.id) : ''}
-                ${renderBackfillActions(bf)}
-            </div>
-        `;
-    }
 
     function bindAttendanceEvents(root) {
         if (!root) return;
@@ -1165,16 +1235,18 @@
 
         const unique = (items) => [...new Set(items.filter(Boolean))];
 
-        const studentTabs = {};
-        root.querySelectorAll('[data-ar-student-tabs]').forEach((el) => {
-            if (el.dataset.arStudentTabs) {
-                studentTabs[el.dataset.arStudentTabs] = el.dataset.arActiveTab || STUDENT_TAB_PROGRESS;
-            }
+        const studentYearViews = {};
+        root.querySelectorAll('[data-ar-student-shell]').forEach((el) => {
+            const studentId = el.dataset.arStudentShell;
+            if (!studentId) return;
+            const view = el.dataset.arStudentView;
+            const yearId = el.dataset.arActiveYear;
+            studentYearViews[studentId] = view === 'year' && yearId ? yearId : STUDENT_VIEW_PICKER;
         });
 
         return {
             studentIds: unique(Array.from(root.querySelectorAll('.student-record-panel[open]')).map((el) => el.dataset.studentId)),
-            studentTabs,
+            studentYearViews,
             addStudentOpen: Boolean(root.querySelector('#ar-add-student-panel[open]')),
         };
     }
@@ -1187,11 +1259,14 @@
             if (panel) panel.setAttribute('open', '');
         });
 
-        if (state.studentTabs) {
-            Object.entries(state.studentTabs).forEach(([studentId, tabId]) => {
-                showStudentTab(studentId, tabId);
-            });
-        }
+        const yearViews = state.studentYearViews || {};
+        Object.entries(yearViews).forEach(([studentId, yearView]) => {
+            if (yearView && yearView !== STUDENT_VIEW_PICKER) {
+                showStudentYear(studentId, yearView);
+            } else {
+                showStudentYearPicker(studentId);
+            }
+        });
 
         if (state.addStudentOpen) {
             const addPanel = root.querySelector('#ar-add-student-panel');
@@ -1526,7 +1601,8 @@
         `;
     }
 
-    function buildAddStudentFormHtml(collapsed = false) {
+    function buildAddStudentFormHtml(options = {}) {
+        const { collapsible = false } = options;
         const formHtml = `
             <form id="add-student-form" class="grid sm:grid-cols-3 gap-3 items-end" onsubmit="window.AcademicRecords.handleAddStudent(event)">
                 <div>
@@ -1551,19 +1627,27 @@
             </form>
         `;
 
-        if (collapsed) {
+        const sectionBody = `
+            <p class="text-xs text-slate-600 mb-3">Add each enrolled child. A ${escapeHtml(currentSchoolYear())} progress report is created automatically.</p>
+            ${formHtml}
+        `;
+
+        if (collapsible) {
             return `
-                <details id="ar-add-student-panel" class="hub-panel hub-panel-padded mt-6 border border-slate-200 rounded-3xl">
-                    <summary class="text-lg font-semibold text-navy cursor-pointer list-none">Add another student</summary>
-                    <div class="pt-4 mt-2 border-t border-slate-100">${formHtml}</div>
+                <details id="ar-add-student-panel" class="ar-add-student-section border border-violet-200 rounded-3xl bg-violet-50/30 overflow-hidden">
+                    <summary class="ar-add-student-summary px-5 py-4 cursor-pointer list-none">
+                        <span class="text-sm font-semibold text-violet-900">Add a student</span>
+                        <span class="text-xs text-violet-700/80 block mt-0.5">Tap to enroll another child</span>
+                    </summary>
+                    <div class="px-5 pb-5 border-t border-violet-100">${sectionBody}</div>
                 </details>
             `;
         }
 
         return `
-            <div class="hub-panel hub-panel-padded mb-6">
-                <h3 class="text-lg font-semibold text-navy mb-2">Add a student</h3>
-                ${formHtml}
+            <div class="ar-add-student-section border border-violet-200 rounded-3xl bg-violet-50/30 p-5 mb-6">
+                <h3 class="text-sm font-semibold text-violet-900 mb-1">Add a student</h3>
+                ${sectionBody}
             </div>
         `;
     }
@@ -1648,14 +1732,16 @@
             let html = buildGradeHelpBanner();
 
             if (!students.length) {
-                html += buildAddStudentFormHtml(false);
+                html += buildAddStudentFormHtml();
                 html += '<div class="hub-empty-state">No students yet. Add each enrolled child above to begin tracking grades.</div>';
                 root.innerHTML = html;
                 return;
             }
 
-            html += '<div class="space-y-3">';
+            html += buildAddStudentFormHtml({ collapsible: true });
+            html += '<div class="space-y-3 mt-4">';
             const focusId = getFocusStudentId();
+            const focusYearByStudent = {};
 
             for (const student of students) {
                 const currentYear = currentSchoolYear();
@@ -1668,10 +1754,10 @@
                     currentRecord = await ensureCurrentSchoolYearRecord(student.id, student.current_grade_level);
                     years = await fetchSchoolYearsForStudent(student.id);
                 }
-                const backfills = years.filter((y) => y.entry_type === 'backfill');
                 const statusLabel = getProgressStatusLabel(currentRecord, student.current_grade_level);
                 const isFocused = focusId === student.id;
                 const gradeLabel = formatGradeLabel(student.current_grade_level);
+                const sortedYears = sortSchoolYearsForDisplay(years, currentYear);
 
                 let creditHeaderHtml = '';
                 if (isHighSchoolGrade(student.current_grade_level)) {
@@ -1682,51 +1768,39 @@
                     }
                 }
 
-                const savedTab = expandState?.studentTabs?.[student.id] || STUDENT_TAB_PROGRESS;
-                const activeTab = isFocused ? STUDENT_TAB_PROGRESS : savedTab;
-                const priorTabLabel = backfills.length ? `Prior Years (${backfills.length})` : 'Prior Years';
+                const savedYearView = expandState?.studentYearViews?.[student.id] || STUDENT_VIEW_PICKER;
+                const focusYearId = isFocused && currentRecord ? currentRecord.id : null;
+                if (focusYearId) focusYearByStudent[student.id] = focusYearId;
+                const activeYearId = focusYearId || (savedYearView !== STUDENT_VIEW_PICKER ? savedYearView : null);
+                const viewState = activeYearId
+                    ? { view: 'year', yearId: activeYearId }
+                    : { view: STUDENT_VIEW_PICKER, yearId: '' };
 
-                let progressTabHtml = '<p class="text-sm text-slate-500">No current school year record yet.</p>';
-                if (currentRecord) {
-                    const entries = await fetchGradeEntries(currentRecord.id);
-                    progressTabHtml = `
-                        <div class="ar-tab-intro mb-4 pb-3 border-b border-amber-100">
-                            <p class="text-sm font-semibold text-navy">${escapeHtml(currentYear)} progress report</p>
-                            <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(formatGradeLabel(currentRecord.grade_level))} · ${escapeHtml(statusLabel)}</p>
-                        </div>
-                        <div class="space-y-4">
-                            ${buildAttendanceHtml(currentRecord)}
-                            ${buildGradeTableHtml(currentRecord, entries)}
-                            ${isHighSchoolGrade(currentRecord.grade_level) ? buildCreditsSummaryHtml(currentRecord, entries, currentRecord.grade_level, student.id) : ''}
-                            ${renderSemesterActions(currentRecord)}
-                        </div>
-                    `;
+                let yearLinksHtml = '';
+                let yearPanelsHtml = '';
+                if (!sortedYears.length) {
+                    yearLinksHtml = '<p class="text-sm text-slate-500">No school year records yet.</p>';
+                } else {
+                    for (const yearRecord of sortedYears) {
+                        const yearStatus = getYearStatusLabel(yearRecord);
+                        yearLinksHtml += buildSchoolYearLinkButton(student.id, yearRecord, yearStatus);
+                        const entries = await fetchGradeEntries(yearRecord.id);
+                        const isActiveYear = activeYearId === yearRecord.id;
+                        yearPanelsHtml += `
+                            <div class="ar-student-year-panel ${isActiveYear ? '' : 'hidden'}"
+                                 data-ar-year-panel="${yearRecord.id}">${buildSchoolYearDetailHtml(yearRecord, entries, student)}</div>
+                        `;
+                    }
                 }
 
-                let priorCardsHtml = '';
-                for (const bf of backfills) {
-                    const entries = await fetchGradeEntries(bf.id);
-                    priorCardsHtml += buildPriorYearRecordCardHtml(bf, entries, student);
-                }
-
-                const priorTabHtml = `
-                    ${buildPriorYearsAddSectionHtml(student, backfillYears)}
-                    ${backfills.length ? `
-                        <div class="space-y-4 mt-4">
-                            <h4 class="text-sm font-semibold text-navy">Saved prior years</h4>
-                            ${priorCardsHtml}
-                        </div>
-                    ` : '<p class="text-xs text-slate-500 mt-4 italic">No prior year records yet.</p>'}
+                const pickerHtml = `
+                    <div class="ar-school-year-tabs" role="tablist" aria-label="School years">
+                        ${yearLinksHtml}
+                    </div>
+                    <div class="mt-4">${buildPriorYearsAddSectionHtml(student, backfillYears)}</div>
                 `;
 
-                const studentTabsHtml = buildStudentTabsShell(
-                    student.id,
-                    buildStudentTabButton(student.id, STUDENT_TAB_PROGRESS, 'Progress Report', activeTab === STUDENT_TAB_PROGRESS)
-                    + buildStudentTabButton(student.id, STUDENT_TAB_PRIOR, priorTabLabel, activeTab === STUDENT_TAB_PRIOR),
-                    buildStudentTabPanel(student.id, STUDENT_TAB_PROGRESS, progressTabHtml, activeTab === STUDENT_TAB_PROGRESS)
-                    + buildStudentTabPanel(student.id, STUDENT_TAB_PRIOR, priorTabHtml, activeTab === STUDENT_TAB_PRIOR),
-                    activeTab
-                );
+                const studentYearsHtml = buildStudentYearsShell(student.id, pickerHtml, yearPanelsHtml, viewState);
 
                 html += `
                     <details class="ar-accordion border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
@@ -1736,22 +1810,24 @@
                             hint: 'Tap student to open',
                             extraClass: 'px-5 py-4 cursor-pointer hover:bg-slate-50',
                         })}
-                        ${wrapAccordionBody(`<div class="px-5 pb-5 border-t border-slate-100">${studentTabsHtml}</div>`, 'Back to all students')}
+                        <div class="ar-accordion-body"><div class="px-5 pb-5 border-t border-slate-100 pt-4">${studentYearsHtml}</div></div>
                     </details>
                 `;
             }
 
             html += '</div>';
-            html += buildAddStudentFormHtml(true);
             root.innerHTML = html;
 
             restoreExpandState(root, expandState);
             bindGradeTableEvents();
             bindAttendanceEvents(root);
             bindAccordionControls(root);
+            bindStudentYearNavigation(root);
             hydrateCumulativeCredits();
 
             if (focusId) {
+                const focusYearId = focusYearByStudent[focusId];
+                if (focusYearId) showStudentYear(focusId, focusYearId);
                 setFocusStudentId(null);
                 const panel = document.getElementById(`student-panel-${focusId}`);
                 if (panel) {
@@ -1933,10 +2009,13 @@
         const schoolYear = form.school_year.value;
         const gradeLevel = form.grade_level.value;
         try {
-            await addBackfillYear(studentId, schoolYear, gradeLevel);
+            const yearRecord = await addBackfillYear(studentId, schoolYear, gradeLevel);
             await loadAcademicRecords({
-                expandState: buildExpandStateForStudent(studentId, STUDENT_TAB_PRIOR),
+                expandState: buildExpandStateForStudent(studentId, yearRecord.id),
             });
+            if (typeof window.OnboardingChecklist?.refresh === 'function') {
+                await window.OnboardingChecklist.refresh();
+            }
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
         }
@@ -2114,7 +2193,7 @@
         try {
             await setPriorYearsStatus(studentId, 'not_applicable');
             await loadAcademicRecords({
-                expandState: buildExpandStateForStudent(studentId, STUDENT_TAB_PRIOR),
+                expandState: buildExpandStateForStudent(studentId, STUDENT_VIEW_PICKER),
             });
             if (typeof window.OnboardingChecklist?.refresh === 'function') {
                 await window.OnboardingChecklist.refresh();
@@ -2138,7 +2217,8 @@
         percentToGpa,
         renderProgressReportTaskCard,
         openStudentRecord,
-        showStudentTab,
+        showStudentYear,
+        showStudentYearPicker,
         loadAcademicRecords,
         showGradeEquivalencyChart,
         handleAddStudent,
