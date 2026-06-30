@@ -1651,13 +1651,15 @@ body.app-dialog-open {
 
 /* Academic records — mobile-friendly layout */
 @media (max-width: 639px) {
-  #academic-records-root .ar-summary-row {
+  #academic-records-root .ar-summary-row,
+  .ar-admin-records-root .ar-summary-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.35rem;
   }
 
-  #academic-records-root .ar-summary-right {
+  #academic-records-root .ar-summary-right,
+  .ar-admin-records-root .ar-summary-right {
     align-self: flex-end;
     margin-left: 0;
     font-size: 0.75rem;
@@ -1665,18 +1667,22 @@ body.app-dialog-open {
     max-width: 100%;
   }
 
-  #academic-records-root .ar-accordion-trigger {
+  #academic-records-root .ar-accordion-trigger,
+  .ar-admin-records-root .ar-accordion-trigger {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
   }
 
   #academic-records-root .ar-accordion-body > div,
-  #academic-records-root .ar-accordion-closebar {
+  #academic-records-root .ar-accordion-closebar,
+  .ar-admin-records-root .ar-accordion-body > div,
+  .ar-admin-records-root .ar-accordion-closebar {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
   }
 
-  #academic-records-root .ar-accordion-hint {
+  #academic-records-root .ar-accordion-hint,
+  .ar-admin-records-root .ar-accordion-hint {
     display: block;
     flex: 1 0 100%;
     text-align: center;
@@ -1688,30 +1694,36 @@ body.app-dialog-open {
     padding-bottom: 0.1rem;
   }
 
-  #academic-records-root .ar-accordion[open] .ar-accordion-hint {
+  #academic-records-root .ar-accordion[open] .ar-accordion-hint,
+  .ar-admin-records-root .ar-accordion[open] .ar-accordion-hint {
     display: none;
   }
 
-  #academic-records-root .ar-accordion-trigger:not(.ar-summary-row) {
+  #academic-records-root .ar-accordion-trigger:not(.ar-summary-row),
+  .ar-admin-records-root .ar-accordion-trigger:not(.ar-summary-row) {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  #academic-records-root .ar-accordion-close-btn {
+  #academic-records-root .ar-accordion-close-btn,
+  .ar-admin-records-root .ar-accordion-close-btn {
     min-height: 3rem;
     font-size: 0.95rem;
   }
 
-  #academic-records-root .ar-summary-left {
+  #academic-records-root .ar-summary-left,
+  .ar-admin-records-root .ar-summary-left {
     font-size: 1rem;
     line-height: 1.3;
   }
 
-  #academic-records-root .ar-credits-summary {
+  #academic-records-root .ar-credits-summary,
+  .ar-admin-records-root .ar-credits-summary {
     justify-content: stretch;
   }
 
-  #academic-records-root .ar-credits-summary-panel {
+  #academic-records-root .ar-credits-summary-panel,
+  .ar-admin-records-root .ar-credits-summary-panel {
     max-width: none;
     width: 100%;
     font-size: 0.7rem;
@@ -1725,21 +1737,25 @@ body.app-dialog-open {
     grid-template-columns: 1fr;
   }
 
-  #academic-records-root .ar-grade-scroll {
+  #academic-records-root .ar-grade-scroll,
+  .ar-admin-records-root .ar-grade-scroll {
     overflow-x: visible;
     margin-left: -0.25rem;
     margin-right: -0.25rem;
   }
 
-  #academic-records-root .ar-grade-table {
+  #academic-records-root .ar-grade-table,
+  .ar-admin-records-root .ar-grade-table {
     min-width: 0 !important;
   }
 
-  #academic-records-root .ar-grade-table thead {
+  #academic-records-root .ar-grade-table thead,
+  .ar-admin-records-root .ar-grade-table thead {
     display: none;
   }
 
-  #academic-records-root .ar-grade-table tbody tr {
+  #academic-records-root .ar-grade-table tbody tr,
+  .ar-admin-records-root .ar-grade-table tbody tr {
     display: block;
     margin-bottom: 0.75rem;
     padding: 0.75rem;
@@ -1749,13 +1765,15 @@ body.app-dialog-open {
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
   }
 
-  #academic-records-root .ar-grade-table tbody td {
+  #academic-records-root .ar-grade-table tbody td,
+  .ar-admin-records-root .ar-grade-table tbody td {
     display: block;
     padding: 0.4rem 0;
     border: 0;
   }
 
-  #academic-records-root .ar-grade-table tbody td::before {
+  #academic-records-root .ar-grade-table tbody td::before,
+  .ar-admin-records-root .ar-grade-table tbody td::before {
     content: attr(data-label);
     display: block;
     font-size: 0.65rem;
@@ -1766,7 +1784,8 @@ body.app-dialog-open {
     margin-bottom: 0.3rem;
   }
 
-  #academic-records-root .ar-grade-table tbody td:first-child {
+  #academic-records-root .ar-grade-table tbody td:first-child,
+  .ar-admin-records-root .ar-grade-table tbody td:first-child {
     padding-top: 0;
   }
 
@@ -1776,26 +1795,16 @@ body.app-dialog-open {
 }
 
 /* Admin academic records — student card header */
-.ar-admin-student-summary {
-  display: block;
-}
-
-.ar-admin-student-header {
+.ar-admin-student-summary-right {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.ar-admin-student-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding-right: 0.25rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
 }
 
 .ar-admin-student-delete {
   flex: 0 0 auto;
-  align-self: flex-start;
+  align-self: flex-end;
 }
 
 @media (max-width: 639px) {

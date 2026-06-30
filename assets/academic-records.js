@@ -1348,7 +1348,7 @@
                     </section>
                 </div>
                 <button type="button" class="ar-grade-chart-btn"
-                        onclick="event.stopPropagation(); window.AcademicRecords.showGradeEquivalencyChart()">Letter-to-percentage chart (K–8)</button>
+                        onclick="event.stopPropagation(); window.AcademicRecords.showGradeEquivalencyChart()">Letter-to-percentage chart</button>
             </div>
         `;
     }
@@ -1896,7 +1896,7 @@
                 return;
             }
 
-            let html = '<div class="space-y-4">';
+            let html = '<div class="ar-admin-records-root space-y-4">';
             for (const student of students) {
                 const name = studentDisplayName(student);
                 const years = await fetchSchoolYearsForStudent(student.id);
@@ -1907,7 +1907,7 @@
                     const cumulative = await summarizeCumulativeCredits(student.id, student.current_grade_level);
                     const creditLine = formatCumulativeCreditsLine(cumulative);
                     if (creditLine) {
-                        creditHeaderHtml = `<div class="text-[11px] text-violet-800 font-medium mt-1">Credits: ${escapeHtml(creditLine)}</div>`;
+                        creditHeaderHtml = `<div class="text-[11px] text-violet-800 font-medium mt-0.5">Credits: ${escapeHtml(creditLine)}</div>`;
                     }
                 }
 
@@ -1918,14 +1918,20 @@
                         ? (yearRecord.year_locked ? 'Complete' : 'In progress')
                         : getProgressStatusLabel(yearRecord, yearRecord.grade_level);
                     const isLocked = yearRecord.year_locked || yearRecord.semester_1_locked || yearRecord.semester_2_locked;
-                    const yearTitle = yearRecord.entry_type === 'backfill'
-                        ? `${yearRecord.school_year} — ${formatGradeLabel(yearRecord.grade_level)} (prior year)`
-                        : `${yearRecord.school_year} progress report — ${statusLabel}`;
+                    const yearLeft = yearRecord.entry_type === 'backfill'
+                        ? `<span class="font-medium text-navy">${escapeHtml(yearRecord.school_year)}</span> <span class="text-slate-500">prior year</span>`
+                        : `<span class="font-medium text-navy">${escapeHtml(yearRecord.school_year)}</span> <span class="text-slate-500">progress report</span>`;
+                    const yearRight = `<span class="text-slate-600">${escapeHtml(formatGradeLabel(yearRecord.grade_level))} · ${escapeHtml(statusLabel)}</span>`;
 
                     yearSections += `
-                        <details class="border border-slate-200 rounded-xl mt-2">
-                            <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy list-none">${escapeHtml(yearTitle)}</summary>
-                            <div class="p-3 border-t border-slate-100 space-y-3">
+                        <details class="ar-accordion border border-slate-200 rounded-xl" data-admin-year="${yearRecord.id}">
+                            ${buildAccordionSummary({
+                                leftHtml: yearLeft,
+                                rightHtml: yearRight,
+                                hint: 'Tap to open school year',
+                                extraClass: 'px-3 py-2 cursor-pointer text-sm',
+                            })}
+                            ${wrapAccordionBody(`<div class="p-3 border-t border-slate-100 space-y-3">
                                 ${buildAttendanceHtml(yearRecord, { readonly: true })}
                                 ${buildGradeTableHtml(yearRecord, entries, { readonly: true })}
                                 ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
@@ -1936,36 +1942,43 @@
                                                 onclick="adminReopenSchoolYear('${yearRecord.id}', '${escapeJsString(name)}', '${escapeJsString(yearRecord.school_year)}')">Reopen</button>
                                     </div>
                                 ` : '<span class="text-xs text-slate-500">In progress — family can still edit.</span>'}
-                            </div>
+                            </div>`, 'Close school year')}
                         </details>
                     `;
                 }
 
                 if (!yearSections) {
-                    yearSections = '<p class="text-xs text-slate-500 mt-2 italic">No school year records yet.</p>';
+                    yearSections = '<p class="text-xs text-slate-500 italic">No school year records yet.</p>';
                 }
 
+                const studentRightHtml = `
+                    <span class="ar-admin-student-summary-right text-right">
+                        <button type="button"
+                                class="ar-admin-student-delete text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0"
+                                data-student-id="${student.id}"
+                                onclick="event.preventDefault(); event.stopPropagation(); adminDeleteStudent(this)">Delete student</button>
+                        <div class="ar-admin-student-meta text-[10px] text-slate-500 mt-0.5">
+                            <div>Prior years: ${escapeHtml(student.prior_years_status || 'pending')}</div>
+                            ${creditHeaderHtml}
+                        </div>
+                    </span>
+                `;
+
                 html += `
-                    <details class="border border-sky-200/80 rounded-xl bg-white/80" data-admin-student="${student.id}">
-                        <summary class="ar-admin-student-summary px-3 py-2 cursor-pointer list-none">
-                            <div class="ar-admin-student-header">
-                                <div class="ar-admin-student-name font-medium text-navy text-sm min-w-0">${escapeHtml(name)} <span class="text-slate-500 font-normal">(${escapeHtml(gradeLabel)})</span></div>
-                                <button type="button"
-                                        class="ar-admin-student-delete text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0"
-                                        data-student-id="${student.id}"
-                                        onclick="event.preventDefault(); event.stopPropagation(); adminDeleteStudent(this)">Delete student</button>
-                            </div>
-                            <div class="ar-admin-student-meta text-[10px] text-slate-500 mt-0.5">
-                                <div>Prior years: ${escapeHtml(student.prior_years_status || 'pending')}</div>
-                                ${creditHeaderHtml}
-                            </div>
-                        </summary>
-                        <div class="px-3 pb-3 border-t border-sky-100">${yearSections}</div>
+                    <details class="ar-accordion border border-sky-200/80 rounded-xl bg-white/80 overflow-hidden" data-admin-student="${student.id}">
+                        ${buildAccordionSummary({
+                            leftHtml: `<span class="font-medium text-navy text-sm">${escapeHtml(name)}</span> <span class="text-slate-500 font-normal">(${escapeHtml(gradeLabel)})</span>`,
+                            rightHtml: studentRightHtml,
+                            hint: 'Tap student to open',
+                            extraClass: 'px-3 py-3 cursor-pointer',
+                        })}
+                        ${wrapAccordionBody(`<div class="px-3 pb-3 border-t border-sky-100 space-y-2">${yearSections}</div>`, 'Back to students')}
                     </details>
                 `;
             }
             html += '</div>';
             container.innerHTML = html;
+            bindAccordionControls(container);
             bindAttendanceEvents(container);
             hydrateCumulativeCredits();
         } catch (err) {
