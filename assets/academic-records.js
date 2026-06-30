@@ -727,6 +727,19 @@
         });
     }
 
+    function replaceTranscriptUploadSection(yearRecord, options = {}) {
+        const existing = document.querySelector(`[data-ar-transcript="${yearRecord.id}"]`);
+        if (!existing) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = buildTranscriptUploadSectionHtml(yearRecord, options).trim();
+        const replacement = wrapper.firstElementChild;
+        if (!replacement) return;
+
+        existing.replaceWith(replacement);
+        bindTranscriptHandlers(document.getElementById('academic-records-root'));
+    }
+
     function bindTranscriptHandlers(root) {
         if (!root) return;
 
@@ -820,18 +833,26 @@
                 .eq('id', yearRecordId);
             if (updateError) throw updateError;
 
-            await loadAcademicRecords({
-                expandState: {
-                    ...buildExpandStateForStudent(yearRecord.student_id, yearRecordId),
-                    scrollAnchor: yearRecordId,
-                },
+            const uploadedAt = new Date().toISOString();
+            replaceTranscriptUploadSection({
+                ...yearRecord,
+                transcript_storage_path: storagePath,
+                transcript_uploaded_at: uploadedAt,
+                transcript_file_name: file.name,
             });
+
+            const refreshedStatus = document.querySelector(`[data-ar-transcript-status="${yearRecordId}"]`);
+            if (refreshedStatus) {
+                refreshedStatus.textContent = 'Uploaded!';
+                refreshedStatus.classList.remove('hidden', 'text-slate-500');
+                refreshedStatus.classList.add('text-emerald-700');
+            }
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
-        } finally {
-            if (statusEl) {
-                statusEl.classList.add('hidden');
-                statusEl.textContent = '';
+            const errorStatus = document.querySelector(`[data-ar-transcript-status="${yearRecordId}"]`);
+            if (errorStatus) {
+                errorStatus.classList.add('hidden');
+                errorStatus.textContent = '';
             }
         }
     }
