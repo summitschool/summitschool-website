@@ -575,9 +575,73 @@
     }
 
     function scrollToStudentTop(studentId) {
-        const panel = document.getElementById(`student-panel-${studentId}`);
-        const target = panel?.querySelector('summary') || panel;
-        scrollToElementWithOffset(target, { extra: 10 });
+        scrollToStudentPanel(studentId);
+    }
+
+    function scrollToStudentPanel(studentId, options = {}) {
+        if (!studentId) return;
+        const { behavior = 'smooth' } = options;
+        const scrollToPanel = () => {
+            const panel = document.getElementById(`student-panel-${studentId}`);
+            if (!panel) return;
+            scrollToElementWithOffset(panel.querySelector('summary') || panel, { extra: 10, behavior });
+        };
+        requestAnimationFrame(() => {
+            requestAnimationFrame(scrollToPanel);
+            setTimeout(scrollToPanel, 120);
+            setTimeout(scrollToPanel, 350);
+        });
+    }
+
+    function scrollToAddPanel() {
+        const panel = document.getElementById('ar-add-panel');
+        if (!panel || panel.classList.contains('hidden')) return;
+        const target = panel.querySelector('.ar-add-panel-header')
+            || panel.querySelector('.ar-add-panel-title')
+            || panel;
+        const scrollToPanel = () => scrollToElementWithOffset(target, { extra: 10 });
+        requestAnimationFrame(() => {
+            requestAnimationFrame(scrollToPanel);
+            setTimeout(scrollToPanel, 120);
+            setTimeout(scrollToPanel, 350);
+        });
+    }
+
+    function collapseOpenStudentPanels(root) {
+        if (!root) return;
+        root.querySelectorAll('.student-record-panel[open]').forEach((panel) => {
+            panel.removeAttribute('open');
+            if (panel.dataset.studentId) {
+                resetStudentYearTab(panel.dataset.studentId);
+            }
+        });
+    }
+
+    function resetAddPanelForms(root) {
+        root = root || document.getElementById('academic-records-root');
+        if (!root) return;
+
+        root.querySelector('#add-student-form')?.reset();
+        root.querySelector('#add-prior-form')?.reset();
+        setAddPanelMode(ADD_MODE_STUDENT);
+
+        ['add-student-status', 'add-prior-status'].forEach((id) => {
+            const el = root.querySelector(`#${id}`);
+            if (!el) return;
+            el.classList.add('hidden');
+            el.textContent = '';
+        });
+
+        const studentBtn = root.querySelector('#add-student-submit-btn');
+        const priorBtn = root.querySelector('#add-prior-submit-btn');
+        if (studentBtn && !isAddingStudent) {
+            studentBtn.disabled = false;
+            studentBtn.textContent = 'Add student';
+        }
+        if (priorBtn) {
+            priorBtn.disabled = false;
+            priorBtn.textContent = 'Add prior year';
+        }
     }
 
     function buildBackToStudentTopBar(studentId) {
@@ -743,23 +807,32 @@
     function closeAddPanel() {
         const panel = document.getElementById('ar-add-panel');
         const trigger = document.querySelector('.ar-add-trigger');
+        const root = document.getElementById('academic-records-root');
         if (panel) panel.classList.add('hidden');
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        resetAddPanelForms(root);
+    }
+
+    function dismissAddPanel() {
+        closeAddPanel();
     }
 
     function toggleAddPanel(forceOpen) {
         const panel = document.getElementById('ar-add-panel');
         const trigger = document.querySelector('.ar-add-trigger');
+        const root = document.getElementById('academic-records-root');
         if (!panel) return;
 
         const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : panel.classList.contains('hidden');
         if (shouldOpen) {
+            collapseOpenStudentPanels(root);
             panel.classList.remove('hidden');
             trigger?.setAttribute('aria-expanded', 'true');
-            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            scrollToAddPanel();
         } else {
             panel.classList.add('hidden');
             trigger?.setAttribute('aria-expanded', 'false');
+            resetAddPanelForms(root);
         }
     }
 
@@ -2471,7 +2544,9 @@
 
                 const defaultYearId = currentRecord?.id || sortedYears[0]?.id || null;
                 const savedYearTab = expandState?.studentYearTabs?.[student.id] || null;
-                const focusYearId = isFocused && currentRecord ? currentRecord.id : null;
+                const focusYearId = isFocused
+                    ? (savedYearTab || currentRecord?.id || null)
+                    : null;
                 if (focusYearId) focusYearByStudent[student.id] = focusYearId;
                 const activeYearId = focusYearId || savedYearTab || defaultYearId;
 
@@ -2530,14 +2605,16 @@
             await hydrateCumulativeCredits();
 
             if (focusId) {
-                const focusYearId = focusYearByStudent[focusId];
+                const focusYearId = focusYearByStudent[focusId] || expandState?.studentYearTabs?.[focusId];
                 if (focusYearId) showStudentYearTab(focusId, focusYearId);
                 closeAddPanel();
                 setFocusStudentId(null);
-                const panel = document.getElementById(`student-panel-${focusId}`);
-                scrollToElementWithOffset(panel?.querySelector('summary') || panel, { extra: 10 });
+                scrollToStudentPanel(focusId);
             } else if (expandState?.scrollAnchor) {
                 restoreScrollAnchor(expandState.scrollAnchor);
+            } else if (expandState?.studentIds?.length) {
+                const openStudentId = expandState.studentIds[expandState.studentIds.length - 1];
+                scrollToStudentPanel(openStudentId);
             }
         } catch (err) {
             root.innerHTML = `<div class="text-red-600 text-sm p-4">Error loading academic records: ${escapeHtml(err.message || err)}</div>`;
@@ -2700,7 +2777,7 @@
             setFocusStudentId(student.id);
             await loadAcademicRecords({
                 expandState: {
-                    studentIds: [],
+                    studentIds: [student.id],
                     studentYearTabs: {},
                     addStudentOpen: false,
                 },
@@ -2787,6 +2864,7 @@
             const yearRecord = await addBackfillYear(studentId, schoolYear, gradeLevel);
             form.reset();
             closeAddPanel();
+            setFocusStudentId(studentId);
             await loadAcademicRecords({
                 expandState: buildExpandStateForStudent(studentId, yearRecord.id),
             });
@@ -3006,6 +3084,7 @@
         showStudentYearTab,
         scrollToStudentTop,
         toggleAddPanel,
+        dismissAddPanel,
         setAddPanelMode,
         loadAcademicRecords,
         showGradeEquivalencyChart,

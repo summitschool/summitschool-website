@@ -968,7 +968,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260707"></script>
+    <script src="assets/academic-records.js?v=20260709"></script>
     <script src="assets/onboarding-checklist.js?v=20260704"></script>
     <script>
         // =============================================
@@ -1014,6 +1014,7 @@
         ];
 
         let lastAdminSection = 'members';
+        let lastDashboardTab = 'my-tasks';
         let currentAdminSection = null;
 
         const ADMIN_FAMILY_TASKS_PLACEHOLDER = 'Select a family above to view and manage task due dates.';
@@ -2066,6 +2067,10 @@
 
         // Tab switching for the logged-in dashboard (My Documents / My Tasks / Resources / Family Records / Admin)
         function showDashboardTab(tab) {
+            if (lastDashboardTab === 'academic-records' && tab !== 'academic-records') {
+                window.AcademicRecords?.dismissAddPanel?.();
+            }
+
             const myDocsContent = document.getElementById('dashboard-my-documents');
             const myTasksContent = document.getElementById('dashboard-my-tasks');
             const academicRecordsContent = document.getElementById('dashboard-academic-records');
@@ -2122,6 +2127,7 @@
             }
 
             activateHubTabButtons(hubTabs, activeTab);
+            lastDashboardTab = tab;
         }
 
         function isTaskDocument(doc) {
