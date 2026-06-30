@@ -2561,6 +2561,17 @@
             }
         }
 
+        // Hide "Opening July 1" login banner after 23:59 US Central on June 30, 2026
+        function updateOpeningNotice() {
+            const notice = document.getElementById('members-opening-notice');
+            if (!notice) return;
+
+            const cutoff = new Date('2026-06-30T23:59:00-05:00');
+            if (Date.now() >= cutoff.getTime()) {
+                notice.classList.add('hidden');
+            }
+        }
+
         // Check current auth state and approval
         async function checkLoginState() {
             const loginView = document.getElementById('login-view');
@@ -5922,6 +5933,7 @@
         // Initialize everything
         async function init() {
             initSupabaseClient();
+            updateOpeningNotice();
             handleAuthRedirect();
             setupForms();
             setupAuthTabs();
