@@ -1861,11 +1861,45 @@
         `;
     }
 
+    function canAddCourse(yearRecord, readonly = false) {
+        if (readonly) return false;
+        return canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2');
+    }
+
+    function canEditCourseName(yearRecord, readonly = false) {
+        if (readonly) return false;
+        if (yearRecord.entry_type === 'backfill') {
+            return !yearRecord.year_locked;
+        }
+        return canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2');
+    }
+
+    function canEditCourseType(yearRecord, entry, readonly = false) {
+        if (readonly) return false;
+        if (yearRecord.entry_type === 'backfill') {
+            return !yearRecord.year_locked;
+        }
+        if (yearRecord.semester_1_locked && String(entry.semester_1_grade || '').trim()) {
+            return false;
+        }
+        return canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2');
+    }
+
+    function canRemoveCourseEntry(yearRecord, entry, readonly = false) {
+        if (readonly || entry.is_core) return false;
+        if (yearRecord.entry_type === 'backfill') {
+            return !yearRecord.year_locked;
+        }
+        if (yearRecord.semester_1_locked) return false;
+        return canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2');
+    }
+
     function buildGradeEntryRowHtml(entry, yearRecord, options = {}) {
         const gradeLevel = yearRecord.grade_level;
         const isHs = isHighSchoolGrade(gradeLevel);
         const readonly = options.readonly || false;
-        const canEditMeta = !readonly && (canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2'));
+        const editCourseName = canEditCourseName(yearRecord, readonly);
+        const editCourseType = canEditCourseType(yearRecord, entry, readonly);
         const type = entry.course_type || 'other';
         const meta = courseTypeMeta(type);
         const editS1 = canEditGradeField(yearRecord, 'semester_1_grade', gradeLevel) && !readonly;
@@ -1880,7 +1914,7 @@
             : (computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, false) || entry.final_grade || '');
 
         const finalLabel = `Final${isHs ? ' %' : ''}`;
-        const showRemove = canEditMeta && !entry.is_core;
+        const showRemove = canRemoveCourseEntry(yearRecord, entry, readonly);
 
         return `
             <tr class="border-b border-slate-100" data-entry-id="${entry.id}">
@@ -1889,14 +1923,14 @@
                         <div class="flex-1 min-w-0">
                             <select class="form-input w-full px-2 py-2 text-xs border border-slate-300 rounded-xl mb-1"
                                     data-field="course_type"
-                                    ${canEditMeta ? '' : 'disabled'}>
+                                    ${editCourseType ? '' : 'disabled'}>
                                 ${buildCourseTypeOptions(type, gradeLevel)}
                             </select>
                             <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
                                    value="${escapeHtml(entry.course_name || '')}"
                                    data-field="course_name"
                                    placeholder="${escapeHtml(meta.placeholder)}"
-                                   ${canEditMeta ? '' : 'readonly'}>
+                                   ${editCourseName ? '' : 'readonly'}>
                         </div>
                         ${showRemove ? `
                             <button type="button" class="ar-remove-course-btn shrink-0"
@@ -1938,7 +1972,7 @@
         const isHs = isHighSchoolGrade(gradeLevel);
         const readonly = options.readonly || false;
         const calSem = getCalendarSemester(yearRecord.school_year);
-        const canEditMeta = !readonly && (canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2'));
+        const canAdd = canAddCourse(yearRecord, readonly);
 
         let rows = '';
         for (const entry of entries) {
@@ -1948,7 +1982,7 @@
         const gradeLabel = isHs ? '%' : '';
         const headers = `<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 1 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 2 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final ${gradeLabel}</th>`;
 
-        const addCourseBtn = canEditMeta ? `
+        const addCourseBtn = canAdd ? `
             <button type="button" class="ar-supplemental-btn ar-supplemental-btn--secondary ar-add-course-btn"
                     onclick="window.AcademicRecords.handleAddCourse('${yearRecord.id}')">+ Add course</button>
         ` : '';
@@ -2080,12 +2114,8 @@
             actionHint = `Add Semester 1 grades and attendance for ${name} (due Dec 31).`;
         }
 
-        const borderClass = options.overdueIcon
-            ? 'border-red-300 ring-1 ring-red-100'
-            : 'border-amber-200';
-
         return `
-            <div class="member-card bg-white border ${borderClass} rounded-3xl p-6 relative" id="progress-task-${studentId}">
+            <div class="hub-surface-card relative" id="progress-task-${studentId}">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex-1 min-w-0">
                         <h4 class="font-semibold text-lg text-navy">${escapeHtml(task.title)}</h4>
@@ -2761,19 +2791,21 @@
 
         try {
             const yearRecord = await fetchSchoolYearRecord(yearRecordId);
-            if (!canEditSemester(yearRecord, '1') && !canEditSemester(yearRecord, '2')) {
-                throw new Error('This record is locked. Contact the school office to request changes.');
-            }
-
             const client = await getClient();
             const { data: entry, error: fetchError } = await client
                 .from('grade_entries')
-                .select('is_core')
+                .select('*')
                 .eq('id', entryId)
                 .single();
             if (fetchError) throw fetchError;
-            if (entry?.is_core) {
-                throw new Error('Core courses cannot be removed.');
+            if (!canRemoveCourseEntry(yearRecord, entry)) {
+                if (entry?.is_core) {
+                    throw new Error('Core courses cannot be removed.');
+                }
+                if (yearRecord.entry_type === 'current' && yearRecord.semester_1_locked) {
+                    throw new Error('Added courses cannot be removed after Semester 1 is submitted. You can still add courses for Semester 2.');
+                }
+                throw new Error('This record is locked. Contact the school office to request changes.');
             }
 
             const { error } = await client.from('grade_entries').delete().eq('id', entryId);

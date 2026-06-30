@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260724">
+    <link rel="stylesheet" href="assets/styles.css?v=20260630">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -970,7 +970,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260724"></script>
+    <script src="assets/academic-records.js?v=20260630"></script>
     <script src="assets/onboarding-checklist.js?v=20260707"></script>
     <script>
         // =============================================
@@ -2363,9 +2363,8 @@
                         if (data?.signedUrl) href = data.signedUrl;
                         icon = 'fas fa-download';
                     }
-                    const borderClass = dueDates.overdue ? 'border-red-300 ring-1 ring-red-100' : 'border-amber-200';
                     html += `
-                        <div class="member-card bg-white border ${borderClass} rounded-3xl p-6 relative">
+                        <div class="hub-surface-card relative">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex-1 min-w-0">
                                     <h4 class="font-semibold text-lg text-navy">${escapeHtml(task.title)}</h4>
@@ -2690,6 +2689,132 @@
             }
         }
 
+        function getDocumentSchoolYear(date = new Date()) {
+            if (window.AcademicRecords?.currentSchoolYear) {
+                return window.AcademicRecords.currentSchoolYear(date);
+            }
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            if (month >= 7) return `${year}-${year + 1}`;
+            if (month <= 5) return `${year - 1}-${year}`;
+            return `${year}-${year + 1}`;
+        }
+
+        function formatDocumentYearTabLabel(schoolYear) {
+            if (schoolYear === 'Unassigned / Previous') return 'Earlier';
+            const parts = String(schoolYear).split('-');
+            if (parts.length === 2) {
+                return `${parts[0]}–${parts[1].slice(-2)}`;
+            }
+            return schoolYear;
+        }
+
+        function showDocumentYearTab(yearKey) {
+            const container = document.getElementById('hub-document-tabs');
+            if (!container) return;
+
+            container.dataset.activeYear = yearKey;
+            container.querySelectorAll('[data-doc-year-tab]').forEach((button) => {
+                const isActive = button.dataset.docYearTab === yearKey;
+                button.classList.toggle('is-active', isActive);
+                button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+            container.querySelectorAll('[data-doc-year-panel]').forEach((panel) => {
+                panel.classList.toggle('hidden', panel.dataset.docYearPanel !== yearKey);
+            });
+        }
+
+        async function buildDocumentCardHtml(doc) {
+            let href = doc.url || '#';
+            let icon = 'fas fa-external-link-alt';
+
+            if (doc.url && !doc.url.startsWith('http')) {
+                const { data } = await supabaseClient
+                    .storage
+                    .from('Family-Documents')
+                    .createSignedUrl(doc.url, 60 * 60 * 24);
+
+                if (data?.signedUrl) {
+                    href = data.signedUrl;
+                }
+                icon = 'fas fa-download';
+            }
+
+            return `
+                <div class="hub-surface-card">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-lg text-navy">${escapeHtml(doc.title)}</h4>
+                            ${doc.description ? `<p class="text-sm text-slate-600 mt-1">${escapeHtml(doc.description)}</p>` : ''}
+                            <div class="mt-3 text-xs text-slate-500 font-medium">${new Date(doc.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <a href="${href}" target="_blank" rel="noopener noreferrer" class="text-navy hover:text-gold transition ml-4">
+                            <i class="${icon} text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function renderDocumentYearTabs(grouped, defaultYear) {
+            const yearKeys = Object.keys(grouped).sort((a, b) => {
+                if (a === 'Unassigned / Previous') return 1;
+                if (b === 'Unassigned / Previous') return -1;
+                return b.localeCompare(a);
+            });
+
+            const activeYear = yearKeys.includes(defaultYear) ? defaultYear : yearKeys[0];
+            let tabButtons = '';
+            let tabPanels = '';
+
+            for (const year of yearKeys) {
+                const isActive = year === activeYear;
+                const label = formatDocumentYearTabLabel(year);
+                const yearDocs = grouped[year];
+
+                tabButtons += `
+                    <button type="button"
+                            class="ar-year-tab-btn hub-tab-btn ${isActive ? 'is-active' : ''}"
+                            role="tab"
+                            aria-selected="${isActive ? 'true' : 'false'}"
+                            title="${escapeHtml(year)}"
+                            data-doc-year-tab="${escapeHtml(year)}"
+                            onclick="showDocumentYearTab(${JSON.stringify(year)})">
+                        <span class="ar-year-tab-short">${escapeHtml(label)}</span>
+                        <span class="ar-year-tab-full">${escapeHtml(year)}</span>
+                    </button>
+                `;
+
+                let panelContent = '';
+                if (!yearDocs.length) {
+                    panelContent = '<div class="hub-empty-state">No documents for this school year yet.</div>';
+                } else {
+                    panelContent = '<div class="grid md:grid-cols-2 gap-4">';
+                    for (const doc of yearDocs) {
+                        panelContent += await buildDocumentCardHtml(doc);
+                    }
+                    panelContent += '</div>';
+                }
+
+                tabPanels += `
+                    <div class="ar-year-tab-panel ${isActive ? '' : 'hidden'}"
+                         role="tabpanel"
+                         data-doc-year-panel="${escapeHtml(year)}">${panelContent}</div>
+                `;
+            }
+
+            return `
+                <div class="hub-document-tabs ar-student-year-tabs"
+                     id="hub-document-tabs"
+                     data-active-year="${escapeHtml(activeYear)}">
+                    <div class="ar-year-tab-group hub-tab-group" role="tablist" aria-label="School years">
+                        ${tabButtons}
+                    </div>
+                    <div class="ar-year-tab-panels">${tabPanels}</div>
+                </div>
+            `;
+        }
+
         // Load personalized documents for the logged-in user
         async function loadMyDocuments(userId) {
             const container = document.getElementById('my-documents');
@@ -2709,89 +2834,20 @@
                 return;
             }
 
-            // Filter out items assigned as tasks (they appear in My Tasks tab instead)
-            // Also filter ID items (they appear in the dedicated My ID subsection)
-            let docs = (data || []).filter(d => {
+            const docs = (data || []).filter(d => {
                 const cat = (d.category || '').toLowerCase();
                 return !cat.includes('task') && !cat.includes('id');
             });
 
-            if (!docs || docs.length === 0) {
-                container.innerHTML = `
-                    <div class="hub-empty-state">
-                        No documents yet.
-                    </div>
-                `;
-                return;
-            }
-
-            // Group by school_year for long-term families (newest first, Unassigned last)
-            const grouped = {};
+            const currentYear = getDocumentSchoolYear();
+            const grouped = { [currentYear]: [] };
             docs.forEach(doc => {
                 const year = doc.school_year || 'Unassigned / Previous';
                 if (!grouped[year]) grouped[year] = [];
                 grouped[year].push(doc);
             });
 
-            const yearKeys = Object.keys(grouped).sort((a, b) => {
-                if (a === 'Unassigned / Previous') return 1;
-                if (b === 'Unassigned / Previous') return -1;
-                return b.localeCompare(a); // string sort works for YYYY-YYYY
-            });
-
-            let html = '';
-            for (const year of yearKeys) {
-                const yearDocs = grouped[year];
-                const isFirst = year === yearKeys[0];
-                html += `
-                    <details class="border border-slate-200 rounded-3xl overflow-hidden" ${isFirst ? 'open' : ''}>
-                        <summary class="px-5 py-3 bg-slate-50 cursor-pointer flex items-center justify-between text-navy font-semibold hover:bg-slate-100 transition">
-                            <span>${year} <span class="font-normal text-sm text-slate-500">(${yearDocs.length} document${yearDocs.length !== 1 ? 's' : ''})</span></span>
-                            <span class="text-xs text-slate-400">toggle</span>
-                        </summary>
-                        <div class="p-5 grid md:grid-cols-2 gap-4 bg-white">
-                `;
-
-                for (const doc of yearDocs) {
-                    let href = doc.url || '#';
-                    let icon = 'fas fa-external-link-alt';
-
-                    if (doc.url && !doc.url.startsWith('http')) {
-                        // This is a path in Supabase Storage - generate a secure signed URL
-                        const { data } = await supabaseClient
-                            .storage
-                            .from('Family-Documents')
-                            .createSignedUrl(doc.url, 60 * 60 * 24); // valid for 24 hours
-
-                        if (data?.signedUrl) {
-                            href = data.signedUrl;
-                        }
-                        icon = 'fas fa-download';
-                    }
-
-                    html += `
-                        <div class="hub-item-card member-card">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <h4 class="font-semibold text-lg text-navy">${doc.title}</h4>
-                                    ${doc.description ? `<p class="text-sm text-slate-600 mt-1">${doc.description}</p>` : ''}
-                                    <div class="mt-3 text-xs text-emerald-600 font-medium">${new Date(doc.created_at).toLocaleDateString()}</div>
-                                </div>
-                                <a href="${href}" target="_blank" class="text-navy hover:text-gold transition ml-4">
-                                    <i class="${icon} text-xl"></i>
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                html += `
-                        </div>
-                    </details>
-                `;
-            }
-
-            container.innerHTML = html;
+            container.innerHTML = await renderDocumentYearTabs(grouped, currentYear);
         }
 
         // Load shared resources visible to all approved families (controlled from Admin tab)
@@ -2841,13 +2897,13 @@
                 }
 
                 html += `
-                    <div class="hub-item-card member-card">
+                    <div class="hub-surface-card">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
-                                <h4 class="font-semibold text-lg text-navy">${res.title}</h4>
-                                ${res.description ? `<p class="text-sm text-slate-600 mt-1">${res.description}</p>` : ''}
+                                <h4 class="font-semibold text-lg text-navy">${escapeHtml(res.title)}</h4>
+                                ${res.description ? `<p class="text-sm text-slate-600 mt-1">${escapeHtml(res.description)}</p>` : ''}
                             </div>
-                            <a href="${href}" target="_blank" class="text-navy hover:text-gold transition ml-4">
+                            <a href="${href}" target="_blank" rel="noopener noreferrer" class="text-navy hover:text-gold transition ml-4">
                                 <i class="${icon} text-xl"></i>
                             </a>
                         </div>
@@ -2859,34 +2915,19 @@
         }
 
         // Demo version of load documents (for when Supabase not configured)
-        function loadMyDocumentsDemo() {
+        async function loadMyDocumentsDemo() {
             const container = document.getElementById('my-documents');
             if (!container) return;
 
-            container.innerHTML = `
-                <div class="hub-item-card member-card">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <h4 class="font-semibold text-lg text-navy">Sample: Grade Submission 2024</h4>
-                            <p class="text-sm text-slate-600 mt-1">Your submitted form from last year.</p>
-                        </div>
-                        <a href="#" class="text-navy hover:text-gold transition">
-                            <i class="fas fa-external-link-alt text-xl"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="hub-item-card member-card">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <h4 class="font-semibold text-lg text-navy">Sample: Transcript Request</h4>
-                            <p class="text-sm text-slate-600 mt-1">Example private document.</p>
-                        </div>
-                        <a href="#" class="text-navy hover:text-gold transition">
-                            <i class="fas fa-external-link-alt text-xl"></i>
-                        </a>
-                    </div>
-                </div>
-            `;
+            const currentYear = getDocumentSchoolYear();
+            const grouped = {
+                [currentYear]: [
+                    { title: 'Sample: Grade Submission', description: 'Your submitted form from this school year.', created_at: new Date().toISOString(), url: '#' },
+                    { title: 'Sample: Transcript Request', description: 'Example private document.', created_at: new Date().toISOString(), url: '#' },
+                ],
+            };
+
+            container.innerHTML = await renderDocumentYearTabs(grouped, currentYear);
         }
 
         function escapeHtml(value) {
@@ -3330,7 +3371,7 @@
                     return def ? def.label : sectionId;
                 }).join(', ');
                 html += `
-                    <div class="border border-slate-100 rounded-2xl p-4">
+                    <div class="hub-surface-card">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="font-medium text-navy">${name}</div>
@@ -3531,10 +3572,10 @@
                     : 'Unknown date';
 
                 return `
-                    <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="hub-surface-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
                             <div class="font-semibold text-navy">${name}</div>
-                            <div class="text-sm text-slate-600">${profile.email || 'No email on file'}</div>
+                            <div class="text-sm text-slate-600">${escapeHtml(profile.email || 'No email on file')}</div>
                             <div class="text-xs text-slate-500 mt-1">Signed up: ${signedUp}</div>
                         </div>
                         <div class="flex gap-2 shrink-0">

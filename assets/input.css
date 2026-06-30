@@ -715,19 +715,30 @@
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   }
 
-  .auth-tab-btn:not(.is-active),
-  .hub-tab-btn:not(.is-active),
-  .hub-admin-tab-btn:not(.is-active) {
+  .auth-tab-btn:not(.is-active) {
     border: 1px solid rgb(203 213 225);
     background-color: transparent;
   }
 
-  .auth-tab-btn:hover:not(.is-active),
-  .hub-tab-btn:hover:not(.is-active),
-  .hub-admin-tab-btn:hover:not(.is-active) {
+  .hub-tab-group .hub-tab-btn:not(.is-active),
+  .hub-admin-tab-group .hub-admin-tab-btn:not(.is-active) {
+    border: 1px solid #b8c5d4;
+    background-color: #ffffff;
+    color: #1e3a5f;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  }
+
+  .auth-tab-btn:hover:not(.is-active) {
     border-color: rgb(186 198 212);
     background-color: transparent;
     color: #0A2540;
+  }
+
+  .hub-tab-group .hub-tab-btn:hover:not(.is-active),
+  .hub-admin-tab-group .hub-admin-tab-btn:hover:not(.is-active) {
+    border-color: #94a3b8;
+    background-color: #f8fafc;
+    color: #0a2540;
   }
 
   .auth-tab-btn:hover:not(.is-active) i,
@@ -818,11 +829,12 @@
     color: rgb(100 116 139);
   }
 
-  .hub-panel {
-    background-color: white;
-    border-radius: 1.25rem;
-    border: 1px solid rgb(241 245 249);
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  .hub-panel,
+  .hub-surface-card {
+    border: 1px solid #d7e0ea;
+    border-radius: 1.125rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 6px 18px rgb(10 37 64 / 0.04);
   }
 
   .hub-panel-padded {
@@ -1125,23 +1137,31 @@
     padding-top: 1rem;
   }
 
-  /* Summit Family Hub */
+  /* Summit Family Hub — surface cards (matches academic records panels, no accent bar) */
   .member-card,
-  .hub-item-card {
-    background-color: white;
-    border: 1px solid rgb(241 245 249);
-    border-radius: 1.25rem;
+  .hub-item-card,
+  .hub-surface-card {
+    border: 1px solid #d7e0ea;
+    border-radius: 1.125rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 6px 18px rgb(10 37 64 / 0.04);
     padding: 1.5rem;
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.2s ease;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
 
   .member-card:hover,
-  .hub-item-card:hover {
-    transform: translateY(-2px);
-    border-color: rgb(226 232 240);
-    box-shadow: 0 8px 20px -6px rgb(0 0 0 / 0.08);
+  .hub-item-card:hover,
+  .hub-surface-card:hover {
+    border-color: #c5d0dc;
+    box-shadow: 0 1px 2px rgb(10 37 64 / 0.05), 0 8px 22px rgb(10 37 64 / 0.08);
+  }
+
+  .hub-document-tabs {
+    width: 100%;
+  }
+
+  .hub-document-tabs .ar-year-tab-panels {
+    margin-top: 0.75rem;
   }
 
   #admin-doc-file::file-selector-button,
