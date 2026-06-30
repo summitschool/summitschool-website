@@ -1321,6 +1321,13 @@ html.auth-transition-active .auth-transition-overlay {
   display: flex !important;
 }
 
+html.auth-transition-pending nav,
+html.auth-transition-active nav,
+html.auth-transition-pending .portal-main,
+html.auth-transition-active .portal-main {
+  visibility: hidden !important;
+}
+
 html.auth-transition-pending #login-view,
 html.auth-transition-active #login-view,
 html.auth-transition-pending #dashboard-view,

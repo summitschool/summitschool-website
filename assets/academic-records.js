@@ -1569,9 +1569,11 @@
             const gradeLabel = formatGradeLabel(student.current_grade_level);
             const sortedYears = sortSchoolYearsForDisplay(years, currentYear);
 
-            const creditHeaderHtml = isHighSchoolGrade(student.current_grade_level)
-                ? `<span class="ar-student-panel-credits" data-ar-header-credits="${student.id}" data-grade-level="${escapeHtml(student.current_grade_level)}"></span>`
-                : '';
+            const creditHeaderHtml = buildHeaderCreditsHtml(
+                student,
+                years,
+                entriesByYearId
+            );
 
             const defaultYearId = currentRecord?.id || sortedYears[0]?.id || null;
             const savedYearTab = expandState?.studentYearTabs?.[student.id] || null;
@@ -1627,6 +1629,7 @@
         bindAccordionControls(root);
         bindAddPanelControls(root);
         lastAcademicRecordsUserId = user.id;
+        void hydrateAllHeaderCredits(students);
 
         return {
             focusYearByStudent,
@@ -2034,6 +2037,24 @@
 
         const fetched = await fetchGradeEntriesForYearRecords(missing);
         Object.assign(recordsLoadContext.entriesByYearId, fetched);
+
+        if (lastAcademicRecordsUserId && Object.keys(fetched).length) {
+            const yearFingerprints = {};
+            missing.forEach((yearId) => {
+                const yearRecord = recordsLoadContext.yearRecordsById?.[yearId];
+                if (yearRecord) {
+                    yearFingerprints[yearId] = buildYearFingerprint(yearRecord);
+                }
+            });
+            saveSessionArCache(lastAcademicRecordsUserId, {
+                entriesByYearId: fetched,
+                yearFingerprints,
+            });
+            savePersistentArCache(lastAcademicRecordsUserId, {
+                entriesByYearId: fetched,
+                yearFingerprints,
+            });
+        }
     }
 
     async function saveGradeEntries(entries, gradeLevel) {
@@ -2324,6 +2345,86 @@
             }
         }
         return totals;
+    }
+
+    function getCompletedHighSchoolYears(years) {
+        return (years || []).filter((year) => {
+            if (!isHighSchoolGrade(year.grade_level)) return false;
+            return year.entry_type === 'backfill'
+                ? year.year_locked
+                : year.semester_2_locked;
+        });
+    }
+
+    function canRenderHeaderCreditsFromCache(years, entriesByYear) {
+        const completedYears = getCompletedHighSchoolYears(years);
+        if (!completedYears.length) return false;
+        return completedYears.every((year) => Array.isArray(entriesByYear?.[year.id]));
+    }
+
+    function summarizeCumulativeCreditsFromData(years, entriesByYear) {
+        const totals = { english: 0, math: 0, science: 0, history: 0, elective: 0 };
+
+        for (const year of getCompletedHighSchoolYears(years)) {
+            const entries = entriesByYear?.[year.id] || [];
+            const yearTotals = summarizeCredits(entries, year.grade_level, true);
+            TRANSCRIPT_COURSE_TYPES.forEach((type) => {
+                totals[type] += yearTotals[type] || 0;
+            });
+        }
+
+        return totals;
+    }
+
+    function buildHeaderCreditsHtml(student, years, entriesByYearId) {
+        if (!isHighSchoolGrade(student.current_grade_level)) return '';
+
+        const canRender = canRenderHeaderCreditsFromCache(years, entriesByYearId);
+        const creditLine = canRender
+            ? formatCumulativeCreditsLine(summarizeCumulativeCreditsFromData(years, entriesByYearId))
+            : '';
+        const hydratedAttr = canRender ? ' data-ar-header-credits-hydrated="1"' : '';
+
+        if (creditLine) {
+            return `<span class="ar-student-panel-credits" data-ar-header-credits="${student.id}" data-grade-level="${escapeHtml(student.current_grade_level)}"${hydratedAttr}>Credits: ${escapeHtml(creditLine)}</span>`;
+        }
+
+        return `<span class="ar-student-panel-credits" data-ar-header-credits="${student.id}" data-grade-level="${escapeHtml(student.current_grade_level)}"></span>`;
+    }
+
+    function applyHeaderCreditsForStudent(studentId) {
+        const el = document.querySelector(`[data-ar-header-credits="${studentId}"]`);
+        if (!el || el.dataset.arHeaderCreditsHydrated === '1') return true;
+
+        const years = recordsLoadContext?.yearsByStudent?.[studentId];
+        const entriesByYearId = recordsLoadContext?.entriesByYearId;
+        if (!years || !entriesByYearId || !canRenderHeaderCreditsFromCache(years, entriesByYearId)) {
+            return false;
+        }
+
+        const creditLine = formatCumulativeCreditsLine(
+            summarizeCumulativeCreditsFromData(years, entriesByYearId)
+        );
+        if (creditLine) {
+            el.textContent = `Credits: ${creditLine}`;
+        }
+        el.dataset.arHeaderCreditsHydrated = '1';
+        return true;
+    }
+
+    async function hydrateAllHeaderCredits(students) {
+        const hsStudents = (students || []).filter((student) => isHighSchoolGrade(student.current_grade_level));
+        if (!hsStudents.length) return;
+
+        hsStudents.forEach((student) => {
+            applyHeaderCreditsForStudent(student.id);
+        });
+
+        await Promise.all(hsStudents.map(async (student) => {
+            const el = document.querySelector(`[data-ar-header-credits="${student.id}"]`);
+            if (el?.dataset.arHeaderCreditsHydrated === '1') return;
+            await hydrateHeaderCreditsForStudent(student.id);
+        }));
     }
 
     async function summarizeCumulativeCredits(studentId, gradeLevel, options = {}) {
@@ -3212,6 +3313,7 @@
                     entriesByYearId,
                 };
                 lastAcademicRecordsUserId = user.id;
+                void hydrateAllHeaderCredits(students);
                 return;
             }
 

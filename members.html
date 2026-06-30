@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260713">
+    <link rel="stylesheet" href="assets/styles.css?v=20260715">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -30,17 +30,29 @@
         })();
     </script>
     <style id="auth-transition-critical">
+        html.auth-transition-pending nav,
+        html.auth-transition-active nav,
+        html.auth-transition-pending .portal-main,
+        html.auth-transition-active .portal-main {
+            visibility: hidden !important;
+        }
+
         html.auth-transition-pending #login-view,
+        html.auth-transition-active #login-view,
         html.auth-transition-pending #dashboard-view,
-        html.auth-transition-pending #pending-view {
+        html.auth-transition-active #dashboard-view,
+        html.auth-transition-pending #pending-view,
+        html.auth-transition-active #pending-view {
             display: none !important;
         }
 
-        html.auth-transition-pending #auth-transition-overlay {
+        html.auth-transition-pending #auth-transition-overlay,
+        html.auth-transition-active #auth-transition-overlay {
             display: flex !important;
         }
 
-        html.auth-transition-pending body {
+        html.auth-transition-pending body,
+        html.auth-transition-active body {
             overflow: hidden;
         }
     </style>
@@ -1007,7 +1019,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260714"></script>
+    <script src="assets/academic-records.js?v=20260715"></script>
     <script src="assets/onboarding-checklist.js?v=20260711"></script>
     <script>
         // =============================================
@@ -1267,6 +1279,20 @@
             oauthCallbackInProgress = false;
             clearPendingOAuthAttempt();
             hideAuthTransition();
+        }
+
+        function releaseAuthTransitionHandoff() {
+            if (!oauthCallbackInProgress
+                && !document.documentElement.classList.contains('auth-transition-pending')
+                && !document.documentElement.classList.contains('auth-transition-active')) {
+                return;
+            }
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    finishOAuthHandoff();
+                });
+            });
         }
 
         function isOAuthCallbackUrl() {
@@ -2826,8 +2852,6 @@
 
                     setLogoutButtonsVisible(true);
                 }
-
-                finishOAuthHandoff();
             } else {
                 if (completingSignIn) {
                     showAuthTransition('Completing sign-in…');
@@ -6302,6 +6326,7 @@
             // visibility/focus events (e.g. switching browser tabs and back)
             // do not force-reset the active sub-tab.
             showDashboardTab('my-tasks');
+            releaseAuthTransitionHandoff();
         }
 
         window.onload = init;
