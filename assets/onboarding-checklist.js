@@ -548,7 +548,7 @@
 
         try {
             await setManualCheck(user.id, itemId, true);
-            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();
+            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
         } catch (err) {
             checkbox.checked = false;
             await window.showAppAlert?.(err.message || String(err));
@@ -561,7 +561,7 @@
         if (!user) return;
         try {
             await setGuideReadFlag(user.id);
-            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();
+            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
         }
@@ -589,14 +589,14 @@
 
         try {
             await completeOnboarding(user.id);
-            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();
+            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
         }
     }
 
     async function refresh() {
-        if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();
+        if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
     }
 
     window.OnboardingChecklist = {

@@ -512,12 +512,15 @@
     }
 
     function buildLazyYearTabPanel(studentId, yearRecordId, isActive) {
+        const loading = isActive
+            ? '<div class="ar-year-panel-loading text-sm text-slate-500 py-2">Loading year details...</div>'
+            : '';
         return `
             <div class="ar-year-tab-panel ${isActive ? '' : 'hidden'}"
                  role="tabpanel"
                  data-ar-year-panel="${yearRecordId}"
                  data-ar-student-panel="${studentId}"
-                 data-ar-year-lazy="1"></div>
+                 data-ar-year-lazy="1">${loading}</div>
         `;
     }
 
@@ -987,6 +990,15 @@
             });
 
             panel.addEventListener('toggle', () => {
+                if (panel.open && panel.dataset.studentId) {
+                    const studentId = panel.dataset.studentId;
+                    const container = getStudentTabsContainer(studentId);
+                    const yearId = container?.dataset.arActiveYear || container?.dataset.arDefaultYear;
+                    if (yearId) void ensureYearPanelLoaded(studentId, yearId);
+                    void hydrateHeaderCreditsForStudent(studentId);
+                    return;
+                }
+
                 if (!panel.open && panel.dataset.studentId) {
                     resetStudentYearTab(panel.dataset.studentId);
                 }
@@ -1295,6 +1307,9 @@
 
     let isAddingStudent = false;
     let recordsLoadContext = null;
+    const ACADEMIC_RECORDS_STALE_MS = 60000;
+    let lastAcademicRecordsLoadAt = 0;
+    let lastAcademicRecordsUserId = null;
 
     function getProgressStatusLabel(yearRecord, gradeLevel = '') {
         if (!yearRecord) return 'No current year record';
@@ -1359,22 +1374,48 @@
     }
 
     async function reconcileStaleCurrentYearRecords(studentId, activeYear, years) {
+        const modified = await reconcileStaleCurrentYearRecordsBatch(
+            [{ id: studentId }],
+            activeYear,
+            { [studentId]: years || await fetchSchoolYearsForStudent(studentId) }
+        );
+        return modified;
+    }
+
+    async function reconcileStaleCurrentYearRecordsBatch(students, activeYear, yearsByStudent) {
+        const staleRecords = [];
+        students.forEach((student) => {
+            (yearsByStudent[student.id] || []).forEach((record) => {
+                if (
+                    record.entry_type === 'current'
+                    && record.school_year !== activeYear
+                    && isSchoolYearClosed(record.school_year)
+                ) {
+                    staleRecords.push(record);
+                }
+            });
+        });
+
+        if (!staleRecords.length) return false;
+
         const client = await getClient();
-        years = years || await fetchSchoolYearsForStudent(studentId);
-        const staleRecords = years.filter((record) => (
-            record.entry_type === 'current'
-            && record.school_year !== activeYear
-            && isSchoolYearClosed(record.school_year)
-        ));
+        const entriesByYear = await fetchGradeEntriesForYearRecords(staleRecords.map((record) => record.id));
+        let modified = false;
 
         for (const record of staleRecords) {
-            const entries = await fetchGradeEntries(record.id);
+            const entries = entriesByYear[record.id] || [];
             if (yearRecordHasProgress(record, entries)) continue;
 
             await client.from('grade_entries').delete().eq('school_year_record_id', record.id);
             const { error } = await client.from('student_school_years').delete().eq('id', record.id);
-            if (error) console.warn('[Academic Records] Could not remove stale school year:', error.message);
+            if (error) {
+                console.warn('[Academic Records] Could not remove stale school year:', error.message);
+                continue;
+            }
+            modified = true;
         }
+
+        return modified;
     }
 
     async function ensureCurrentSchoolYearRecord(studentId, gradeLevel, options = {}) {
@@ -1576,22 +1617,40 @@
     }
 
     async function fetchGradeEntriesForYearRecords(yearRecordIds) {
-        if (!yearRecordIds.length) return {};
-        const client = await getClient();
-        const { data, error } = await client
-            .from('grade_entries')
-            .select('*')
-            .in('school_year_record_id', yearRecordIds)
-            .order('sort_order', { ascending: true });
-        if (error) throw error;
+        const uniqueIds = [...new Set((yearRecordIds || []).filter(Boolean))];
+        if (!uniqueIds.length) return {};
 
+        const client = await getClient();
         const byYear = {};
-        (data || []).forEach((entry) => {
-            const yearId = entry.school_year_record_id;
-            if (!byYear[yearId]) byYear[yearId] = [];
-            byYear[yearId].push(entry);
-        });
+        const chunkSize = 40;
+
+        for (let index = 0; index < uniqueIds.length; index += chunkSize) {
+            const chunk = uniqueIds.slice(index, index + chunkSize);
+            const { data, error } = await client
+                .from('grade_entries')
+                .select('*')
+                .in('school_year_record_id', chunk)
+                .order('sort_order', { ascending: true });
+            if (error) throw error;
+
+            (data || []).forEach((entry) => {
+                const yearId = entry.school_year_record_id;
+                if (!byYear[yearId]) byYear[yearId] = [];
+                byYear[yearId].push(entry);
+            });
+        }
+
         return byYear;
+    }
+
+    async function ensureGradeEntriesCached(yearRecordIds) {
+        if (!recordsLoadContext) return;
+        const missing = [...new Set((yearRecordIds || []).filter(Boolean))]
+            .filter((yearId) => !recordsLoadContext.entriesByYearId[yearId]);
+        if (!missing.length) return;
+
+        const fetched = await fetchGradeEntriesForYearRecords(missing);
+        Object.assign(recordsLoadContext.entriesByYearId, fetched);
     }
 
     async function saveGradeEntries(entries, gradeLevel) {
@@ -1985,9 +2044,9 @@
             if (panel) panel.setAttribute('open', '');
         }
 
-        Object.entries(normalized.studentYearTabs).forEach(([studentId, yearId]) => {
-            if (yearId) showStudentYearTab(studentId, yearId);
-        });
+        if (openStudentId && normalized.studentYearTabs[openStudentId]) {
+            showStudentYearTab(openStudentId, normalized.studentYearTabs[openStudentId]);
+        }
 
         if (normalized.addStudentOpen) {
             toggleAddPanel(true);
@@ -2302,28 +2361,46 @@
         }));
     }
 
-    async function hydrateHeaderCredits() {
-        const headers = document.querySelectorAll('[data-ar-header-credits]');
-        await Promise.all(Array.from(headers).map(async (el) => {
-            if (el.dataset.arHeaderCreditsHydrated === '1') return;
+    async function hydrateHeaderCreditsForStudent(studentId) {
+        const el = document.querySelector(`[data-ar-header-credits="${studentId}"]`);
+        if (!el || el.dataset.arHeaderCreditsHydrated === '1') return;
 
-            const studentId = el.dataset.arHeaderCredits;
-            const level = el.dataset.gradeLevel || '';
-            if (!studentId || !isHighSchoolGrade(level)) return;
+        const level = el.dataset.gradeLevel || '';
+        if (!isHighSchoolGrade(level)) return;
 
-            try {
-                const totals = await summarizeCumulativeCredits(studentId, level, {
-                    years: recordsLoadContext?.yearsByStudent?.[studentId],
-                    entriesByYear: recordsLoadContext?.entriesByYearId,
-                });
-                const creditLine = formatCumulativeCreditsLine(totals);
-                if (creditLine) {
-                    el.textContent = `Credits: ${creditLine}`;
-                }
-                el.dataset.arHeaderCreditsHydrated = '1';
-            } catch (err) {
-                el.textContent = '';
+        try {
+            const years = recordsLoadContext?.yearsByStudent?.[studentId]
+                || await fetchSchoolYearsForStudent(studentId);
+            const completedYearIds = years
+                .filter((year) => {
+                    if (!isHighSchoolGrade(year.grade_level)) return false;
+                    return year.entry_type === 'backfill'
+                        ? year.year_locked
+                        : year.semester_2_locked;
+                })
+                .map((year) => year.id);
+
+            await ensureGradeEntriesCached(completedYearIds);
+
+            const totals = await summarizeCumulativeCredits(studentId, level, {
+                years,
+                entriesByYear: recordsLoadContext?.entriesByYearId,
+            });
+            const creditLine = formatCumulativeCreditsLine(totals);
+            if (creditLine) {
+                el.textContent = `Credits: ${creditLine}`;
             }
+            el.dataset.arHeaderCreditsHydrated = '1';
+        } catch (err) {
+            el.textContent = '';
+        }
+    }
+
+    async function preloadStudentYearPanels(targets) {
+        await Promise.all((targets || []).map(async ({ studentId, yearId }) => {
+            if (!studentId || !yearId) return;
+            await ensureYearPanelLoaded(studentId, yearId);
+            void hydrateHeaderCreditsForStudent(studentId);
         }));
     }
 
@@ -2622,6 +2699,14 @@
         document.getElementById('ar-grade-chart-close')?.focus({ preventScroll: true });
     }
 
+    function shouldSkipAcademicRecordsReload(userId, options = {}) {
+        if (options.force || options.expandState || options.scrollAnchor) return false;
+        const root = document.getElementById('academic-records-root');
+        if (!root?.querySelector('.student-record-panel')) return false;
+        if (!userId || userId !== lastAcademicRecordsUserId) return false;
+        return Date.now() - lastAcademicRecordsLoadAt < ACADEMIC_RECORDS_STALE_MS;
+    }
+
     async function loadAcademicRecords(options = {}) {
         const root = document.getElementById('academic-records-root');
         if (!root) return;
@@ -2629,6 +2714,10 @@
         const user = await getCurrentUser();
         if (!user) {
             root.innerHTML = '<div class="hub-empty-state">Please log in to manage academic records.</div>';
+            return;
+        }
+
+        if (shouldSkipAcademicRecordsReload(user.id, options)) {
             return;
         }
 
@@ -2658,17 +2747,18 @@
             const currentYear = currentSchoolYear();
             const studentIds = students.map((student) => student.id);
             let yearsByStudent = await fetchSchoolYearsForStudents(studentIds);
+            const focusId = getFocusStudentId();
+            const openStudentIds = new Set();
+            if (focusId) openStudentIds.add(focusId);
+            (expandState?.studentIds || []).forEach((studentId) => openStudentIds.add(studentId));
 
-            await Promise.all(students
-                .filter((student) => student.current_grade_level)
-                .map((student) => reconcileStaleCurrentYearRecords(
-                    student.id,
-                    currentYear,
-                    yearsByStudent[student.id] || []
-                )));
+            const reconcileModified = await reconcileStaleCurrentYearRecordsBatch(
+                students.filter((student) => student.current_grade_level),
+                currentYear,
+                yearsByStudent
+            );
 
-            yearsByStudent = await fetchSchoolYearsForStudents(studentIds);
-
+            let ensuredAny = false;
             await Promise.all(students
                 .filter((student) => student.current_grade_level)
                 .map(async (student) => {
@@ -2682,8 +2772,12 @@
                         years,
                         skipReconcile: true,
                     });
-                    yearsByStudent[student.id] = await fetchSchoolYearsForStudent(student.id);
+                    ensuredAny = true;
                 }));
+
+            if (reconcileModified || ensuredAny) {
+                yearsByStudent = await fetchSchoolYearsForStudents(studentIds);
+            }
 
             const yearRecordsById = {};
             Object.values(yearsByStudent).forEach((years) => {
@@ -2692,18 +2786,26 @@
                 });
             });
 
-            const entriesByYearId = await fetchGradeEntriesForYearRecords(Object.keys(yearRecordsById));
-
             recordsLoadContext = {
                 studentsById: Object.fromEntries(students.map((student) => [student.id, student])),
                 yearsByStudent,
                 yearRecordsById,
-                entriesByYearId,
+                entriesByYearId: {},
             };
+
+            const preloadTargets = [];
+
+            if (expandState?.scrollAnchor && yearRecordsById[expandState.scrollAnchor]) {
+                const anchorRecord = yearRecordsById[expandState.scrollAnchor];
+                openStudentIds.add(anchorRecord.student_id);
+                preloadTargets.push({
+                    studentId: anchorRecord.student_id,
+                    yearId: expandState.scrollAnchor,
+                });
+            }
 
             html += buildAddToolbarHtml(students, backfillYears);
             html += '<div class="space-y-3">';
-            const focusId = getFocusStudentId();
             const focusYearByStudent = {};
 
             for (let studentIndex = 0; studentIndex < students.length; studentIndex += 1) {
@@ -2727,6 +2829,10 @@
                     : null;
                 if (focusYearId) focusYearByStudent[student.id] = focusYearId;
                 const activeYearId = focusYearId || savedYearTab || defaultYearId;
+                const shouldPreload = openStudentIds.has(student.id);
+                if (shouldPreload && activeYearId) {
+                    preloadTargets.push({ studentId: student.id, yearId: activeYearId });
+                }
 
                 let yearTabButtonsHtml = '';
                 let yearTabPanelsHtml = '';
@@ -2736,17 +2842,7 @@
                     for (const yearRecord of sortedYears) {
                         const isActiveYear = activeYearId === yearRecord.id;
                         yearTabButtonsHtml += buildYearTabButton(student.id, yearRecord, isActiveYear);
-                        if (isActiveYear) {
-                            const entries = entriesByYearId[yearRecord.id] || [];
-                            yearTabPanelsHtml += buildYearTabPanel(
-                                student.id,
-                                yearRecord.id,
-                                buildSchoolYearDetailHtml(yearRecord, entries, student),
-                                true
-                            );
-                        } else {
-                            yearTabPanelsHtml += buildLazyYearTabPanel(student.id, yearRecord.id, false);
-                        }
+                        yearTabPanelsHtml += buildLazyYearTabPanel(student.id, yearRecord.id, isActiveYear);
                     }
                 }
 
@@ -2778,16 +2874,22 @@
             bindAddFormHandlers(root);
             bindStudentPanelBehavior(root);
             restoreExpandState(root, expandState);
-            bindGradeTableEvents();
-            bindAttendanceEvents(root);
             bindAccordionControls(root);
-            bindBackToStudentTop(root);
-            bindTranscriptHandlers(root);
             bindAddPanelControls(root);
-            void Promise.all([
-                hydrateCumulativeCredits(),
-                hydrateHeaderCredits(),
-            ]);
+            lastAcademicRecordsLoadAt = Date.now();
+            lastAcademicRecordsUserId = user.id;
+
+            const uniquePreloadTargets = [...new Map(preloadTargets.map((target) => [
+                `${target.studentId}:${target.yearId}`,
+                target,
+            ])).values()];
+            const preloadPromise = preloadStudentYearPanels(uniquePreloadTargets);
+            const needsPreloadBeforeScroll = Boolean(expandState?.scrollAnchor || focusId);
+            if (needsPreloadBeforeScroll) {
+                await preloadPromise;
+            } else {
+                void preloadPromise;
+            }
 
             if (focusId) {
                 const focusYearId = focusYearByStudent[focusId] || expandState?.studentYearTabs?.[focusId];
@@ -2910,7 +3012,7 @@
             }
             await submitSemester(yearRecord, semesterKey, ackName, entries, attendance);
             await loadAcademicRecords({ expandState });
-            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();
+            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
         }

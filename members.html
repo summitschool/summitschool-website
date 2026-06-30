@@ -968,8 +968,8 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260710"></script>
-    <script src="assets/onboarding-checklist.js?v=20260710"></script>
+    <script src="assets/academic-records.js?v=20260711"></script>
+    <script src="assets/onboarding-checklist.js?v=20260711"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -1016,6 +1016,9 @@
         let lastAdminSection = 'members';
         let lastDashboardTab = 'my-tasks';
         let currentAdminSection = null;
+        const MY_TASKS_STALE_MS = 60000;
+        let lastMyTasksLoadAt = 0;
+        let lastMyTasksUserId = null;
 
         const ADMIN_FAMILY_TASKS_PLACEHOLDER = 'Select a family above to view and manage task due dates.';
         const ADMIN_FAMILY_DOCS_PLACEHOLDER = 'Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.';
@@ -2233,13 +2236,11 @@
         // Badge shows pending count; red ! when any task is overdue.
         // ID task renders professional ack form + camera/gallery input + name validation (required).
         // On submit: client upload to {userId}/ids/pending/ in Family-Documents + metadata rows.
-        async function loadMyTasks() {
+        async function loadMyTasks(options = {}) {
             const list = document.getElementById('my-tasks-list');
             const badge = document.getElementById('my-tasks-badge');
             const overdueBadge = document.getElementById('my-tasks-overdue-badge');
             if (!list || !badge || !supabaseClient) return;
-
-            list.innerHTML = '<div class="hub-empty-state">Loading your tasks...</div>';
 
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
@@ -2247,6 +2248,18 @@
                 badge.classList.add('hidden');
                 return;
             }
+
+            const hasRenderedTasks = list.querySelector('.hub-surface-card, .hub-panel, #onboarding-task-card, #id-task-card');
+            if (
+                !options.force
+                && hasRenderedTasks
+                && lastMyTasksUserId === user.id
+                && Date.now() - lastMyTasksLoadAt < MY_TASKS_STALE_MS
+            ) {
+                return;
+            }
+
+            list.innerHTML = '<div class="hub-empty-state">Loading your tasks...</div>';
 
             // Fetch items marked as tasks (standards assigned to My Tasks get ' (Task)' appended to category)
             // ID verification standard gets special upload form when sent as a task.
@@ -2416,6 +2429,8 @@
             }));
 
             list.innerHTML = taskCards.join('');
+            lastMyTasksLoadAt = Date.now();
+            lastMyTasksUserId = user.id;
         }
 
         function contactAdminForID() {
@@ -2585,7 +2600,7 @@
                 }
 
                 // Refresh badge/tasks (now without the ID task)
-                if (typeof loadMyTasks === 'function') setTimeout(loadMyTasks, 800);
+                if (typeof loadMyTasks === 'function') setTimeout(() => loadMyTasks({ force: true }), 800);
 
             } catch (err) {
                 console.error(err);
