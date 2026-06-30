@@ -1477,6 +1477,11 @@ html.auth-transition-active #pending-view {
   border-left-color: var(--section-accent);
 }
 
+.ar-accent-export {
+  --section-accent: #0a2540;
+  border-left-color: var(--section-accent);
+}
+
 .ar-accent-attendance .ar-supplemental-eyebrow { color: #1f9e8f; }
 .ar-accent-courses .ar-supplemental-eyebrow { color: #6d5ce7; }
 .ar-accent-credits .ar-supplemental-eyebrow { color: #9a7d1c; }

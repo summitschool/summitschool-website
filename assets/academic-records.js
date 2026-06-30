@@ -823,11 +823,184 @@
         `;
     }
 
+    function isProgressReportExportable(yearRecord, options = {}) {
+        if (!yearRecord || options.readonly || options.admin) return false;
+        return isYearRecordStable(yearRecord);
+    }
+
+    function buildProgressReportExportPanelHtml(yearRecordId) {
+        return `
+            <div class="ar-supplemental-card ar-accent-export ar-export-panel mt-4">
+                <p class="ar-supplemental-muted text-sm mb-3">This report is complete. Download a PDF copy for your records.</p>
+                <button type="button"
+                        class="ar-supplemental-btn ar-supplemental-btn--primary ar-export-pdf-btn"
+                        data-ar-export-pdf="${escapeHtml(yearRecordId)}"
+                        onclick="window.AcademicRecords.exportProgressReportPdf('${escapeJsString(yearRecordId)}', this)">
+                    Download PDF
+                </button>
+            </div>
+        `;
+    }
+
+    function sanitizeFilenamePart(value) {
+        return String(value || '')
+            .replace(/[^\w\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '-');
+    }
+
+    function buildCourseTypeLabelMap() {
+        return TRANSCRIPT_COURSE_TYPES.reduce((map, type) => {
+            map[type] = courseTypeMeta(type).label;
+            return map;
+        }, {});
+    }
+
+    function buildProgressReportSignatures(yearRecord) {
+        const signatures = [];
+        if (yearRecord.entry_type === 'backfill') {
+            signatures.push({
+                label: 'Prior year submitted',
+                name: yearRecord.year_ack_name || '—',
+                date: yearRecord.year_submitted_at,
+            });
+            return signatures;
+        }
+
+        if (yearRecord.semester_1_locked) {
+            signatures.push({
+                label: 'Semester 1',
+                name: yearRecord.semester_1_ack_name || '—',
+                date: yearRecord.semester_1_submitted_at,
+            });
+        }
+        if (yearRecord.semester_2_locked) {
+            signatures.push({
+                label: 'Semester 2 & Final',
+                name: yearRecord.semester_2_ack_name || '—',
+                date: yearRecord.semester_2_submitted_at,
+            });
+        }
+        return signatures;
+    }
+
+    function buildProgressReportExportPayload(yearRecord, entries, student, cumulativeCredits) {
+        const isHs = isHighSchoolGrade(yearRecord.grade_level);
+        const s1Display = yearRecord.semester_1_attendance_days;
+        const s2Display = yearRecord.semester_2_attendance_days;
+        const s1Days = parseAttendanceDays(s1Display);
+        const s2Days = parseAttendanceDays(s2Display);
+        const hasAttendance = s1Days !== null || s2Days !== null;
+
+        const courses = (entries || []).map((entry) => {
+            const meta = courseTypeMeta(entry.course_type);
+            const finalGrade = getEffectiveFinal(entry, yearRecord.grade_level);
+            return {
+                name: (entry.course_name || '').trim() || meta.placeholder,
+                typeLabel: meta.label,
+                sem1: String(entry.semester_1_grade || '').trim() || '—',
+                sem2: String(entry.semester_2_grade || '').trim() || '—',
+                final: finalGrade || '—',
+            };
+        });
+
+        const studentName = studentDisplayName(student);
+        const filename = `Progress-Report-${sanitizeFilenamePart(studentName) || 'Student'}-${sanitizeFilenamePart(yearRecord.school_year) || 'Year'}.pdf`;
+
+        return {
+            studentName,
+            schoolYear: yearRecord.school_year,
+            gradeLabel: formatGradeLabel(yearRecord.grade_level),
+            reportLabel: yearRecord.entry_type === 'backfill' ? 'Prior Year Record' : 'Progress Report',
+            statusLabel: 'Complete',
+            isHighSchool: isHs,
+            attendance: {
+                semester1: s1Display === '' || s1Display == null ? '—' : String(s1Display),
+                semester2: s2Display === '' || s2Display == null ? '—' : String(s2Display),
+                total: hasAttendance ? String((s1Days ?? 0) + (s2Days ?? 0)) : '—',
+            },
+            courses,
+            yearCredits: isHs ? summarizeCredits(entries, yearRecord.grade_level, true) : null,
+            cumulativeCredits: isHs ? cumulativeCredits : null,
+            creditRequirements: AL_GRAD_CREDIT_REQUIREMENTS,
+            courseTypeLabels: buildCourseTypeLabelMap(),
+            creditTypeOrder: TRANSCRIPT_COURSE_TYPES,
+            signatures: buildProgressReportSignatures(yearRecord),
+            filename,
+        };
+    }
+
+    async function resolveEntriesByYearForStudent(studentId) {
+        const years = await fetchSchoolYearsForStudent(studentId);
+        const entriesByYear = { ...(recordsLoadContext?.entriesByYearId || {}) };
+        const missingYearIds = getCompletedHighSchoolYears(years)
+            .map((year) => year.id)
+            .filter((yearId) => !Array.isArray(entriesByYear[yearId]));
+
+        if (missingYearIds.length) {
+            const fetched = await fetchGradeEntriesForYearRecords(missingYearIds);
+            Object.assign(entriesByYear, fetched);
+        }
+
+        return { years, entriesByYear };
+    }
+
+    async function exportProgressReportPdf(yearRecordId, triggerEl) {
+        if (!yearRecordId) return;
+
+        const originalLabel = triggerEl?.textContent || 'Download PDF';
+        try {
+            if (triggerEl) {
+                triggerEl.disabled = true;
+                triggerEl.textContent = 'Preparing PDF…';
+            }
+
+            if (!window.ProgressReportPdf?.generateAndDownload) {
+                throw new Error('PDF export module is not loaded. Please refresh the page and try again.');
+            }
+
+            const yearRecord = await fetchSchoolYearRecord(yearRecordId);
+            if (!isYearRecordStable(yearRecord)) {
+                throw new Error('This report is not finalized yet. Complete and submit all semesters first.');
+            }
+
+            const client = await getClient();
+            const { data: student, error: studentError } = await client
+                .from('students')
+                .select('*')
+                .eq('id', yearRecord.student_id)
+                .single();
+            if (studentError || !student) {
+                throw new Error('Could not load student information for this report.');
+            }
+
+            const entries = await fetchGradeEntries(yearRecordId);
+            let cumulativeCredits = null;
+            if (isHighSchoolGrade(yearRecord.grade_level)) {
+                const { years, entriesByYear } = await resolveEntriesByYearForStudent(yearRecord.student_id);
+                cumulativeCredits = summarizeCumulativeCreditsFromData(years, entriesByYear);
+            }
+
+            const payload = buildProgressReportExportPayload(yearRecord, entries, student, cumulativeCredits);
+            await window.ProgressReportPdf.generateAndDownload(payload);
+        } catch (err) {
+            await window.showAppAlert?.(err.message || String(err));
+        } finally {
+            if (triggerEl) {
+                triggerEl.disabled = false;
+                triggerEl.textContent = originalLabel;
+            }
+        }
+    }
+
     function buildSchoolYearDetailHtml(yearRecord, entries, student, options = {}) {
         const { readonly = false, admin = false } = options;
         const statusLabel = getYearStatusLabel(yearRecord);
         const reportLabel = yearRecord.entry_type === 'backfill' ? 'prior year record' : 'progress report';
         const isLocked = yearRecord.year_locked || yearRecord.semester_1_locked || yearRecord.semester_2_locked;
+        const exportHtml = isProgressReportExportable(yearRecord, options)
+            ? buildProgressReportExportPanelHtml(yearRecord.id)
+            : '';
 
         let actionsHtml = '';
         if (!readonly) {
@@ -867,6 +1040,7 @@
                 ${buildGradeTableHtml(yearRecord, entries, { readonly })}
                 ${hsSupplemental}
                 ${actionsHtml}
+                ${exportHtml}
             </div>
             ${buildBackToStudentTopBar(student.id)}
         `;
@@ -3999,6 +4173,8 @@
         renderAdminFamilyAcademicRecords,
         defaultProgressDueDates,
         studentDisplayName,
+        exportProgressReportPdf,
+        isProgressReportExportable,
     };
 
     window.loadAcademicRecords = loadAcademicRecords;
