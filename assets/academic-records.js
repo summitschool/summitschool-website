@@ -244,6 +244,18 @@
         `;
     }
 
+    function buildStudentCloseButtonHtml(studentId) {
+        return `
+            <button type="button"
+                    class="ar-add-close-btn ar-student-close-btn"
+                    data-ar-student-close="${escapeHtml(studentId)}"
+                    aria-label="Close student record">
+                <span class="ar-add-close-icon" aria-hidden="true">×</span>
+                <span>Close</span>
+            </button>
+        `;
+    }
+
     function buildAccordionSummary(options = {}) {
         const {
             leftHtml,
@@ -251,6 +263,7 @@
             hint = 'Tap to open',
             hintOpen = '',
             extraClass = '',
+            trailingActionHtml = '',
         } = options;
 
         const hintHtml = hintOpen
@@ -268,6 +281,7 @@
                 </span>
                 ${rightHtml ? `<span class="ar-summary-right">${rightHtml}</span>` : ''}
                 ${hintHtml}
+                ${trailingActionHtml}
             </summary>
         `;
     }
@@ -299,6 +313,7 @@
             hint: 'Tap student to open',
             hintOpen: 'Tap student to close',
             extraClass,
+            trailingActionHtml: buildStudentCloseButtonHtml(student.id),
         });
     }
 
@@ -804,6 +819,19 @@
 
     function bindStudentPanelBehavior(root) {
         if (!root) return;
+
+        root.querySelectorAll('[data-ar-student-close]').forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const panel = button.closest('.student-record-panel');
+                if (!panel) return;
+                panel.removeAttribute('open');
+                if (panel.dataset.studentId) {
+                    resetStudentYearTab(panel.dataset.studentId);
+                }
+            });
+        });
 
         root.querySelectorAll('.student-record-panel').forEach((panel) => {
             const summary = panel.querySelector('summary');

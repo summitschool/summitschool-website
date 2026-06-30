@@ -2081,6 +2081,7 @@ body.app-dialog-open {
 }
 
 .ar-student-panel {
+  position: relative;
   border: 1px solid #d7e0ea;
   border-left-width: 3px;
   border-radius: 1.125rem;
@@ -2088,6 +2089,22 @@ body.app-dialog-open {
   box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 6px 18px rgb(10 37 64 / 0.04);
   overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.student-record-panel .ar-student-close-btn {
+  display: none;
+}
+
+.student-record-panel[open] .ar-student-close-btn {
+  display: inline-flex;
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 3;
+}
+
+.student-record-panel[open] > summary.ar-student-panel-trigger {
+  padding-right: 5.75rem;
 }
 
 #academic-records-root .student-record-panel[open],
