@@ -1318,7 +1318,7 @@ body.app-dialog-open {
 
 html.auth-transition-pending .auth-transition-overlay,
 html.auth-transition-active .auth-transition-overlay {
-  display: flex;
+  display: flex !important;
 }
 
 html.auth-transition-pending #login-view,
@@ -1327,8 +1327,7 @@ html.auth-transition-pending #dashboard-view,
 html.auth-transition-active #dashboard-view,
 html.auth-transition-pending #pending-view,
 html.auth-transition-active #pending-view {
-  visibility: hidden;
-  pointer-events: none;
+  display: none !important;
 }
 
 .auth-transition-card {

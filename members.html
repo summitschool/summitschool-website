@@ -9,13 +9,43 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260712">
+    <link rel="stylesheet" href="assets/styles.css?v=20260713">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        (function () {
+            var search = window.location.search || '';
+            var oauthKey = 'members_oauth_callback_pending';
+            try {
+                var ts = localStorage.getItem(oauthKey);
+                var recent = ts && (Date.now() - parseInt(ts, 10) < 600000);
+                var pendingOAuth = sessionStorage.getItem(oauthKey) === '1' || recent;
+                var hasPkceCode = search.indexOf('code=') !== -1 && search.indexOf('token_hash=') === -1;
+                if (pendingOAuth || hasPkceCode || search.indexOf('auth=oauth') !== -1) {
+                    document.documentElement.classList.add('auth-transition-pending');
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <style id="auth-transition-critical">
+        html.auth-transition-pending #login-view,
+        html.auth-transition-pending #dashboard-view,
+        html.auth-transition-pending #pending-view {
+            display: none !important;
+        }
+
+        html.auth-transition-pending #auth-transition-overlay {
+            display: flex !important;
+        }
+
+        html.auth-transition-pending body {
+            overflow: hidden;
+        }
+    </style>
 </head>
 <body class="bg-[#F8F6F1] text-slate-800 body-text antialiased">
-    <div id="auth-transition-overlay" class="auth-transition-overlay hidden" aria-live="polite" aria-busy="true" role="status">
+    <div id="auth-transition-overlay" class="auth-transition-overlay" aria-live="polite" aria-busy="true" role="status">
         <div class="auth-transition-card">
             <img src="images/logo.png?v=20260615" alt="" class="auth-transition-logo" width="72" height="72" decoding="async">
             <div class="auth-transition-spinner" aria-hidden="true"></div>
@@ -35,7 +65,6 @@
 
             // Google OAuth / PKCE sign-in must stay on members.html (do not bounce to confirm-email).
             if (pendingOAuth || hasPkceCode || search.indexOf('auth=oauth') !== -1) {
-                document.documentElement.classList.add('auth-transition-pending');
                 return;
             }
 
@@ -977,7 +1006,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260712"></script>
+    <script src="assets/academic-records.js?v=20260713"></script>
     <script src="assets/onboarding-checklist.js?v=20260711"></script>
     <script>
         // =============================================
@@ -1197,16 +1226,12 @@
         }
 
         function showAuthTransition(message = 'Setting up your Family Hub…') {
-            const overlay = document.getElementById('auth-transition-overlay');
             const msgEl = document.getElementById('auth-transition-message');
             if (msgEl) msgEl.textContent = message;
-            if (overlay) overlay.classList.remove('hidden');
             document.documentElement.classList.add('auth-transition-active');
         }
 
         function hideAuthTransition() {
-            const overlay = document.getElementById('auth-transition-overlay');
-            if (overlay) overlay.classList.add('hidden');
             document.documentElement.classList.remove('auth-transition-active');
             document.documentElement.classList.remove('auth-transition-pending');
         }

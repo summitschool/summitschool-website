@@ -1309,9 +1309,33 @@
     let recordsLoadContext = null;
     let lastAcademicRecordsUserId = null;
 
-    const AR_CACHE_VERSION = 2;
-    const AR_CACHE_LS_PREFIX = 'ar_cache_v2_';
-    const AR_CACHE_SS_PREFIX = 'ar_session_cache_v2_';
+    const AR_CACHE_VERSION = 3;
+    const AR_CACHE_LS_PREFIX = 'ar_cache_v3_';
+    const AR_CACHE_SS_PREFIX = 'ar_session_cache_v3_';
+
+    function buildCatalogFingerprint(students, yearsByStudent) {
+        const studentPart = (students || [])
+            .map((student) => [
+                student.id,
+                student.first_name || '',
+                student.last_name || '',
+                student.current_grade_level || '',
+                student.prior_years_status || '',
+                student.active === false ? '0' : '1',
+            ].join(':'))
+            .sort()
+            .join(';');
+        const yearPart = Object.entries(yearsByStudent || {})
+            .flatMap(([, years]) => (years || []).map((year) => `${year.id}:${buildYearFingerprint(year)}`))
+            .sort()
+            .join(';');
+        return `${studentPart}|${yearPart}`;
+    }
+
+    function catalogFingerprintsMatch(cachedFingerprint, students, yearsByStudent) {
+        if (!cachedFingerprint) return false;
+        return cachedFingerprint === buildCatalogFingerprint(students, yearsByStudent);
+    }
 
     function buildYearFingerprint(yearRecord) {
         if (!yearRecord) return '';
@@ -1411,11 +1435,7 @@
             const cachedFingerprint = mergedFingerprints[yearRecord.id];
             const cachedEntries = mergedEntries[yearRecord.id];
 
-            if (
-                Array.isArray(cachedEntries)
-                && cachedFingerprint === fingerprint
-                && (isYearRecordStable(yearRecord) || sessionCache?.entriesByYearId?.[yearRecord.id])
-            ) {
+            if (Array.isArray(cachedEntries) && cachedFingerprint === fingerprint) {
                 return;
             }
 
@@ -1429,7 +1449,7 @@
         };
     }
 
-    function persistAcademicRecordsCache(userId, yearRecordsById, entriesByYearId) {
+    function persistAcademicRecordsCache(userId, students, yearsByStudent, yearRecordsById, entriesByYearId) {
         if (!userId) return;
 
         const yearFingerprints = {};
@@ -1439,25 +1459,194 @@
             }
         });
 
-        const stableEntries = {};
-        const stableFingerprints = {};
-        Object.values(yearRecordsById).forEach((yearRecord) => {
-            if (!isYearRecordStable(yearRecord) || !entriesByYearId[yearRecord.id]) return;
-            stableEntries[yearRecord.id] = entriesByYearId[yearRecord.id];
-            stableFingerprints[yearRecord.id] = yearFingerprints[yearRecord.id];
+        savePersistentArCache(userId, {
+            userId,
+            students,
+            yearsByStudent,
+            entriesByYearId,
+            yearFingerprints,
+            catalogFingerprint: buildCatalogFingerprint(students, yearsByStudent),
         });
-
-        if (Object.keys(stableEntries).length) {
-            savePersistentArCache(userId, {
-                entriesByYearId: stableEntries,
-                yearFingerprints: stableFingerprints,
-            });
-        }
 
         saveSessionArCache(userId, {
             entriesByYearId,
             yearFingerprints,
         });
+    }
+
+    function mountAcademicRecordsDom(root, {
+        user,
+        students,
+        yearsByStudent,
+        entriesByYearId,
+        expandState,
+        focusId,
+        openStudentIds,
+    }) {
+        const backfillYears = priorSchoolYears(5);
+        const currentYear = currentSchoolYear();
+        const yearRecordsById = {};
+        Object.values(yearsByStudent).forEach((years) => {
+            years.forEach((record) => {
+                yearRecordsById[record.id] = record;
+            });
+        });
+
+        recordsLoadContext = {
+            studentsById: Object.fromEntries(students.map((student) => [student.id, student])),
+            yearsByStudent,
+            yearRecordsById,
+            entriesByYearId,
+        };
+
+        const preloadTargets = [];
+        if (expandState?.scrollAnchor && yearRecordsById[expandState.scrollAnchor]) {
+            const anchorRecord = yearRecordsById[expandState.scrollAnchor];
+            openStudentIds.add(anchorRecord.student_id);
+            preloadTargets.push({
+                studentId: anchorRecord.student_id,
+                yearId: expandState.scrollAnchor,
+            });
+        }
+
+        let html = buildGradeHelpBanner();
+        html += buildAddToolbarHtml(students, backfillYears);
+        html += '<div class="space-y-3">';
+        const focusYearByStudent = {};
+
+        for (let studentIndex = 0; studentIndex < students.length; studentIndex += 1) {
+            const student = students[studentIndex];
+            const studentAccent = getStudentAccentClass(studentIndex);
+            const years = yearsByStudent[student.id] || [];
+            const currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
+            const statusLabel = getProgressStatusLabel(currentRecord, student.current_grade_level);
+            const isFocused = focusId === student.id;
+            const gradeLabel = formatGradeLabel(student.current_grade_level);
+            const sortedYears = sortSchoolYearsForDisplay(years, currentYear);
+
+            const creditHeaderHtml = isHighSchoolGrade(student.current_grade_level)
+                ? `<span class="ar-student-panel-credits" data-ar-header-credits="${student.id}" data-grade-level="${escapeHtml(student.current_grade_level)}"></span>`
+                : '';
+
+            const defaultYearId = currentRecord?.id || sortedYears[0]?.id || null;
+            const savedYearTab = expandState?.studentYearTabs?.[student.id] || null;
+            const focusYearId = isFocused
+                ? (savedYearTab || currentRecord?.id || null)
+                : null;
+            if (focusYearId) focusYearByStudent[student.id] = focusYearId;
+            const activeYearId = focusYearId || savedYearTab || defaultYearId;
+            if (openStudentIds.has(student.id) && activeYearId) {
+                preloadTargets.push({ studentId: student.id, yearId: activeYearId });
+            }
+
+            let yearTabButtonsHtml = '';
+            let yearTabPanelsHtml = '';
+            if (!sortedYears.length) {
+                yearTabPanelsHtml = '<p class="text-sm text-slate-500 py-2">No school year records yet.</p>';
+            } else {
+                for (const yearRecord of sortedYears) {
+                    const isActiveYear = activeYearId === yearRecord.id;
+                    yearTabButtonsHtml += buildYearTabButton(student.id, yearRecord, isActiveYear);
+                    yearTabPanelsHtml += buildLazyYearTabPanel(student.id, yearRecord.id, isActiveYear);
+                }
+            }
+
+            const studentYearsHtml = sortedYears.length
+                ? buildStudentYearTabsShell(student.id, yearTabButtonsHtml, yearTabPanelsHtml, activeYearId, defaultYearId)
+                : yearTabPanelsHtml;
+
+            html += `
+                <details class="ar-accordion ar-student-panel ${studentAccent} student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
+                    ${buildStudentPanelSummary(student, {
+                        gradeLabel,
+                        statusLabel,
+                        creditHeaderHtml,
+                        extraClass: 'ar-student-panel-trigger cursor-pointer',
+                    })}
+                    <div class="ar-accordion-body">
+                        <div id="student-content-top-${student.id}" class="ar-student-content-top">
+                            ${studentYearsHtml}
+                        </div>
+                    </div>
+                </details>
+            `;
+        }
+
+        html += '</div>';
+        root.innerHTML = html;
+
+        bindAcademicRecordsDelegation();
+        bindAddFormHandlers(root);
+        bindStudentPanelBehavior(root);
+        restoreExpandState(root, expandState);
+        bindAccordionControls(root);
+        bindAddPanelControls(root);
+        lastAcademicRecordsUserId = user.id;
+
+        return {
+            focusYearByStudent,
+            preloadTargets,
+        };
+    }
+
+    async function finishAcademicRecordsMount(root, {
+        focusId,
+        expandState,
+        focusYearByStudent,
+        preloadTargets,
+    }) {
+        const uniquePreloadTargets = [...new Map(preloadTargets.map((target) => [
+            `${target.studentId}:${target.yearId}`,
+            target,
+        ])).values()];
+        const preloadPromise = preloadStudentYearPanels(uniquePreloadTargets);
+        const needsPreloadBeforeScroll = Boolean(expandState?.scrollAnchor || focusId);
+        if (needsPreloadBeforeScroll) {
+            await preloadPromise;
+        } else {
+            void preloadPromise;
+        }
+
+        if (focusId) {
+            const focusYearId = focusYearByStudent[focusId] || expandState?.studentYearTabs?.[focusId];
+            if (focusYearId) showStudentYearTab(focusId, focusYearId);
+            closeAddPanel();
+            setFocusStudentId(null);
+            scrollToStudentPanel(focusId);
+        } else if (expandState?.scrollAnchor) {
+            restoreScrollAnchor(expandState.scrollAnchor);
+        } else if (expandState?.studentIds?.length) {
+            const openStudentId = expandState.studentIds[expandState.studentIds.length - 1];
+            scrollToStudentPanel(openStudentId);
+        }
+    }
+
+    function paintAcademicRecordsFromCache(root, user, cache, expandState) {
+        if (!cache?.students?.length || !cache?.yearsByStudent) return false;
+
+        const focusId = getFocusStudentId();
+        const openStudentIds = new Set();
+        if (focusId) openStudentIds.add(focusId);
+        (expandState?.studentIds || []).forEach((studentId) => openStudentIds.add(studentId));
+
+        const mountResult = mountAcademicRecordsDom(root, {
+            user,
+            students: cache.students,
+            yearsByStudent: cache.yearsByStudent,
+            entriesByYearId: cache.entriesByYearId || {},
+            expandState,
+            focusId,
+            openStudentIds,
+        });
+
+        void finishAcademicRecordsMount(root, {
+            focusId,
+            expandState,
+            focusYearByStudent: mountResult.focusYearByStudent,
+            preloadTargets: mountResult.preloadTargets,
+        });
+
+        return true;
     }
 
     function getProgressStatusLabel(yearRecord, gradeLevel = '') {
@@ -2876,16 +3065,31 @@
         const expandState = options.expandState
             || (root.querySelector('.student-record-panel') ? captureExpandState(root) : null);
 
-        root.innerHTML = '<div class="hub-empty-state">Loading academic records...</div>';
-        recordsLoadContext = null;
+        const persistentCache = options.force ? null : loadPersistentArCache(user.id);
+        const canPaintFromCache = Boolean(
+            !options.expandState
+            && !options.force
+            && persistentCache?.userId === user.id
+            && persistentCache?.students?.length
+            && persistentCache?.yearsByStudent
+        );
+
+        let paintedFromCache = false;
+        if (canPaintFromCache) {
+            paintedFromCache = paintAcademicRecordsFromCache(root, user, persistentCache, expandState);
+        }
+
+        if (!paintedFromCache) {
+            root.innerHTML = '<div class="hub-empty-state">Loading academic records...</div>';
+            recordsLoadContext = null;
+        }
 
         try {
             const students = await fetchStudents(user.id);
             const backfillYears = priorSchoolYears(5);
 
-            let html = buildGradeHelpBanner();
-
             if (!students.length) {
+                let html = buildGradeHelpBanner();
                 html += buildAddToolbarHtml(students, backfillYears);
                 html += '<div class="hub-empty-state">No students yet. Add each enrolled child above to begin tracking grades.</div>';
                 root.innerHTML = html;
@@ -2893,6 +3097,7 @@
                 bindAddFormHandlers(root);
                 bindStudentPanelBehavior(root);
                 bindAddPanelControls(root);
+                clearAcademicRecordsCache(user.id);
                 return;
             }
 
@@ -2948,124 +3153,39 @@
                 : {};
             const entriesByYearId = { ...mergedEntries, ...freshEntries };
 
-            persistAcademicRecordsCache(user.id, yearRecordsById, entriesByYearId);
+            persistAcademicRecordsCache(user.id, students, yearsByStudent, yearRecordsById, entriesByYearId);
 
-            recordsLoadContext = {
-                studentsById: Object.fromEntries(students.map((student) => [student.id, student])),
+            const catalogUnchanged = paintedFromCache
+                && persistentCache
+                && catalogFingerprintsMatch(persistentCache.catalogFingerprint, students, yearsByStudent);
+
+            if (catalogUnchanged && yearIdsNeedingFetch.length === 0) {
+                recordsLoadContext = {
+                    studentsById: Object.fromEntries(students.map((student) => [student.id, student])),
+                    yearsByStudent,
+                    yearRecordsById,
+                    entriesByYearId,
+                };
+                lastAcademicRecordsUserId = user.id;
+                return;
+            }
+
+            const mountResult = mountAcademicRecordsDom(root, {
+                user,
+                students,
                 yearsByStudent,
-                yearRecordsById,
                 entriesByYearId,
-            };
+                expandState,
+                focusId,
+                openStudentIds,
+            });
 
-            const preloadTargets = [];
-
-            if (expandState?.scrollAnchor && yearRecordsById[expandState.scrollAnchor]) {
-                const anchorRecord = yearRecordsById[expandState.scrollAnchor];
-                openStudentIds.add(anchorRecord.student_id);
-                preloadTargets.push({
-                    studentId: anchorRecord.student_id,
-                    yearId: expandState.scrollAnchor,
-                });
-            }
-
-            html += buildAddToolbarHtml(students, backfillYears);
-            html += '<div class="space-y-3">';
-            const focusYearByStudent = {};
-
-            for (let studentIndex = 0; studentIndex < students.length; studentIndex += 1) {
-                const student = students[studentIndex];
-                const studentAccent = getStudentAccentClass(studentIndex);
-                const years = yearsByStudent[student.id] || [];
-                const currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
-                const statusLabel = getProgressStatusLabel(currentRecord, student.current_grade_level);
-                const isFocused = focusId === student.id;
-                const gradeLabel = formatGradeLabel(student.current_grade_level);
-                const sortedYears = sortSchoolYearsForDisplay(years, currentYear);
-
-                const creditHeaderHtml = isHighSchoolGrade(student.current_grade_level)
-                    ? `<span class="ar-student-panel-credits" data-ar-header-credits="${student.id}" data-grade-level="${escapeHtml(student.current_grade_level)}"></span>`
-                    : '';
-
-                const defaultYearId = currentRecord?.id || sortedYears[0]?.id || null;
-                const savedYearTab = expandState?.studentYearTabs?.[student.id] || null;
-                const focusYearId = isFocused
-                    ? (savedYearTab || currentRecord?.id || null)
-                    : null;
-                if (focusYearId) focusYearByStudent[student.id] = focusYearId;
-                const activeYearId = focusYearId || savedYearTab || defaultYearId;
-                const shouldPreload = openStudentIds.has(student.id);
-                if (shouldPreload && activeYearId) {
-                    preloadTargets.push({ studentId: student.id, yearId: activeYearId });
-                }
-
-                let yearTabButtonsHtml = '';
-                let yearTabPanelsHtml = '';
-                if (!sortedYears.length) {
-                    yearTabPanelsHtml = '<p class="text-sm text-slate-500 py-2">No school year records yet.</p>';
-                } else {
-                    for (const yearRecord of sortedYears) {
-                        const isActiveYear = activeYearId === yearRecord.id;
-                        yearTabButtonsHtml += buildYearTabButton(student.id, yearRecord, isActiveYear);
-                        yearTabPanelsHtml += buildLazyYearTabPanel(student.id, yearRecord.id, isActiveYear);
-                    }
-                }
-
-                const studentYearsHtml = sortedYears.length
-                    ? buildStudentYearTabsShell(student.id, yearTabButtonsHtml, yearTabPanelsHtml, activeYearId, defaultYearId)
-                    : yearTabPanelsHtml;
-
-                html += `
-                    <details class="ar-accordion ar-student-panel ${studentAccent} student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
-                        ${buildStudentPanelSummary(student, {
-                            gradeLabel,
-                            statusLabel,
-                            creditHeaderHtml,
-                            extraClass: 'ar-student-panel-trigger cursor-pointer',
-                        })}
-                        <div class="ar-accordion-body">
-                            <div id="student-content-top-${student.id}" class="ar-student-content-top">
-                                ${studentYearsHtml}
-                            </div>
-                        </div>
-                    </details>
-                `;
-            }
-
-            html += '</div>';
-            root.innerHTML = html;
-
-            bindAcademicRecordsDelegation();
-            bindAddFormHandlers(root);
-            bindStudentPanelBehavior(root);
-            restoreExpandState(root, expandState);
-            bindAccordionControls(root);
-            bindAddPanelControls(root);
-            lastAcademicRecordsUserId = user.id;
-
-            const uniquePreloadTargets = [...new Map(preloadTargets.map((target) => [
-                `${target.studentId}:${target.yearId}`,
-                target,
-            ])).values()];
-            const preloadPromise = preloadStudentYearPanels(uniquePreloadTargets);
-            const needsPreloadBeforeScroll = Boolean(expandState?.scrollAnchor || focusId);
-            if (needsPreloadBeforeScroll) {
-                await preloadPromise;
-            } else {
-                void preloadPromise;
-            }
-
-            if (focusId) {
-                const focusYearId = focusYearByStudent[focusId] || expandState?.studentYearTabs?.[focusId];
-                if (focusYearId) showStudentYearTab(focusId, focusYearId);
-                closeAddPanel();
-                setFocusStudentId(null);
-                scrollToStudentPanel(focusId);
-            } else if (expandState?.scrollAnchor) {
-                restoreScrollAnchor(expandState.scrollAnchor);
-            } else if (expandState?.studentIds?.length) {
-                const openStudentId = expandState.studentIds[expandState.studentIds.length - 1];
-                scrollToStudentPanel(openStudentId);
-            }
+            await finishAcademicRecordsMount(root, {
+                focusId,
+                expandState,
+                focusYearByStudent: mountResult.focusYearByStudent,
+                preloadTargets: mountResult.preloadTargets,
+            });
         } catch (err) {
             root.innerHTML = `<div class="text-red-600 text-sm p-4">Error loading academic records: ${escapeHtml(err.message || err)}</div>`;
         }
