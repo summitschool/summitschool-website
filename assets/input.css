@@ -1528,7 +1528,31 @@ body.app-dialog-open {
 }
 
 .ar-student-content-top {
-  scroll-margin-top: 0.75rem;
+  scroll-margin-top: 5.5rem;
+}
+
+#academic-records-root .student-record-panel {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+#academic-records-root .student-record-panel[open] {
+  border-color: #93c5fd;
+  background: linear-gradient(180deg, rgb(239 246 255 / 0.55) 0%, #ffffff 100%);
+  box-shadow: 0 4px 18px rgb(10 37 64 / 0.07);
+}
+
+#academic-records-root .student-record-panel[open] > summary.ar-accordion-trigger {
+  background: rgb(241 245 249 / 0.85);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+#academic-records-root .student-record-panel[open] .ar-accordion-chevron {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+#academic-records-root .student-record-panel > summary {
+  scroll-margin-top: 5.5rem;
 }
 
 .ar-student-year-tabs {
@@ -1901,8 +1925,23 @@ body.app-dialog-open {
     padding-bottom: 0.1rem;
   }
 
-  #academic-records-root .ar-accordion[open] .ar-accordion-hint,
-  .ar-admin-records-root .ar-accordion[open] .ar-accordion-hint {
+  #academic-records-root .ar-accordion-hint--open,
+  .ar-admin-records-root .ar-accordion-hint--open {
+    display: none;
+  }
+
+  #academic-records-root .student-record-panel[open] .ar-accordion-hint--closed,
+  .ar-admin-records-root .ar-accordion[open] .ar-accordion-hint--closed {
+    display: none;
+  }
+
+  #academic-records-root .student-record-panel[open] .ar-accordion-hint--open {
+    display: block;
+    color: #475569;
+  }
+
+  #academic-records-root .ar-accordion[open]:not(.student-record-panel) .ar-accordion-hint,
+  .ar-admin-records-root .ar-accordion[open] .ar-accordion-hint:not(.ar-accordion-hint--open) {
     display: none;
   }
 

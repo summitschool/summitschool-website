@@ -220,8 +220,16 @@
             leftHtml,
             rightHtml = '',
             hint = 'Tap to open',
+            hintOpen = '',
             extraClass = '',
         } = options;
+
+        const hintHtml = hintOpen
+            ? `
+                <span class="ar-accordion-hint ar-accordion-hint--closed">${escapeHtml(hint)}</span>
+                <span class="ar-accordion-hint ar-accordion-hint--open">${escapeHtml(hintOpen)}</span>
+            `
+            : `<span class="ar-accordion-hint">${escapeHtml(hint)}</span>`;
 
         return `
             <summary class="ar-accordion-trigger ar-summary-row list-none ${extraClass}">
@@ -230,7 +238,7 @@
                     <span class="ar-accordion-label">${leftHtml}</span>
                 </span>
                 ${rightHtml ? `<span class="ar-summary-right">${rightHtml}</span>` : ''}
-                <span class="ar-accordion-hint">${escapeHtml(hint)}</span>
+                ${hintHtml}
             </summary>
         `;
     }
@@ -427,10 +435,24 @@
         });
     }
 
+    function getFixedHeaderOffset(extra = 12) {
+        const nav = document.querySelector('nav.sticky');
+        const navHeight = nav ? nav.getBoundingClientRect().height : 0;
+        return navHeight + extra;
+    }
+
+    function scrollToElementWithOffset(element, options = {}) {
+        if (!element) return;
+        const { behavior = 'smooth', extra = 12 } = options;
+        const offset = getFixedHeaderOffset(extra);
+        const top = element.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top: Math.max(0, top), behavior });
+    }
+
     function scrollToStudentTop(studentId) {
-        const anchor = document.getElementById(`student-content-top-${studentId}`)
-            || document.getElementById(`student-panel-${studentId}`);
-        anchor?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const panel = document.getElementById(`student-panel-${studentId}`);
+        const target = panel?.querySelector('summary') || panel;
+        scrollToElementWithOffset(target, { extra: 10 });
     }
 
     function buildBackToStudentTopBar(studentId) {
@@ -545,20 +567,55 @@
     function bindAddPanelControls(root) {
         if (!root) return;
 
-        root.querySelectorAll('[data-ar-add-mode]').forEach((button) => {
-            if (button.dataset.arAddModeBound === '1') return;
-            button.dataset.arAddModeBound = '1';
-            button.addEventListener('click', (event) => {
-                event.preventDefault();
-                setAddPanelMode(button.dataset.arAddMode);
-            });
-        });
-
         const panel = root.querySelector('#ar-add-panel');
         const trigger = root.querySelector('.ar-add-trigger');
         if (panel && trigger) {
             trigger.setAttribute('aria-expanded', isAddPanelOpen(panel) ? 'true' : 'false');
         }
+    }
+
+    function bindAcademicRecordsDelegation() {
+        const root = document.getElementById('academic-records-root');
+        if (!root || root.dataset.arDelegationBound === '1') return;
+        root.dataset.arDelegationBound = '1';
+
+        root.addEventListener('submit', (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+
+            if (form.id === 'add-student-form') {
+                event.preventDefault();
+                handleAddStudent(event);
+            } else if (form.id === 'add-prior-form') {
+                event.preventDefault();
+                handleAddBackfill(event);
+            }
+        });
+
+        root.addEventListener('click', (event) => {
+            if (event.target.closest('.ar-add-trigger')) {
+                event.preventDefault();
+                toggleAddPanel();
+                return;
+            }
+
+            const modeBtn = event.target.closest('[data-ar-add-mode]');
+            if (modeBtn) {
+                event.preventDefault();
+                setAddPanelMode(modeBtn.dataset.arAddMode);
+            }
+        });
+
+        root.addEventListener('toggle', (event) => {
+            const panel = event.target;
+            if (!(panel instanceof HTMLDetailsElement) || !panel.classList.contains('student-record-panel') || !panel.open) {
+                return;
+            }
+
+            root.querySelectorAll('.student-record-panel[open]').forEach((other) => {
+                if (other !== panel) other.removeAttribute('open');
+            });
+        });
     }
 
     function buildPriorYearsStatusHtml(student) {
@@ -1665,7 +1722,7 @@
 
     function buildAddStudentFormFields() {
         return `
-            <form id="add-student-form" class="ar-add-form-grid" onsubmit="window.AcademicRecords.handleAddStudent(event)">
+            <form id="add-student-form" class="ar-add-form-grid">
                 <div class="ar-add-field">
                     <label class="ar-add-label">First name</label>
                     <input name="first_name" required class="form-input w-full px-4 py-2.5 border border-slate-300 rounded-2xl text-sm">
@@ -1695,7 +1752,7 @@
         `).join('');
 
         return `
-            <form id="add-prior-form" class="ar-add-form-grid" onsubmit="window.AcademicRecords.handleAddBackfill(event)">
+            <form id="add-prior-form" class="ar-add-form-grid">
                 <div class="ar-add-field">
                     <label class="ar-add-label">Student</label>
                     <select name="student_id" required class="form-input w-full px-4 py-2.5 border border-slate-300 rounded-2xl text-sm">
@@ -1762,8 +1819,7 @@
                 <button type="button"
                         class="ar-add-trigger"
                         aria-expanded="false"
-                        aria-controls="ar-add-panel"
-                        onclick="window.AcademicRecords.toggleAddPanel()">
+                        aria-controls="ar-add-panel">
                     <span class="ar-add-trigger-icon" aria-hidden="true">+</span>
                     <span>Add</span>
                 </button>
@@ -1855,6 +1911,7 @@
                 html += buildAddToolbarHtml(students, backfillYears);
                 html += '<div class="hub-empty-state">No students yet. Add each enrolled child above to begin tracking grades.</div>';
                 root.innerHTML = html;
+                bindAcademicRecordsDelegation();
                 bindAddPanelControls(root);
                 return;
             }
@@ -1923,6 +1980,7 @@
                             leftHtml: `<span class="font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>`,
                             rightHtml: `<span class="text-sm text-slate-500">${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}${creditHeaderHtml}</span>`,
                             hint: 'Tap student to open',
+                            hintOpen: 'Tap student to close',
                             extraClass: 'px-5 py-4 cursor-pointer hover:bg-slate-50',
                         })}
                         <div class="ar-accordion-body">
@@ -1937,6 +1995,7 @@
             html += '</div>';
             root.innerHTML = html;
 
+            bindAcademicRecordsDelegation();
             restoreExpandState(root, expandState);
             bindGradeTableEvents();
             bindAttendanceEvents(root);
@@ -1951,9 +2010,7 @@
                 closeAddPanel();
                 setFocusStudentId(null);
                 const panel = document.getElementById(`student-panel-${focusId}`);
-                if (panel) {
-                    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
+                scrollToElementWithOffset(panel?.querySelector('summary') || panel, { extra: 10 });
             }
         } catch (err) {
             root.innerHTML = `<div class="text-red-600 text-sm p-4">Error loading academic records: ${escapeHtml(err.message || err)}</div>`;
@@ -2037,7 +2094,10 @@
         event.preventDefault();
         if (isAddingStudent) return;
 
-        const form = event.target;
+        const form = event.target instanceof HTMLFormElement
+            ? event.target
+            : event.target.closest('form');
+        if (!form) return;
         const submitBtn = document.getElementById('add-student-submit-btn');
         const statusEl = document.getElementById('add-student-status');
         const formData = Object.fromEntries(new FormData(form).entries());
@@ -2127,10 +2187,15 @@
 
     async function handleAddBackfill(event) {
         event.preventDefault();
-        const form = event.target;
-        const studentId = form.student_id?.value;
-        const schoolYear = form.school_year.value;
-        const gradeLevel = form.grade_level.value;
+        const form = event.target instanceof HTMLFormElement
+            ? event.target
+            : event.target.closest('form');
+        if (!form) return;
+
+        const formData = Object.fromEntries(new FormData(form).entries());
+        const studentId = String(formData.student_id || '').trim();
+        const schoolYear = String(formData.school_year || '').trim();
+        const gradeLevel = String(formData.grade_level || '').trim();
         const submitBtn = document.getElementById('add-prior-submit-btn');
         const statusEl = document.getElementById('add-prior-status');
 
