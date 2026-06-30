@@ -1372,13 +1372,55 @@
     function savePersistentArCache(userId, payload) {
         if (!userId) return;
         try {
+            const existing = loadPersistentArCache(userId);
+            const mergedEntries = {
+                ...(existing?.entriesByYearId || {}),
+                ...(payload.entriesByYearId || {}),
+            };
+            const mergedFingerprints = {
+                ...(existing?.yearFingerprints || {}),
+                ...(payload.yearFingerprints || {}),
+            };
+
             localStorage.setItem(`${AR_CACHE_LS_PREFIX}${userId}`, JSON.stringify({
                 version: AR_CACHE_VERSION,
                 savedAt: Date.now(),
-                ...payload,
+                userId,
+                students: payload.students || existing?.students || [],
+                yearsByStudent: payload.yearsByStudent || existing?.yearsByStudent || {},
+                entriesByYearId: mergedEntries,
+                yearFingerprints: mergedFingerprints,
+                catalogFingerprint: payload.catalogFingerprint || existing?.catalogFingerprint || null,
             }));
         } catch (err) {
             console.warn('[Academic Records] Could not save persistent cache:', err.message || err);
+            try {
+                const stableOnly = {};
+                const stableFingerprints = {};
+                Object.entries(payload.entriesByYearId || {}).forEach(([yearId, entries]) => {
+                    const yearRecord = Object.values(payload.yearsByStudent || {})
+                        .flat()
+                        .find((record) => record.id === yearId);
+                    if (yearRecord && isYearRecordStable(yearRecord)) {
+                        stableOnly[yearId] = entries;
+                        stableFingerprints[yearId] = buildYearFingerprint(yearRecord);
+                    }
+                });
+                if (Object.keys(stableOnly).length) {
+                    localStorage.setItem(`${AR_CACHE_LS_PREFIX}${userId}`, JSON.stringify({
+                        version: AR_CACHE_VERSION,
+                        savedAt: Date.now(),
+                        userId,
+                        students: payload.students || [],
+                        yearsByStudent: payload.yearsByStudent || {},
+                        entriesByYearId: stableOnly,
+                        yearFingerprints: stableFingerprints,
+                        catalogFingerprint: payload.catalogFingerprint || null,
+                    }));
+                }
+            } catch (retryErr) {
+                console.warn('[Academic Records] Persistent cache fallback failed:', retryErr.message || retryErr);
+            }
         }
     }
 
@@ -1407,10 +1449,13 @@
         }
     }
 
-    function clearAcademicRecordsCache(userId) {
+    function clearAcademicRecordsCache(userId, options = {}) {
+        const clearPersistent = Boolean(options.persistent);
         if (userId) {
-            localStorage.removeItem(`${AR_CACHE_LS_PREFIX}${userId}`);
             sessionStorage.removeItem(`${AR_CACHE_SS_PREFIX}${userId}`);
+            if (clearPersistent) {
+                localStorage.removeItem(`${AR_CACHE_LS_PREFIX}${userId}`);
+            }
         }
         lastAcademicRecordsUserId = null;
         recordsLoadContext = null;
@@ -3055,7 +3100,7 @@
         }
 
         if (options.force) {
-            clearAcademicRecordsCache(user.id);
+            clearAcademicRecordsCache(user.id, { persistent: true });
         }
 
         if (shouldSkipAcademicRecordsReload(user.id, options)) {
@@ -3097,7 +3142,7 @@
                 bindAddFormHandlers(root);
                 bindStudentPanelBehavior(root);
                 bindAddPanelControls(root);
-                clearAcademicRecordsCache(user.id);
+                clearAcademicRecordsCache(user.id, { persistent: true });
                 return;
             }
 
