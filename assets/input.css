@@ -670,6 +670,8 @@
   }
 
   .hub-banner-wrap:has(#member-banner:not(.hidden)) {
+    display: flex;
+    justify-content: center;
     padding: 0.875rem 1.5rem 0.75rem;
   }
 
@@ -678,6 +680,8 @@
   }
 
   .hub-nav-wrap {
+    display: flex;
+    justify-content: center;
     padding: 1rem 1.5rem 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
