@@ -10,7 +10,7 @@
     const INCOMPLETE_MESSAGES = {
         students: 'Add each enrolled student in Academic Records (name and current grade), then check this box.',
         prior_years: 'Optional for K–8. If your student has previously completed high school years, add those records in Academic Records before checking this off.',
-        guide: 'Read how progress reports work below and click "I\'ve read this" before checking this box.',
+        guide: 'Read how progress reports work below and click "I\'ve read this" to check this off.',
         conduct: 'Sign the Code of Conduct form in My Tasks before checking this box.',
         id: 'Upload your government-issued ID in My Tasks before checking this box.',
     };
@@ -393,12 +393,14 @@
             .eq('family_user_id', userId)
             .maybeSingle();
 
+        const manualChecks = { ...getManualChecks(onboarding), guide: true };
+
         const { error } = await client
             .from('family_onboarding')
             .upsert({
                 family_user_id: userId,
                 guide_read: true,
-                manual_checks: getManualChecks(onboarding),
+                manual_checks: manualChecks,
             }, { onConflict: 'family_user_id' });
         if (error) throw error;
     }
@@ -423,8 +425,14 @@
             .ilike('category', '%task%');
     }
 
-    function buildProgressReportGuideBodyHtml() {
+    function buildProgressReportGuideBodyHtml(guideRead = false) {
         const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
+        const readButtonHtml = guideRead
+            ? `<button type="button" class="onboarding-guide-read-btn is-complete" disabled aria-disabled="true">
+                    <i class="fas fa-check" aria-hidden="true"></i> Marked as read
+               </button>`
+            : `<button type="button" class="onboarding-guide-read-btn"
+                        onclick="window.OnboardingChecklist.markGuideRead()">I've read this</button>`;
         return `
             <div class="onboarding-progress-guide ar-grade-help">
                 <div class="ar-grade-help-header">
@@ -451,8 +459,7 @@
                         <p class="ar-grade-help-note">School year ends May 31. Contact the school office if you need a locked semester reopened.</p>
                     </section>
                 </div>
-                <button type="button" class="onboarding-guide-read-btn"
-                        onclick="window.OnboardingChecklist.markGuideRead()">I've read this</button>
+                ${readButtonHtml}
             </div>
         `;
     }
@@ -471,7 +478,7 @@
                         <span class="text-sm text-slate-700 flex-1 font-medium">${escapeHtml(item.label)}</span>
                     </label>
                     <div class="onboarding-guide-body">
-                        ${buildProgressReportGuideBodyHtml()}
+                        ${buildProgressReportGuideBodyHtml(item.taskComplete)}
                     </div>
                 </div>
             `;

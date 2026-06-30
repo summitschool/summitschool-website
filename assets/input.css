@@ -2415,6 +2415,23 @@ body.app-dialog-open {
   background: #0f3a5f;
 }
 
+.onboarding-guide-read-btn.is-complete,
+.onboarding-guide-read-btn:disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  cursor: default;
+}
+
+.onboarding-guide-read-btn.is-complete:hover,
+.onboarding-guide-read-btn:disabled:hover {
+  background: #ecfdf5;
+}
+
 @media (min-width: 640px) {
   .onboarding-guide-body {
     padding: 0 1rem 1rem 2.5rem;
