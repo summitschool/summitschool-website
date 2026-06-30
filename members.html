@@ -338,6 +338,18 @@
                         </div>
                     </div>
 
+                    <div class="hub-banner-wrap">
+                        <div id="member-banner" class="hub-announcement hidden">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <strong class="block mb-1 text-sm">Announcement</strong>
+                                    <div id="member-banner-text" class="text-sm whitespace-pre-wrap"></div>
+                                </div>
+                                <button type="button" onclick="dismissBanner()" class="text-amber-800 hover:text-amber-950 text-xs font-semibold shrink-0">Dismiss</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="hub-nav-wrap">
                         <div class="hub-tab-group" role="tablist" aria-label="Family Hub sections">
                             <button type="button" onclick="showDashboardTab('my-tasks')" id="tab-my-tasks" role="tab"
@@ -487,17 +499,6 @@
 
             <!-- My Tasks Tab Content (new; badge on tab) -->
             <div id="dashboard-my-tasks">
-                <!-- Member Banner (from admin) -->
-                <div id="member-banner" class="hub-announcement hidden">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="flex-1 min-w-0">
-                            <strong class="block mb-1 text-sm">Announcement</strong>
-                            <div id="member-banner-text" class="text-sm whitespace-pre-wrap"></div>
-                        </div>
-                        <button type="button" onclick="dismissBanner()" class="text-amber-800 hover:text-amber-950 text-xs font-semibold shrink-0">Dismiss</button>
-                    </div>
-                </div>
-
                 <div class="hub-section-intro">
                     <h2 class="hub-section-heading">My Tasks</h2>
                     <p class="hub-section-subtitle">Complete assigned tasks by their due dates.</p>
@@ -920,7 +921,7 @@
 
                 <div class="mt-10 pt-8 border-t border-slate-200">
                     <h3 class="hub-admin-block-title mb-1">Family Hub Announcement Banner</h3>
-                    <p class="text-sm text-slate-600 mb-6">Publish a message that appears as a banner at the top of the My Tasks tab for all approved families. You can deactivate it anytime.</p>
+                    <p class="text-sm text-slate-600 mb-6">Publish a message that appears above the hub tabs for all approved families on every page. You can deactivate it anytime.</p>
 
                     <div class="hub-panel hub-panel-padded mb-6">
                         <form id="admin-banner-form" class="space-y-5" autocomplete="off">
