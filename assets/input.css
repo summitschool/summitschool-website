@@ -1303,11 +1303,35 @@ body.app-dialog-open {
 
 .ar-supplemental-card {
   border: 1px solid #d7e0ea;
-  border-left: 3px solid #0a2540;
+  border-left: 3px solid #d7e0ea;
   border-radius: 1.125rem;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   padding: 1rem 1.125rem;
   box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 6px 18px rgb(10 37 64 / 0.04);
+}
+
+.ar-supplemental-card--accent-navy {
+  border-left-color: var(--navy);
+}
+
+.ar-supplemental-card--accent-gold {
+  border-left-color: var(--gold);
+}
+
+.ar-supplemental-card--accent-sage {
+  border-left-color: var(--sage);
+}
+
+.ar-supplemental-card--accent-navy .ar-supplemental-eyebrow {
+  color: var(--navy);
+}
+
+.ar-supplemental-card--accent-gold .ar-supplemental-eyebrow {
+  color: #9a7d1c;
+}
+
+.ar-supplemental-card--accent-sage .ar-supplemental-eyebrow {
+  color: var(--sage);
 }
 
 .ar-supplemental-card-header {
@@ -1444,7 +1468,7 @@ body.app-dialog-open {
 }
 
 .ar-submit-panel--complete {
-  border-left-color: #047857;
+  border-left-color: var(--sage);
 }
 
 .ar-admin-panel .ar-supplemental-muted {
@@ -1459,19 +1483,19 @@ body.app-dialog-open {
   flex-shrink: 0;
   padding: 0.3rem 0.6rem;
   border-radius: 9999px;
-  background: #eef2f7;
-  border: 1px solid #d7e0ea;
+  background: rgb(248 244 237);
+  border: 1px solid rgb(201 162 39 / 0.35);
   font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: #475569;
+  color: #9a7d1c;
   white-space: nowrap;
 }
 
 .ar-credits-badge.is-complete {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #047857;
+  background: rgb(236 244 238);
+  border-color: rgb(124 143 126 / 0.45);
+  color: var(--sage);
 }
 
 .ar-credits-section + .ar-credits-section {
@@ -1862,30 +1886,36 @@ body.app-dialog-open {
 
 .ar-student-content-top {
   scroll-margin-top: 5.5rem;
+  padding: 1rem 1.125rem 1.125rem;
+  border-top: 1px solid #e8edf3;
 }
 
-#academic-records-root .student-record-panel,
-.ar-admin-records-root .student-record-panel {
+.ar-student-panel {
+  border: 1px solid #d7e0ea;
+  border-left: 3px solid var(--navy);
+  border-radius: 1.125rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 6px 18px rgb(10 37 64 / 0.04);
+  overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 #academic-records-root .student-record-panel[open],
 .ar-admin-records-root .student-record-panel[open] {
-  border-color: #93c5fd;
-  background: linear-gradient(180deg, rgb(239 246 255 / 0.55) 0%, #ffffff 100%);
-  box-shadow: 0 4px 18px rgb(10 37 64 / 0.07);
+  border-left-color: var(--gold);
+  background: linear-gradient(180deg, #ffffff 0%, rgb(248 244 237 / 0.45) 100%);
+  box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 8px 22px rgb(201 162 39 / 0.12);
 }
 
-#academic-records-root .student-record-panel[open] > summary.ar-accordion-trigger,
-.ar-admin-records-root .student-record-panel[open] > summary.ar-accordion-trigger {
-  background: rgb(241 245 249 / 0.85);
-  border-bottom: 1px solid #e2e8f0;
+#academic-records-root .student-record-panel[open] > summary.ar-student-panel-trigger,
+.ar-admin-records-root .student-record-panel[open] > summary.ar-student-panel-trigger {
+  border-bottom: 1px solid #e8edf3;
 }
 
 #academic-records-root .student-record-panel[open] .ar-accordion-chevron,
 .ar-admin-records-root .student-record-panel[open] .ar-accordion-chevron {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: rgb(201 162 39 / 0.16);
+  color: #9a7d1c;
 }
 
 #academic-records-root .student-record-panel > summary,
@@ -1893,7 +1923,59 @@ body.app-dialog-open {
   scroll-margin-top: 5.5rem;
 }
 
+.ar-student-panel-trigger {
+  padding: 1rem 1.125rem;
+  transition: background-color 0.15s ease;
+}
 
+.ar-student-panel-trigger:hover {
+  background: rgb(248 250 252 / 0.85);
+}
+
+.ar-student-panel-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.ar-student-panel-heading .ar-supplemental-eyebrow {
+  margin: 0;
+  color: var(--navy);
+}
+
+.ar-student-panel-name {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--navy);
+}
+
+.ar-student-panel-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  text-align: right;
+  min-width: 0;
+}
+
+.ar-student-panel-meta-line {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.ar-student-panel-credits {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #9a7d1c;
+}
 
 .ar-student-year-tabs {
   width: 100%;
@@ -2248,6 +2330,13 @@ body.app-dialog-open {
     font-size: 0.75rem;
     line-height: 1.4;
     max-width: 100%;
+  }
+
+  #academic-records-root .ar-student-panel-meta,
+  .ar-admin-records-root .ar-student-panel-meta {
+    align-items: flex-start;
+    text-align: left;
+    width: 100%;
   }
 
   #academic-records-root .ar-accordion-trigger,

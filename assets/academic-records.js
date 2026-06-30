@@ -243,6 +243,36 @@
         `;
     }
 
+    function buildStudentPanelSummary(student, options = {}) {
+        const {
+            gradeLabel = '',
+            statusLabel = '',
+            creditHeaderHtml = '',
+            rightExtraHtml = '',
+            isFocused = false,
+            extraClass = 'px-5 py-4 cursor-pointer',
+        } = options;
+
+        return buildAccordionSummary({
+            leftHtml: `
+                <span class="ar-student-panel-heading">
+                    <span class="ar-supplemental-eyebrow">Student</span>
+                    <span class="ar-student-panel-name">${escapeHtml(studentDisplayName(student))}</span>
+                </span>
+            `,
+            rightHtml: `
+                <span class="ar-student-panel-meta">
+                    ${rightExtraHtml}
+                    <span class="ar-student-panel-meta-line">${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}</span>
+                    ${creditHeaderHtml}
+                </span>
+            `,
+            hint: 'Tap student to open',
+            hintOpen: 'Tap student to close',
+            extraClass,
+        });
+    }
+
     function buildSupplementalCardHeader(eyebrow, title, trailingHtml = '') {
         return `
             <div class="ar-supplemental-card-header">
@@ -263,7 +293,7 @@
         } = options;
         const statusClass = complete ? 'ar-supplemental-status' : 'ar-supplemental-muted';
         return `
-            <div class="ar-supplemental-card ar-submit-panel${complete ? ' ar-submit-panel--complete' : ''}">
+            <div class="ar-supplemental-card ar-supplemental-card--accent-${complete ? 'sage' : 'gold'} ar-submit-panel${complete ? ' ar-submit-panel--complete' : ''}">
                 ${buildSupplementalCardHeader(eyebrow, title)}
                 <p class="${statusClass}">${escapeHtml(message)}</p>
             </div>
@@ -282,7 +312,7 @@
         const hasAny = parseAttendanceDays(s1Display) !== null || parseAttendanceDays(s2Display) !== null;
 
         return `
-            <div class="ar-supplemental-card ar-attendance-panel" data-ar-attendance="${yearRecord.id}">
+            <div class="ar-supplemental-card ar-supplemental-card--accent-sage ar-attendance-panel" data-ar-attendance="${yearRecord.id}">
                 ${buildSupplementalCardHeader('Required', 'Attendance')}
                 <p class="ar-supplemental-lead">Enter the number of <strong>school days attended</strong> each semester. Total updates automatically.</p>
                 <div class="ar-attendance-grid">
@@ -528,14 +558,14 @@
         if (readonly) {
             if (!hasFile) {
                 return `
-                    <div class="ar-supplemental-card ar-transcript-upload ar-transcript-upload--readonly ar-transcript-upload--empty">
+                    <div class="ar-supplemental-card ar-supplemental-card--accent-sage ar-transcript-upload ar-transcript-upload--readonly ar-transcript-upload--empty">
                         ${buildSupplementalCardHeader('Optional', 'Official transcript photo')}
                         <p class="ar-supplemental-muted">No official transcript photo on file.</p>
                     </div>
                 `;
             }
             return `
-                <div class="ar-supplemental-card ar-transcript-upload ar-transcript-upload--readonly" data-ar-transcript="${yearRecord.id}">
+                <div class="ar-supplemental-card ar-supplemental-card--accent-sage ar-transcript-upload ar-transcript-upload--readonly" data-ar-transcript="${yearRecord.id}">
                     ${buildSupplementalCardHeader('On file', 'Official transcript photo')}
                     <p class="ar-transcript-file-meta">${escapeHtml(fileLabel)}${uploadedAt ? ` · ${escapeHtml(uploadedAt)}` : ''}</p>
                     <button type="button"
@@ -548,7 +578,7 @@
 
         const canUpload = !yearRecord.year_locked;
         return `
-            <div class="ar-supplemental-card ar-transcript-upload" data-ar-transcript="${yearRecord.id}">
+            <div class="ar-supplemental-card ar-supplemental-card--accent-sage ar-transcript-upload" data-ar-transcript="${yearRecord.id}">
                 ${buildSupplementalCardHeader('Optional', 'Official transcript photo')}
                 <p class="ar-supplemental-lead">Upload a photo or PDF of the official transcript for this prior year if you have one. You still need to complete the report above even if you upload a picture.</p>
                 ${hasFile ? `
@@ -593,7 +623,7 @@
             const name = escapeJsString(studentDisplayName(student));
             const schoolYear = escapeJsString(yearRecord.school_year);
             actionsHtml = `
-                <div class="ar-supplemental-card ar-admin-panel">
+                <div class="ar-supplemental-card ar-supplemental-card--accent-navy ar-admin-panel">
                     ${buildSupplementalCardHeader('Staff', 'Record status')}
                     <p class="ar-supplemental-muted">Locked — reopen to let the family edit.</p>
                     <button type="button" class="ar-supplemental-btn ar-supplemental-btn--secondary ar-admin-reopen-btn"
@@ -1769,7 +1799,7 @@
             : `Credits for ${yearRecord.school_year} are calculated after Semester 2 is submitted. Each passing course earns 1 credit.`;
 
         return `
-            <div class="ar-supplemental-card ar-credits-summary"
+            <div class="ar-supplemental-card ar-supplemental-card--accent-gold ar-credits-summary"
                  data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
                 ${buildSupplementalCardHeader(
                     'Graduation tracking',
@@ -1891,7 +1921,7 @@
                 : `Semester 2 (Jan–May): enter Semester 2 grades and attendance. Due ${s2Due}. Finals auto-calculate for high school.`);
 
         return `
-            <div class="ar-supplemental-card ar-courses-panel">
+            <div class="ar-supplemental-card ar-supplemental-card--accent-navy ar-courses-panel">
                 ${buildSupplementalCardHeader('Grades', 'Courses')}
                 <p class="ar-supplemental-lead">${escapeHtml(semNote)}</p>
                 <div class="overflow-x-auto ar-grade-scroll">
@@ -2310,7 +2340,7 @@
                     const cumulative = await summarizeCumulativeCredits(student.id, student.current_grade_level);
                     const creditLine = formatCumulativeCreditsLine(cumulative);
                     if (creditLine) {
-                        creditHeaderHtml = `<span class="block text-xs text-violet-800 font-medium mt-0.5 text-right">Credits: ${escapeHtml(creditLine)}</span>`;
+                        creditHeaderHtml = `<span class="ar-student-panel-credits">Credits: ${escapeHtml(creditLine)}</span>`;
                     }
                 }
 
@@ -2343,16 +2373,15 @@
                     : yearTabPanelsHtml;
 
                 html += `
-                    <details class="ar-accordion border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
-                        ${buildAccordionSummary({
-                            leftHtml: `<span class="font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>`,
-                            rightHtml: `<span class="text-sm text-slate-500">${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}${creditHeaderHtml}</span>`,
-                            hint: 'Tap student to open',
-                            hintOpen: 'Tap student to close',
-                            extraClass: 'px-5 py-4 cursor-pointer hover:bg-slate-50',
+                    <details class="ar-accordion ar-student-panel student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
+                        ${buildStudentPanelSummary(student, {
+                            gradeLabel,
+                            statusLabel,
+                            creditHeaderHtml,
+                            extraClass: 'ar-student-panel-trigger cursor-pointer',
                         })}
                         <div class="ar-accordion-body">
-                            <div id="student-content-top-${student.id}" class="ar-student-content-top px-5 pt-4 pb-5 border-t border-slate-100">
+                            <div id="student-content-top-${student.id}" class="ar-student-content-top">
                                 ${studentYearsHtml}
                             </div>
                         </div>
@@ -2394,7 +2423,7 @@
         const parts = [];
         if (canEditSemester(yearRecord, '1')) {
             parts.push(`
-                <div class="ar-supplemental-card ar-submit-panel">
+                <div class="ar-supplemental-card ar-supplemental-card--accent-gold ar-submit-panel">
                     ${buildSupplementalCardHeader('Signature', 'Submit Semester 1')}
                     <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
                     <input type="text" id="ack-s1-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
@@ -2411,7 +2440,7 @@
 
         if (canEditSemester(yearRecord, '2')) {
             parts.push(`
-                <div class="ar-supplemental-card ar-submit-panel">
+                <div class="ar-supplemental-card ar-supplemental-card--accent-gold ar-submit-panel">
                     ${buildSupplementalCardHeader('Signature', 'Submit Semester 2 & Final')}
                     <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
                     <input type="text" id="ack-s2-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
@@ -2437,7 +2466,7 @@
             );
         }
         return `
-            <div class="ar-supplemental-card ar-submit-panel">
+            <div class="ar-supplemental-card ar-supplemental-card--accent-gold ar-submit-panel">
                 ${buildSupplementalCardHeader('Signature', 'Submit prior year')}
                 <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm this prior year record is complete.</p>
                 <input type="text" id="ack-year-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
@@ -2734,7 +2763,7 @@
                     const cumulative = await summarizeCumulativeCredits(student.id, student.current_grade_level);
                     const creditLine = formatCumulativeCreditsLine(cumulative);
                     if (creditLine) {
-                        creditHeaderHtml = `<span class="block text-xs text-violet-800 font-medium mt-0.5 text-right">Credits: ${escapeHtml(creditLine)}</span>`;
+                        creditHeaderHtml = `<span class="ar-student-panel-credits">Credits: ${escapeHtml(creditLine)}</span>`;
                     }
                 }
 
@@ -2774,16 +2803,15 @@
                     : yearTabPanelsHtml;
 
                 html += `
-                    <details class="ar-accordion border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" data-admin-student="${student.id}">
-                        ${buildAccordionSummary({
-                            leftHtml: `<span class="font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>`,
-                            rightHtml: `${studentRightHtml}<span class="block text-sm text-slate-500 mt-1">${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}</span>`,
-                            hint: 'Tap student to open',
-                            hintOpen: 'Tap student to close',
-                            extraClass: 'px-5 py-4 cursor-pointer hover:bg-slate-50',
+                    <details class="ar-accordion ar-student-panel student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" data-admin-student="${student.id}">
+                        ${buildStudentPanelSummary(student, {
+                            gradeLabel,
+                            statusLabel,
+                            rightExtraHtml: studentRightHtml,
+                            extraClass: 'ar-student-panel-trigger cursor-pointer',
                         })}
                         <div class="ar-accordion-body">
-                            <div id="student-content-top-${student.id}" class="ar-student-content-top px-5 pt-4 pb-5 border-t border-slate-100">
+                            <div id="student-content-top-${student.id}" class="ar-student-content-top">
                                 ${studentYearsHtml}
                             </div>
                         </div>
