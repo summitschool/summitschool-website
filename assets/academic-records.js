@@ -406,11 +406,12 @@
         `;
     }
 
-    function buildStudentYearTabsShell(studentId, tabButtonsHtml, tabPanelsHtml, activeYearId) {
+    function buildStudentYearTabsShell(studentId, tabButtonsHtml, tabPanelsHtml, activeYearId, defaultYearId) {
         return `
             <div class="ar-student-year-tabs"
                  data-ar-student-tabs="${studentId}"
-                 data-ar-active-year="${activeYearId || ''}">
+                 data-ar-active-year="${activeYearId || ''}"
+                 data-ar-default-year="${defaultYearId || ''}">
                 <div class="ar-year-tab-group hub-tab-group" role="tablist" aria-label="School years">
                     ${tabButtonsHtml}
                 </div>
@@ -419,9 +420,13 @@
         `;
     }
 
+    function getStudentTabsContainer(studentId) {
+        return document.querySelector(`#academic-records-root [data-ar-student-tabs="${studentId}"]`)
+            || document.querySelector(`.ar-admin-records-root [data-ar-student-tabs="${studentId}"]`);
+    }
+
     function showStudentYearTab(studentId, yearRecordId) {
-        const root = document.getElementById('academic-records-root');
-        const container = root?.querySelector(`[data-ar-student-tabs="${studentId}"]`);
+        const container = getStudentTabsContainer(studentId);
         if (!container) return;
 
         container.dataset.arActiveYear = yearRecordId;
@@ -433,6 +438,22 @@
         container.querySelectorAll('[data-ar-year-panel]').forEach((panel) => {
             panel.classList.toggle('hidden', panel.dataset.arYearPanel !== yearRecordId);
         });
+    }
+
+    function resetStudentYearTab(studentId) {
+        const container = getStudentTabsContainer(studentId);
+        const defaultYearId = container?.dataset.arDefaultYear;
+        if (container && defaultYearId) {
+            showStudentYearTab(studentId, defaultYearId);
+        }
+    }
+
+    function sanitizeStorageFileName(name) {
+        return String(name || 'file').replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 120);
+    }
+
+    function buildTranscriptStoragePath(userId, yearRecordId, fileName) {
+        return `${userId}/academic-records/transcripts/${yearRecordId}/${Date.now()}-${sanitizeStorageFileName(fileName)}`;
     }
 
     function getFixedHeaderOffset(extra = 12) {
@@ -466,12 +487,88 @@
         `;
     }
 
-    function buildSchoolYearDetailHtml(yearRecord, entries, student) {
+    function buildTranscriptUploadSectionHtml(yearRecord, options = {}) {
+        const { readonly = false } = options;
+        if (yearRecord.entry_type !== 'backfill' || !isHighSchoolGrade(yearRecord.grade_level)) {
+            return '';
+        }
+
+        const hasFile = Boolean(yearRecord.transcript_storage_path);
+        const uploadedAt = yearRecord.transcript_uploaded_at
+            ? new Date(yearRecord.transcript_uploaded_at).toLocaleDateString()
+            : '';
+        const fileLabel = yearRecord.transcript_file_name || 'Uploaded transcript';
+
+        if (readonly) {
+            if (!hasFile) {
+                return '<p class="text-xs text-slate-500 italic">No official transcript photo on file.</p>';
+            }
+            return `
+                <div class="ar-transcript-upload ar-transcript-upload--readonly border border-amber-200 rounded-xl bg-amber-50/40 p-4">
+                    <h4 class="text-sm font-semibold text-amber-900">Official transcript photo</h4>
+                    <p class="text-xs text-emerald-700 mt-1">${escapeHtml(fileLabel)}${uploadedAt ? ` · ${escapeHtml(uploadedAt)}` : ''}</p>
+                    <button type="button"
+                            class="mt-2 px-3 py-1.5 text-xs font-semibold border border-amber-700 text-amber-900 rounded-lg hover:bg-amber-100"
+                            data-ar-transcript-view="${yearRecord.id}"
+                            data-transcript-path="${escapeHtml(yearRecord.transcript_storage_path)}">View transcript</button>
+                </div>
+            `;
+        }
+
+        const canUpload = !yearRecord.year_locked;
+        return `
+            <div class="ar-transcript-upload border border-amber-200 rounded-xl bg-amber-50/40 p-4 space-y-3" data-ar-transcript="${yearRecord.id}">
+                <h4 class="text-sm font-semibold text-amber-900">Official transcript photo (optional)</h4>
+                <p class="text-xs text-slate-600">Upload a photo or PDF of the official transcript for this prior year if you have one. You still need to complete the report above even if you upload a picture.</p>
+                ${hasFile ? `
+                    <p class="text-xs text-emerald-700">${escapeHtml(fileLabel)} on file${uploadedAt ? ` · uploaded ${escapeHtml(uploadedAt)}` : ''}</p>
+                    <button type="button"
+                            class="text-xs font-semibold text-amber-900 underline"
+                            data-ar-transcript-view="${yearRecord.id}"
+                            data-transcript-path="${escapeHtml(yearRecord.transcript_storage_path)}">View uploaded transcript</button>
+                ` : ''}
+                ${canUpload ? `
+                    <div class="space-y-2">
+                        <input type="file"
+                               accept="image/*,.pdf,application/pdf"
+                               class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                               data-ar-transcript-input="${yearRecord.id}">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button"
+                                    class="px-4 py-2 text-sm font-semibold border border-amber-700 text-amber-900 rounded-xl hover:bg-amber-100"
+                                    data-ar-transcript-upload="${yearRecord.id}">Upload transcript</button>
+                            <span class="text-xs text-slate-500 hidden" data-ar-transcript-status="${yearRecord.id}"></span>
+                        </div>
+                    </div>
+                ` : '<p class="text-xs text-slate-500">Transcript upload is locked after this prior year is submitted.</p>'}
+            </div>
+        `;
+    }
+
+    function buildSchoolYearDetailHtml(yearRecord, entries, student, options = {}) {
+        const { readonly = false, admin = false } = options;
         const statusLabel = getYearStatusLabel(yearRecord);
         const reportLabel = yearRecord.entry_type === 'backfill' ? 'prior year record' : 'progress report';
-        const actionsHtml = yearRecord.entry_type === 'backfill'
-            ? renderBackfillActions(yearRecord)
-            : renderSemesterActions(yearRecord);
+        const isLocked = yearRecord.year_locked || yearRecord.semester_1_locked || yearRecord.semester_2_locked;
+
+        let actionsHtml = '';
+        if (!readonly) {
+            actionsHtml = yearRecord.entry_type === 'backfill'
+                ? renderBackfillActions(yearRecord)
+                : renderSemesterActions(yearRecord);
+        } else if (admin && isLocked) {
+            const name = escapeJsString(studentDisplayName(student));
+            const schoolYear = escapeJsString(yearRecord.school_year);
+            actionsHtml = `
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs p-3 border border-slate-200 rounded-xl bg-slate-50">
+                    <span class="text-slate-500">Locked — reopen to let the family edit.</span>
+                    <button type="button" class="px-3 py-1.5 border border-navy text-navy rounded-lg hover:bg-navy hover:text-white text-xs font-semibold"
+                            onclick="adminReopenSchoolYear('${yearRecord.id}', '${name}', '${schoolYear}')">Reopen</button>
+                </div>
+            `;
+        } else if (admin) {
+            actionsHtml = '<p class="text-xs text-slate-500">In progress — family can still edit.</p>';
+        }
 
         return `
             <div class="ar-year-detail-intro mb-4 pb-3 border-b border-slate-100">
@@ -479,10 +576,11 @@
                 <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(formatGradeLabel(yearRecord.grade_level))} · ${escapeHtml(statusLabel)}</p>
             </div>
             <div class="space-y-4">
-                ${buildAttendanceHtml(yearRecord)}
-                ${buildGradeTableHtml(yearRecord, entries)}
+                ${buildAttendanceHtml(yearRecord, { readonly })}
+                ${buildGradeTableHtml(yearRecord, entries, { readonly })}
                 ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
                 ${actionsHtml}
+                ${buildTranscriptUploadSectionHtml(yearRecord, { readonly })}
             </div>
             ${buildBackToStudentTopBar(student.id)}
         `;
@@ -618,7 +716,119 @@
                 };
                 panel.addEventListener('toggle', scrollAfterOpen);
             });
+
+            panel.addEventListener('toggle', () => {
+                if (!panel.open && panel.dataset.studentId) {
+                    resetStudentYearTab(panel.dataset.studentId);
+                }
+            });
         });
+    }
+
+    function bindTranscriptHandlers(root) {
+        if (!root) return;
+
+        root.querySelectorAll('[data-ar-transcript-upload]').forEach((button) => {
+            if (button.dataset.arTranscriptUploadBound === '1') return;
+            button.dataset.arTranscriptUploadBound = '1';
+            button.addEventListener('click', () => {
+                handleTranscriptUpload(button.dataset.arTranscriptUpload);
+            });
+        });
+
+        root.querySelectorAll('[data-ar-transcript-view]').forEach((button) => {
+            if (button.dataset.arTranscriptViewBound === '1') return;
+            button.dataset.arTranscriptViewBound = '1';
+            button.addEventListener('click', () => {
+                openTranscriptFile(button.dataset.transcriptPath);
+            });
+        });
+    }
+
+    async function openTranscriptFile(storagePath) {
+        if (!storagePath) {
+            await window.showAppAlert?.('No transcript file found.');
+            return;
+        }
+        try {
+            const client = await getClient();
+            if (!client) throw new Error('Storage is not available.');
+            const { data, error } = await client.storage
+                .from('Family-Documents')
+                .createSignedUrl(storagePath, 3600);
+            if (error) throw error;
+            if (!data?.signedUrl) throw new Error('Could not open transcript file.');
+            window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+        } catch (err) {
+            await window.showAppAlert?.(err.message || String(err));
+        }
+    }
+
+    async function handleTranscriptUpload(yearRecordId) {
+        const input = document.querySelector(`[data-ar-transcript-input="${yearRecordId}"]`);
+        const statusEl = document.querySelector(`[data-ar-transcript-status="${yearRecordId}"]`);
+        const file = input?.files?.[0];
+
+        if (!file) {
+            await window.showAppAlert?.('Please choose a transcript photo or PDF first.');
+            return;
+        }
+
+        const allowed = file.type.startsWith('image/') || file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+        if (!allowed) {
+            await window.showAppAlert?.('Please upload an image or PDF file.');
+            return;
+        }
+
+        try {
+            const user = await getCurrentUser();
+            if (!user) throw new Error('You must be logged in.');
+
+            const yearRecord = await fetchSchoolYearRecord(yearRecordId);
+            if (yearRecord.entry_type !== 'backfill' || !isHighSchoolGrade(yearRecord.grade_level)) {
+                throw new Error('Transcript upload is only available for high school prior years.');
+            }
+            if (yearRecord.year_locked) {
+                throw new Error('This prior year is locked. Contact the school office to upload a transcript.');
+            }
+
+            if (statusEl) {
+                statusEl.textContent = 'Uploading...';
+                statusEl.classList.remove('hidden');
+            }
+
+            const storagePath = buildTranscriptStoragePath(user.id, yearRecordId, file.name);
+            const client = await getClient();
+            const { error: uploadError } = await client.storage
+                .from('Family-Documents')
+                .upload(storagePath, file, {
+                    upsert: true,
+                    contentType: file.type || 'application/octet-stream',
+                });
+            if (uploadError) throw uploadError;
+
+            const { error: updateError } = await client
+                .from('student_school_years')
+                .update({
+                    transcript_storage_path: storagePath,
+                    transcript_uploaded_at: new Date().toISOString(),
+                    transcript_file_name: file.name,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', yearRecordId);
+            if (updateError) throw updateError;
+
+            await loadAcademicRecords({
+                expandState: buildExpandStateForStudent(yearRecord.student_id, yearRecordId),
+            });
+        } catch (err) {
+            await window.showAppAlert?.(err.message || String(err));
+        } finally {
+            if (statusEl) {
+                statusEl.classList.add('hidden');
+                statusEl.textContent = '';
+            }
+        }
     }
 
     function bindAddFormHandlers(root) {
@@ -2013,7 +2223,7 @@
                 }
 
                 const studentYearsHtml = sortedYears.length
-                    ? `${buildStudentYearTabsShell(student.id, yearTabButtonsHtml, yearTabPanelsHtml, activeYearId)}${buildPriorYearsStatusStripHtml(student)}`
+                    ? `${buildStudentYearTabsShell(student.id, yearTabButtonsHtml, yearTabPanelsHtml, activeYearId, defaultYearId)}${buildPriorYearsStatusStripHtml(student)}`
                     : yearTabPanelsHtml;
 
                 html += `
@@ -2045,6 +2255,7 @@
             bindAttendanceEvents(root);
             bindAccordionControls(root);
             bindBackToStudentTop(root);
+            bindTranscriptHandlers(root);
             bindAddPanelControls(root);
             hydrateCumulativeCredits();
 
@@ -2365,59 +2576,25 @@
                 return;
             }
 
-            let html = '<div class="ar-admin-records-root space-y-4">';
+            const currentYear = currentSchoolYear();
+            let html = '<div class="ar-admin-records-root space-y-3">';
+
             for (const student of students) {
-                const name = studentDisplayName(student);
                 const years = await fetchSchoolYearsForStudent(student.id);
+                const currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
+                const statusLabel = getProgressStatusLabel(currentRecord, student.current_grade_level);
                 const gradeLabel = formatGradeLabel(student.current_grade_level);
+                const sortedYears = sortSchoolYearsForDisplay(years, currentYear);
+                const defaultYearId = currentRecord?.id || sortedYears[0]?.id || null;
+                const activeYearId = defaultYearId;
 
                 let creditHeaderHtml = '';
                 if (isHighSchoolGrade(student.current_grade_level)) {
                     const cumulative = await summarizeCumulativeCredits(student.id, student.current_grade_level);
                     const creditLine = formatCumulativeCreditsLine(cumulative);
                     if (creditLine) {
-                        creditHeaderHtml = `<div class="text-[11px] text-violet-800 font-medium mt-0.5">Credits: ${escapeHtml(creditLine)}</div>`;
+                        creditHeaderHtml = `<span class="block text-xs text-violet-800 font-medium mt-0.5 text-right">Credits: ${escapeHtml(creditLine)}</span>`;
                     }
-                }
-
-                let yearSections = '';
-                for (const yearRecord of years) {
-                    const entries = await fetchGradeEntries(yearRecord.id);
-                    const statusLabel = yearRecord.entry_type === 'backfill'
-                        ? (yearRecord.year_locked ? 'Complete' : 'In progress')
-                        : getProgressStatusLabel(yearRecord, yearRecord.grade_level);
-                    const isLocked = yearRecord.year_locked || yearRecord.semester_1_locked || yearRecord.semester_2_locked;
-                    const yearLeft = yearRecord.entry_type === 'backfill'
-                        ? `<span class="font-medium text-navy">${escapeHtml(yearRecord.school_year)}</span> <span class="text-slate-500">prior year</span>`
-                        : `<span class="font-medium text-navy">${escapeHtml(yearRecord.school_year)}</span> <span class="text-slate-500">progress report</span>`;
-                    const yearRight = `<span class="text-slate-600">${escapeHtml(formatGradeLabel(yearRecord.grade_level))} · ${escapeHtml(statusLabel)}</span>`;
-
-                    yearSections += `
-                        <details class="ar-accordion border border-slate-200 rounded-xl" data-admin-year="${yearRecord.id}">
-                            ${buildAccordionSummary({
-                                leftHtml: yearLeft,
-                                rightHtml: yearRight,
-                                hint: 'Tap to open school year',
-                                extraClass: 'px-3 py-2 cursor-pointer text-sm',
-                            })}
-                            ${wrapAccordionBody(`<div class="p-3 border-t border-slate-100 space-y-3">
-                                ${buildAttendanceHtml(yearRecord, { readonly: true })}
-                                ${buildGradeTableHtml(yearRecord, entries, { readonly: true })}
-                                ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
-                                ${isLocked ? `
-                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-                                        <span class="text-slate-500">Locked — reopen to let the family edit.</span>
-                                        <button type="button" class="px-2 py-0.5 border border-navy text-navy rounded hover:bg-navy hover:text-white"
-                                                onclick="adminReopenSchoolYear('${yearRecord.id}', '${escapeJsString(name)}', '${escapeJsString(yearRecord.school_year)}')">Reopen</button>
-                                    </div>
-                                ` : '<span class="text-xs text-slate-500">In progress — family can still edit.</span>'}
-                            </div>`, 'Close school year')}
-                        </details>
-                    `;
-                }
-
-                if (!yearSections) {
-                    yearSections = '<p class="text-xs text-slate-500 italic">No school year records yet.</p>';
                 }
 
                 const studentRightHtml = `
@@ -2428,25 +2605,56 @@
                                 onclick="event.preventDefault(); event.stopPropagation(); adminDeleteStudent(this)">Delete student</button>
                         <div class="ar-admin-student-meta text-[10px] text-slate-500 mt-0.5">
                             <div>Prior years: ${escapeHtml(student.prior_years_status || 'pending')}</div>
-                            ${creditHeaderHtml}
                         </div>
+                        ${creditHeaderHtml}
                     </span>
                 `;
 
+                let yearTabButtonsHtml = '';
+                let yearTabPanelsHtml = '';
+                if (!sortedYears.length) {
+                    yearTabPanelsHtml = '<p class="text-sm text-slate-500 py-2">No school year records yet.</p>';
+                } else {
+                    for (const yearRecord of sortedYears) {
+                        const isActiveYear = activeYearId === yearRecord.id;
+                        yearTabButtonsHtml += buildYearTabButton(student.id, yearRecord, isActiveYear);
+                        const entries = await fetchGradeEntries(yearRecord.id);
+                        yearTabPanelsHtml += buildYearTabPanel(
+                            student.id,
+                            yearRecord.id,
+                            buildSchoolYearDetailHtml(yearRecord, entries, student, { readonly: true, admin: true }),
+                            isActiveYear
+                        );
+                    }
+                }
+
+                const studentYearsHtml = sortedYears.length
+                    ? buildStudentYearTabsShell(student.id, yearTabButtonsHtml, yearTabPanelsHtml, activeYearId, defaultYearId)
+                    : yearTabPanelsHtml;
+
                 html += `
-                    <details class="ar-accordion border border-sky-200/80 rounded-xl bg-white/80 overflow-hidden" data-admin-student="${student.id}">
+                    <details class="ar-accordion border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" data-admin-student="${student.id}">
                         ${buildAccordionSummary({
-                            leftHtml: `<span class="font-medium text-navy text-sm">${escapeHtml(name)}</span> <span class="text-slate-500 font-normal">(${escapeHtml(gradeLabel)})</span>`,
-                            rightHtml: studentRightHtml,
+                            leftHtml: `<span class="font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>`,
+                            rightHtml: `${studentRightHtml}<span class="block text-sm text-slate-500 mt-1">${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}</span>`,
                             hint: 'Tap student to open',
-                            extraClass: 'px-3 py-3 cursor-pointer',
+                            hintOpen: 'Tap student to close',
+                            extraClass: 'px-5 py-4 cursor-pointer hover:bg-slate-50',
                         })}
-                        ${wrapAccordionBody(`<div class="px-3 pb-3 border-t border-sky-100 space-y-2">${yearSections}</div>`, 'Back to students')}
+                        <div class="ar-accordion-body">
+                            <div id="student-content-top-${student.id}" class="ar-student-content-top px-5 pt-4 pb-5 border-t border-slate-100">
+                                ${studentYearsHtml}
+                            </div>
+                        </div>
                     </details>
                 `;
             }
+
             html += '</div>';
             container.innerHTML = html;
+            bindStudentPanelBehavior(container);
+            bindBackToStudentTop(container);
+            bindTranscriptHandlers(container);
             bindAccordionControls(container);
             bindAttendanceEvents(container);
             hydrateCumulativeCredits();

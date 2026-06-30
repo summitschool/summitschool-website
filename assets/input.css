@@ -1547,28 +1547,37 @@ body.app-dialog-open {
   scroll-margin-top: 5.5rem;
 }
 
-#academic-records-root .student-record-panel {
+#academic-records-root .student-record-panel,
+.ar-admin-records-root .student-record-panel {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-#academic-records-root .student-record-panel[open] {
+#academic-records-root .student-record-panel[open],
+.ar-admin-records-root .student-record-panel[open] {
   border-color: #93c5fd;
   background: linear-gradient(180deg, rgb(239 246 255 / 0.55) 0%, #ffffff 100%);
   box-shadow: 0 4px 18px rgb(10 37 64 / 0.07);
 }
 
-#academic-records-root .student-record-panel[open] > summary.ar-accordion-trigger {
+#academic-records-root .student-record-panel[open] > summary.ar-accordion-trigger,
+.ar-admin-records-root .student-record-panel[open] > summary.ar-accordion-trigger {
   background: rgb(241 245 249 / 0.85);
   border-bottom: 1px solid #e2e8f0;
 }
 
-#academic-records-root .student-record-panel[open] .ar-accordion-chevron {
+#academic-records-root .student-record-panel[open] .ar-accordion-chevron,
+.ar-admin-records-root .student-record-panel[open] .ar-accordion-chevron {
   background: #dbeafe;
   color: #1d4ed8;
 }
 
-#academic-records-root .student-record-panel > summary {
+#academic-records-root .student-record-panel > summary,
+.ar-admin-records-root .student-record-panel > summary {
   scroll-margin-top: 5.5rem;
+}
+
+.ar-transcript-upload input[type="file"] {
+  background: #ffffff;
 }
 
 .ar-student-year-tabs {
@@ -1584,7 +1593,23 @@ body.app-dialog-open {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  padding-bottom: 0.15rem;
+  padding: 0.45rem;
+  background-color: #e8edf3;
+  border: 2px solid #c5d0dc;
+  border-radius: 1.125rem;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+.ar-year-tab-group .ar-year-tab-btn.hub-tab-btn:not(.is-active) {
+  background-color: #ffffff !important;
+  border: 1px solid #b8c5d4 !important;
+  color: #1e3a5f !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+.ar-year-tab-group .ar-year-tab-btn.hub-tab-btn:not(.is-active):hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
 }
 
 .ar-year-tab-btn {
@@ -1947,11 +1972,12 @@ body.app-dialog-open {
   }
 
   #academic-records-root .student-record-panel[open] .ar-accordion-hint--closed,
-  .ar-admin-records-root .ar-accordion[open] .ar-accordion-hint--closed {
+  .ar-admin-records-root .student-record-panel[open] .ar-accordion-hint--closed {
     display: none;
   }
 
-  #academic-records-root .student-record-panel[open] .ar-accordion-hint--open {
+  #academic-records-root .student-record-panel[open] .ar-accordion-hint--open,
+  .ar-admin-records-root .student-record-panel[open] .ar-accordion-hint--open {
     display: block;
     color: #475569;
   }
