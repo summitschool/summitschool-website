@@ -9,7 +9,7 @@
 
     const INCOMPLETE_MESSAGES = {
         students: 'Add each enrolled student in Academic Records (name and current grade), then check this box.',
-        prior_years: 'Complete prior high school year records in Academic Records before checking this off.',
+        prior_years: 'Add prior year records for any previously completed high school years in Academic Records before checking this off.',
         guide: 'Open "How progress reports work" below and click "I\'ve read this" before checking this box.',
         conduct: 'Sign the Code of Conduct form in My Tasks before checking this box.',
         id: 'Upload your government-issued ID in My Tasks before checking this box.',
@@ -341,9 +341,8 @@
             },
             {
                 id: 'prior_years',
-                label: hasHighSchoolStudent
-                    ? 'Add prior high school year records'
-                    : 'Add prior year records (optional)',
+                label: 'Add prior year records (optional)',
+                detail: 'Required for any previously completed high school years.',
                 required: hasHighSchoolStudent,
                 taskComplete: priorYearsOk,
                 manuallyChecked: Boolean(manualChecks.prior_years),
@@ -437,7 +436,10 @@
                        data-item-id="${item.id}"
                        ${item.manuallyChecked ? 'checked' : ''}
                        onchange="window.OnboardingChecklist.handleItemToggle('${item.id}', this)">
-                <span class="text-sm text-slate-700 flex-1">${escapeHtml(item.label)}</span>
+                <span class="text-sm text-slate-700 flex-1">
+                    ${escapeHtml(item.label)}
+                    ${item.detail ? `<span class="block text-xs text-slate-500 mt-0.5 font-normal">${escapeHtml(item.detail)}</span>` : ''}
+                </span>
                 ${item.action ? `<button type="button" class="text-xs text-navy underline shrink-0" onclick="${item.action}">Open</button>` : ''}
             </label>
         `).join('');
@@ -469,7 +471,7 @@
                         onclick="window.OnboardingChecklist.finish()">
                     Complete setup checklist
                 </button>
-                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off each required item after you finish that step. Prior years are optional unless you have a high school student.</p>' : ''}
+                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off each required item after you finish that step. Prior year records are optional, but required for any previously completed high school years.</p>' : ''}
             </div>
         `;
     }
