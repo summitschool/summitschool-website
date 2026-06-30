@@ -2260,7 +2260,6 @@
             <div class="ar-add-panel-header">
                 <div class="ar-add-panel-header-text">
                     <h3 class="ar-add-panel-title">Add student or prior year</h3>
-                    <p class="ar-add-panel-hint">Tap <strong>Close</strong> to cancel if you opened this by mistake.</p>
                 </div>
                 <button type="button" class="ar-add-close-btn" data-ar-add-close aria-label="Close add form">
                     <span class="ar-add-close-icon" aria-hidden="true">×</span>
