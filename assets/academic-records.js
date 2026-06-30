@@ -1582,7 +1582,7 @@
                                 </form>
                                 ${student.current_grade_level === '9' && student.prior_years_status !== 'not_applicable' ? `
                                     <button type="button" class="px-4 py-2 text-sm border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50"
-                                            onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Started with Summit in 9th — no prior years</button>
+                                            onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
                                 ` : student.prior_years_status === 'complete'
                                     ? '<span class="text-xs text-emerald-700">Prior years complete</span>'
                                     : student.prior_years_status === 'not_applicable'
