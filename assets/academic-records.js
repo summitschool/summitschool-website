@@ -2382,7 +2382,7 @@
                 }
 
                 const studentYearsHtml = sortedYears.length
-                    ? `${buildStudentYearTabsShell(student.id, yearTabButtonsHtml, yearTabPanelsHtml, activeYearId, defaultYearId)}${buildPriorYearsStatusStripHtml(student)}`
+                    ? buildStudentYearTabsShell(student.id, yearTabButtonsHtml, yearTabPanelsHtml, activeYearId, defaultYearId)
                     : yearTabPanelsHtml;
 
                 html += `
