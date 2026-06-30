@@ -1,5 +1,6 @@
 (function () {
-    const GRADE_LEVELS = ['K3', 'K4', 'K5', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+    const GRADE_LEVELS = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+    const KINDERGARTEN_GRADES = new Set(['K', 'K3', 'K4', 'K5']);
     const HIGH_SCHOOL_GRADES = new Set(['9', '10', '11', '12']);
     const COURSE_TYPES = [
         { id: 'english', label: 'English', placeholder: 'e.g. English 10' },
@@ -169,6 +170,17 @@
 
     function escapeJsString(value) {
         return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    function isKindergartenGrade(level) {
+        return KINDERGARTEN_GRADES.has(String(level || '').trim());
+    }
+
+    function formatGradeLabel(level) {
+        const raw = String(level || '').trim();
+        if (!raw) return '—';
+        if (isKindergartenGrade(raw)) return 'K';
+        return `Grade ${raw}`;
     }
 
     function isHighSchoolGrade(level) {
@@ -1105,7 +1117,7 @@
                     <label class="block text-xs font-medium text-slate-600 mb-1">Current grade</label>
                     <select name="grade_level" required class="form-input w-full px-4 py-2 border border-slate-300 rounded-2xl text-sm">
                         <option value="">Select grade</option>
-                        ${GRADE_LEVELS.map((g) => `<option value="${g}">${g === 'K3' || g === 'K4' || g === 'K5' ? g : `Grade ${g}`}</option>`).join('')}
+                        ${GRADE_LEVELS.map((g) => `<option value="${g}">${escapeHtml(formatGradeLabel(g))}</option>`).join('')}
                     </select>
                 </div>
                 <div class="sm:col-span-3 flex items-center gap-3">
@@ -1215,9 +1227,7 @@
                 const backfills = years.filter((y) => y.entry_type === 'backfill');
                 const statusLabel = getProgressStatusLabel(currentRecord);
                 const isFocused = focusId === student.id;
-                const gradeLabel = student.current_grade_level === 'K3' || student.current_grade_level === 'K4' || student.current_grade_level === 'K5'
-                    ? student.current_grade_level
-                    : `Grade ${student.current_grade_level || '—'}`;
+                const gradeLabel = formatGradeLabel(student.current_grade_level);
 
                 let creditHeaderHtml = '';
                 if (isHighSchoolGrade(student.current_grade_level)) {
@@ -1241,7 +1251,7 @@
                                         ${backfillYears.map((y) => `<option value="${y}">${y}</option>`).join('')}
                                     </select>
                                     <select name="grade_level" class="form-input px-3 py-2 text-sm border border-slate-300 rounded-xl" required>
-                                        ${GRADE_LEVELS.map((g) => `<option value="${g}">${g}</option>`).join('')}
+                                        ${GRADE_LEVELS.map((g) => `<option value="${g}">${escapeHtml(formatGradeLabel(g))}</option>`).join('')}
                                     </select>
                                     <button type="submit" class="px-4 py-2 text-sm font-semibold border border-navy text-navy rounded-xl hover:bg-navy hover:text-white">Add prior year</button>
                                 </form>
@@ -1272,7 +1282,7 @@
                         <details class="border border-amber-200 rounded-2xl bg-amber-50/30" data-ar-progress-year="${currentRecord.id}" ${isFocused ? 'open' : ''}>
                             <summary class="ar-summary-row px-4 py-3 cursor-pointer list-none">
                                 <span class="ar-summary-left font-semibold text-navy">${currentYear} progress report</span>
-                                <span class="ar-summary-right text-xs text-slate-500">Grade ${escapeHtml(currentRecord.grade_level)} · ${escapeHtml(currentYear)} · ${escapeHtml(statusLabel)}</span>
+                                <span class="ar-summary-right text-xs text-slate-500">${escapeHtml(formatGradeLabel(currentRecord.grade_level))} · ${escapeHtml(currentYear)} · ${escapeHtml(statusLabel)}</span>
                             </summary>
                             <div class="p-4 border-t border-amber-100 space-y-4">
                                 ${buildGradeTableHtml(currentRecord, entries)}
@@ -1292,7 +1302,7 @@
                             <details class="border border-slate-200 rounded-xl" data-ar-backfill-year="${bf.id}">
                                 <summary class="ar-summary-row px-3 py-2 cursor-pointer text-sm list-none">
                                     <span class="ar-summary-left font-medium text-navy">Prior year</span>
-                                    <span class="ar-summary-right font-medium text-slate-600">${escapeHtml(bf.school_year)} · Grade ${escapeHtml(bf.grade_level)}${bf.year_locked ? ' ✓' : ''}</span>
+                                    <span class="ar-summary-right font-medium text-slate-600">${escapeHtml(bf.school_year)} · ${escapeHtml(formatGradeLabel(bf.grade_level))}${bf.year_locked ? ' ✓' : ''}</span>
                                 </summary>
                                 <div class="p-3 border-t border-slate-100 space-y-3">
                                     ${buildGradeTableHtml(bf, entries)}
@@ -1570,9 +1580,7 @@
             for (const student of students) {
                 const name = studentDisplayName(student);
                 const years = await fetchSchoolYearsForStudent(student.id);
-                const gradeLabel = student.current_grade_level === 'K3' || student.current_grade_level === 'K4' || student.current_grade_level === 'K5'
-                    ? student.current_grade_level
-                    : `Grade ${student.current_grade_level || '—'}`;
+                const gradeLabel = formatGradeLabel(student.current_grade_level);
 
                 let creditHeaderHtml = '';
                 if (isHighSchoolGrade(student.current_grade_level)) {
@@ -1591,7 +1599,7 @@
                         : getProgressStatusLabel(yearRecord);
                     const isLocked = yearRecord.year_locked || yearRecord.semester_1_locked || yearRecord.semester_2_locked;
                     const yearTitle = yearRecord.entry_type === 'backfill'
-                        ? `${yearRecord.school_year} — Grade ${yearRecord.grade_level} (prior year)`
+                        ? `${yearRecord.school_year} — ${formatGradeLabel(yearRecord.grade_level)} (prior year)`
                         : `${yearRecord.school_year} progress report — ${statusLabel}`;
 
                     yearSections += `
