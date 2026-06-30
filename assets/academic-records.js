@@ -342,6 +342,138 @@
         });
     }
 
+    const STUDENT_TAB_PROGRESS = 'progress';
+    const STUDENT_TAB_PRIOR = 'prior';
+
+    function buildStudentTabButton(studentId, tabId, label, isActive) {
+        return `
+            <button type="button"
+                    class="ar-student-tab-btn hub-tab-btn ${isActive ? 'is-active' : ''}"
+                    role="tab"
+                    aria-selected="${isActive ? 'true' : 'false'}"
+                    data-ar-student-tab="${studentId}"
+                    data-ar-tab="${tabId}"
+                    onclick="window.AcademicRecords.showStudentTab('${studentId}', '${tabId}')">${escapeHtml(label)}</button>
+        `;
+    }
+
+    function buildStudentTabPanel(studentId, tabId, content, isActive) {
+        return `
+            <div class="ar-student-tab-panel ${isActive ? '' : 'hidden'}"
+                 role="tabpanel"
+                 data-ar-student-panel="${studentId}"
+                 data-ar-tab-panel="${tabId}">${content}</div>
+        `;
+    }
+
+    function buildStudentTabsShell(studentId, tabButtonsHtml, tabPanelsHtml, activeTab) {
+        return `
+            <div class="ar-student-tabs" data-ar-student-tabs="${studentId}" data-ar-active-tab="${activeTab}">
+                <div class="ar-student-tab-group hub-tab-group" role="tablist" aria-label="Student records sections">
+                    ${tabButtonsHtml}
+                </div>
+                <div class="ar-student-tab-panels">${tabPanelsHtml}</div>
+            </div>
+        `;
+    }
+
+    function showStudentTab(studentId, tabId) {
+        const root = document.getElementById('academic-records-root');
+        const container = root?.querySelector(`[data-ar-student-tabs="${studentId}"]`);
+        if (!container) return;
+
+        container.dataset.arActiveTab = tabId;
+        container.querySelectorAll('[data-ar-student-tab]').forEach((button) => {
+            const isActive = button.dataset.arTab === tabId;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        container.querySelectorAll('[data-ar-tab-panel]').forEach((panel) => {
+            panel.classList.toggle('hidden', panel.dataset.arTabPanel !== tabId);
+        });
+    }
+
+    function buildExpandStateForStudent(studentId, tabId = STUDENT_TAB_PROGRESS) {
+        const root = document.getElementById('academic-records-root');
+        const expandState = root?.querySelector('.student-record-panel')
+            ? captureExpandState(root)
+            : { studentIds: [], studentTabs: {}, addStudentOpen: false };
+
+        if (!expandState.studentIds.includes(studentId)) {
+            expandState.studentIds.push(studentId);
+        }
+        expandState.studentTabs = { ...(expandState.studentTabs || {}), [studentId]: tabId };
+        return expandState;
+    }
+
+    function buildPriorYearsStatusHtml(student) {
+        if (isHighSchoolGrade(student.current_grade_level)) {
+            if (student.current_grade_level === '9' && student.prior_years_status !== 'not_applicable') {
+                return `
+                    <button type="button" class="px-4 py-2 text-sm border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50"
+                            onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
+                `;
+            }
+            if (student.prior_years_status === 'complete') {
+                return '<span class="text-xs text-emerald-700">Prior years complete</span>';
+            }
+            if (student.prior_years_status === 'not_applicable') {
+                return '<span class="text-xs text-slate-500">No prior years needed</span>';
+            }
+            return '<span class="text-xs text-amber-700">Add each prior school year, then mark complete</span>';
+        }
+
+        return `
+            <span class="text-xs text-slate-500">
+                Prior-year backfill is optional for this grade.
+                <button type="button" class="ml-1 text-navy underline" onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
+            </span>
+        `;
+    }
+
+    function buildPriorYearsAddSectionHtml(student, backfillYears) {
+        const intro = isHighSchoolGrade(student.current_grade_level)
+            ? '<p class="text-xs text-slate-600">Add years before Summit if this student joined mid-stream. Enter both semesters, attendance, and finals.</p>'
+            : '<p class="text-xs text-slate-600">Optional for K–8. Add prior school years if you have records to enter.</p>';
+
+        return `
+            <div class="ar-prior-years-add border border-sky-200 rounded-2xl bg-sky-50/40 p-4 space-y-3">
+                <h4 class="text-sm font-semibold text-sky-900">Add a prior school year</h4>
+                ${intro}
+                <form class="flex flex-wrap gap-2 items-end" onsubmit="window.AcademicRecords.handleAddBackfill(event, '${student.id}')">
+                    <select name="school_year" class="form-input px-3 py-2 text-sm border border-slate-300 rounded-xl" required>
+                        <option value="">School year</option>
+                        ${backfillYears.map((y) => `<option value="${y}">${y}</option>`).join('')}
+                    </select>
+                    <select name="grade_level" class="form-input px-3 py-2 text-sm border border-slate-300 rounded-xl" required>
+                        ${GRADE_LEVELS.map((g) => `<option value="${g}">${escapeHtml(formatGradeLabel(g))}</option>`).join('')}
+                    </select>
+                    <button type="submit" class="px-4 py-2 text-sm font-semibold border border-navy text-navy rounded-xl hover:bg-navy hover:text-white">Add prior year</button>
+                </form>
+                <div>${buildPriorYearsStatusHtml(student)}</div>
+            </div>
+        `;
+    }
+
+    function buildPriorYearRecordCardHtml(bf, entries, student) {
+        const statusText = bf.year_locked
+            ? 'Complete ✓'
+            : 'In progress';
+
+        return `
+            <div class="ar-prior-year-card border border-slate-200 rounded-xl bg-white p-4 space-y-3" data-ar-backfill-year="${bf.id}">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                    <span class="font-semibold text-navy">${escapeHtml(bf.school_year)}</span>
+                    <span class="text-xs text-slate-500">${escapeHtml(formatGradeLabel(bf.grade_level))} · ${escapeHtml(statusText)}</span>
+                </div>
+                ${buildAttendanceHtml(bf)}
+                ${buildGradeTableHtml(bf, entries)}
+                ${isHighSchoolGrade(bf.grade_level) ? buildCreditsSummaryHtml(bf, entries, bf.grade_level, student.id) : ''}
+                ${renderBackfillActions(bf)}
+            </div>
+        `;
+    }
+
     function bindAttendanceEvents(root) {
         if (!root) return;
 
@@ -1033,12 +1165,16 @@
 
         const unique = (items) => [...new Set(items.filter(Boolean))];
 
+        const studentTabs = {};
+        root.querySelectorAll('[data-ar-student-tabs]').forEach((el) => {
+            if (el.dataset.arStudentTabs) {
+                studentTabs[el.dataset.arStudentTabs] = el.dataset.arActiveTab || STUDENT_TAB_PROGRESS;
+            }
+        });
+
         return {
             studentIds: unique(Array.from(root.querySelectorAll('.student-record-panel[open]')).map((el) => el.dataset.studentId)),
-            progressYearIds: unique(Array.from(root.querySelectorAll('[data-ar-progress-year][open]')).map((el) => el.dataset.arProgressYear)),
-            priorYearStudentIds: unique(Array.from(root.querySelectorAll('[data-ar-prior-years][open]')).map((el) => el.dataset.arPriorYears)),
-            backfillGroupStudentIds: unique(Array.from(root.querySelectorAll('[data-ar-backfill-group][open]')).map((el) => el.dataset.arBackfillGroup)),
-            backfillYearIds: unique(Array.from(root.querySelectorAll('[data-ar-backfill-year][open]')).map((el) => el.dataset.arBackfillYear)),
+            studentTabs,
             addStudentOpen: Boolean(root.querySelector('#ar-add-student-panel[open]')),
         };
     }
@@ -1051,25 +1187,11 @@
             if (panel) panel.setAttribute('open', '');
         });
 
-        state.progressYearIds.forEach((yearId) => {
-            const panel = root.querySelector(`[data-ar-progress-year="${yearId}"]`);
-            if (panel) panel.setAttribute('open', '');
-        });
-
-        state.priorYearStudentIds.forEach((studentId) => {
-            const panel = root.querySelector(`[data-ar-prior-years="${studentId}"]`);
-            if (panel) panel.setAttribute('open', '');
-        });
-
-        state.backfillGroupStudentIds.forEach((studentId) => {
-            const panel = root.querySelector(`[data-ar-backfill-group="${studentId}"]`);
-            if (panel) panel.setAttribute('open', '');
-        });
-
-        state.backfillYearIds.forEach((yearId) => {
-            const panel = root.querySelector(`[data-ar-backfill-year="${yearId}"]`);
-            if (panel) panel.setAttribute('open', '');
-        });
+        if (state.studentTabs) {
+            Object.entries(state.studentTabs).forEach(([studentId, tabId]) => {
+                showStudentTab(studentId, tabId);
+            });
+        }
 
         if (state.addStudentOpen) {
             const addPanel = root.querySelector('#ar-add-student-panel');
@@ -1560,101 +1682,51 @@
                     }
                 }
 
-                let priorBlock = '';
-                if (isHighSchoolGrade(student.current_grade_level)) {
-                    priorBlock = `
-                        <details class="ar-accordion border border-sky-200 rounded-2xl bg-sky-50/40" data-ar-prior-years="${student.id}">
-                            ${buildAccordionSummary({
-                                leftHtml: '<span class="text-sm font-semibold text-sky-900">Add Prior Year Records</span>',
-                                hint: 'Tap to add prior years',
-                                extraClass: 'px-4 py-3 cursor-pointer',
-                            })}
-                            ${wrapAccordionBody(`<div class="px-4 pb-4 border-t border-sky-100 space-y-3">
-                                <p class="text-xs text-slate-600 pt-3">Add years before Summit if this student joined mid-stream. Enter both semesters, attendance, and finals.</p>
-                                <form class="flex flex-wrap gap-2 items-end" onsubmit="window.AcademicRecords.handleAddBackfill(event, '${student.id}')">
-                                    <select name="school_year" class="form-input px-3 py-2 text-sm border border-slate-300 rounded-xl" required>
-                                        <option value="">School year</option>
-                                        ${backfillYears.map((y) => `<option value="${y}">${y}</option>`).join('')}
-                                    </select>
-                                    <select name="grade_level" class="form-input px-3 py-2 text-sm border border-slate-300 rounded-xl" required>
-                                        ${GRADE_LEVELS.map((g) => `<option value="${g}">${escapeHtml(formatGradeLabel(g))}</option>`).join('')}
-                                    </select>
-                                    <button type="submit" class="px-4 py-2 text-sm font-semibold border border-navy text-navy rounded-xl hover:bg-navy hover:text-white">Add prior year</button>
-                                </form>
-                                ${student.current_grade_level === '9' && student.prior_years_status !== 'not_applicable' ? `
-                                    <button type="button" class="px-4 py-2 text-sm border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50"
-                                            onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
-                                ` : student.prior_years_status === 'complete'
-                                    ? '<span class="text-xs text-emerald-700">Prior years complete</span>'
-                                    : student.prior_years_status === 'not_applicable'
-                                        ? '<span class="text-xs text-slate-500">No prior years needed</span>'
-                                        : '<span class="text-xs text-amber-700">Add each prior school year, then mark complete</span>'}
-                            </div>`, 'Close prior years')}
-                        </details>
-                    `;
-                } else {
-                    priorBlock = `
-                        <p class="text-xs text-slate-500">
-                            Prior-year backfill is optional for this grade.
-                            <button type="button" class="ml-1 text-navy underline" onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
-                        </p>
-                    `;
-                }
+                const savedTab = expandState?.studentTabs?.[student.id] || STUDENT_TAB_PROGRESS;
+                const activeTab = isFocused ? STUDENT_TAB_PROGRESS : savedTab;
+                const priorTabLabel = backfills.length ? `Prior Years (${backfills.length})` : 'Prior Years';
 
-                let currentYearSection = '';
+                let progressTabHtml = '<p class="text-sm text-slate-500">No current school year record yet.</p>';
                 if (currentRecord) {
                     const entries = await fetchGradeEntries(currentRecord.id);
-                    currentYearSection = `
-                        <details class="ar-accordion border border-amber-200 rounded-2xl bg-amber-50/30" data-ar-progress-year="${currentRecord.id}" ${isFocused ? 'open' : ''}>
-                            ${buildAccordionSummary({
-                                leftHtml: `<span class="font-semibold text-navy">${escapeHtml(currentYear)} progress report</span>`,
-                                rightHtml: `<span class="text-xs text-slate-500">${escapeHtml(formatGradeLabel(currentRecord.grade_level))} · ${escapeHtml(currentYear)} · ${escapeHtml(statusLabel)}</span>`,
-                                hint: 'Tap to open progress report',
-                                extraClass: 'px-4 py-3 cursor-pointer',
-                            })}
-                            ${wrapAccordionBody(`<div class="p-4 border-t border-amber-100 space-y-4">
-                                ${buildAttendanceHtml(currentRecord)}
-                                ${buildGradeTableHtml(currentRecord, entries)}
-                                ${isHighSchoolGrade(currentRecord.grade_level) ? buildCreditsSummaryHtml(currentRecord, entries, currentRecord.grade_level, student.id) : ''}
-                                ${renderSemesterActions(currentRecord)}
-                            </div>`, 'Close progress report')}
-                        </details>
+                    progressTabHtml = `
+                        <div class="ar-tab-intro mb-4 pb-3 border-b border-amber-100">
+                            <p class="text-sm font-semibold text-navy">${escapeHtml(currentYear)} progress report</p>
+                            <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(formatGradeLabel(currentRecord.grade_level))} · ${escapeHtml(statusLabel)}</p>
+                        </div>
+                        <div class="space-y-4">
+                            ${buildAttendanceHtml(currentRecord)}
+                            ${buildGradeTableHtml(currentRecord, entries)}
+                            ${isHighSchoolGrade(currentRecord.grade_level) ? buildCreditsSummaryHtml(currentRecord, entries, currentRecord.grade_level, student.id) : ''}
+                            ${renderSemesterActions(currentRecord)}
+                        </div>
                     `;
                 }
 
-                let backfillSections = '';
-                if (backfills.length) {
-                    const backfillItems = [];
-                    for (const bf of backfills) {
-                        const entries = await fetchGradeEntries(bf.id);
-                        backfillItems.push(`
-                            <details class="ar-accordion border border-slate-200 rounded-xl" data-ar-backfill-year="${bf.id}">
-                                ${buildAccordionSummary({
-                                    leftHtml: '<span class="font-medium text-navy">Prior year</span>',
-                                    rightHtml: `<span class="font-medium text-slate-600">${escapeHtml(bf.school_year)} · ${escapeHtml(formatGradeLabel(bf.grade_level))}${bf.year_locked ? ' ✓' : ''}</span>`,
-                                    hint: 'Tap to open',
-                                    extraClass: 'px-3 py-2 cursor-pointer text-sm',
-                                })}
-                                ${wrapAccordionBody(`<div class="p-3 border-t border-slate-100 space-y-3">
-                                    ${buildAttendanceHtml(bf)}
-                                    ${buildGradeTableHtml(bf, entries)}
-                                    ${isHighSchoolGrade(bf.grade_level) ? buildCreditsSummaryHtml(bf, entries, bf.grade_level, student.id) : ''}
-                                    ${renderBackfillActions(bf)}
-                                </div>`, 'Close prior year')}
-                            </details>
-                        `);
-                    }
-                    backfillSections = `
-                        <details class="ar-accordion border border-slate-200 rounded-2xl" data-ar-backfill-group="${student.id}">
-                            ${buildAccordionSummary({
-                                leftHtml: `<span class="text-sm font-semibold text-navy">Prior year records (${backfills.length})</span>`,
-                                hint: 'Tap to view prior years',
-                                extraClass: 'px-4 py-3 cursor-pointer',
-                            })}
-                            ${wrapAccordionBody(`<div class="p-4 border-t border-slate-100 space-y-2">${backfillItems.join('')}</div>`, 'Close prior year records')}
-                        </details>
-                    `;
+                let priorCardsHtml = '';
+                for (const bf of backfills) {
+                    const entries = await fetchGradeEntries(bf.id);
+                    priorCardsHtml += buildPriorYearRecordCardHtml(bf, entries, student);
                 }
+
+                const priorTabHtml = `
+                    ${buildPriorYearsAddSectionHtml(student, backfillYears)}
+                    ${backfills.length ? `
+                        <div class="space-y-4 mt-4">
+                            <h4 class="text-sm font-semibold text-navy">Saved prior years</h4>
+                            ${priorCardsHtml}
+                        </div>
+                    ` : '<p class="text-xs text-slate-500 mt-4 italic">No prior year records yet.</p>'}
+                `;
+
+                const studentTabsHtml = buildStudentTabsShell(
+                    student.id,
+                    buildStudentTabButton(student.id, STUDENT_TAB_PROGRESS, 'Progress Report', activeTab === STUDENT_TAB_PROGRESS)
+                    + buildStudentTabButton(student.id, STUDENT_TAB_PRIOR, priorTabLabel, activeTab === STUDENT_TAB_PRIOR),
+                    buildStudentTabPanel(student.id, STUDENT_TAB_PROGRESS, progressTabHtml, activeTab === STUDENT_TAB_PROGRESS)
+                    + buildStudentTabPanel(student.id, STUDENT_TAB_PRIOR, priorTabHtml, activeTab === STUDENT_TAB_PRIOR),
+                    activeTab
+                );
 
                 html += `
                     <details class="ar-accordion border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
@@ -1664,11 +1736,7 @@
                             hint: 'Tap student to open',
                             extraClass: 'px-5 py-4 cursor-pointer hover:bg-slate-50',
                         })}
-                        ${wrapAccordionBody(`<div class="px-5 pb-5 border-t border-slate-100 space-y-4">
-                            ${priorBlock}
-                            ${currentYearSection}
-                            ${backfillSections}
-                        </div>`, 'Back to all students')}
+                        ${wrapAccordionBody(`<div class="px-5 pb-5 border-t border-slate-100">${studentTabsHtml}</div>`, 'Back to all students')}
                     </details>
                 `;
             }
@@ -1866,7 +1934,9 @@
         const gradeLevel = form.grade_level.value;
         try {
             await addBackfillYear(studentId, schoolYear, gradeLevel);
-            await loadAcademicRecords();
+            await loadAcademicRecords({
+                expandState: buildExpandStateForStudent(studentId, STUDENT_TAB_PRIOR),
+            });
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
         }
@@ -2043,7 +2113,9 @@
     async function markNoPriorYears(studentId) {
         try {
             await setPriorYearsStatus(studentId, 'not_applicable');
-            await loadAcademicRecords();
+            await loadAcademicRecords({
+                expandState: buildExpandStateForStudent(studentId, STUDENT_TAB_PRIOR),
+            });
             if (typeof window.OnboardingChecklist?.refresh === 'function') {
                 await window.OnboardingChecklist.refresh();
             }
@@ -2066,6 +2138,7 @@
         percentToGpa,
         renderProgressReportTaskCard,
         openStudentRecord,
+        showStudentTab,
         loadAcademicRecords,
         showGradeEquivalencyChart,
         handleAddStudent,

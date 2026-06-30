@@ -1392,6 +1392,38 @@ body.app-dialog-open {
   display: block;
 }
 
+/* Academic records — per-student section tabs */
+.ar-student-tabs {
+  width: 100%;
+}
+
+.ar-student-tab-group {
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.ar-student-tab-panels {
+  margin-top: 1rem;
+}
+
+.ar-student-tab-panel {
+  animation: ar-tab-fade-in 0.15s ease;
+}
+
+@keyframes ar-tab-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.ar-prior-year-card + .ar-prior-year-card {
+  margin-top: 0;
+}
+
 .ar-attendance-panel input[readonly] {
   cursor: default;
 }
