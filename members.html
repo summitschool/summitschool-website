@@ -24,6 +24,7 @@
                 var hasPkceCode = search.indexOf('code=') !== -1 && search.indexOf('token_hash=') === -1;
                 if (pendingOAuth || hasPkceCode || search.indexOf('auth=oauth') !== -1) {
                     document.documentElement.classList.add('auth-transition-pending');
+                    window.__oauthReturnPending = true;
                 }
             } catch (e) {}
         })();
@@ -1055,6 +1056,7 @@
         let lastDashboardTab = 'my-tasks';
         let currentAdminSection = null;
         let lastMyTasksUserId = null;
+        let oauthCallbackInProgress = false;
 
         const ADMIN_FAMILY_TASKS_PLACEHOLDER = 'Select a family above to view and manage task due dates.';
         const ADMIN_FAMILY_DOCS_PLACEHOLDER = 'Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.';
@@ -1128,6 +1130,8 @@
         }
 
         async function enforceMemberSessionIfExpired() {
+            if (oauthCallbackInProgress || isAuthTransitionPending()) return;
+
             const idleMs = getMemberIdleMs();
             if (!sessionStorage.getItem(MEMBER_ACTIVITY_KEY)) return;
 
@@ -1237,10 +1241,32 @@
         }
 
         function isAuthTransitionPending() {
-            return document.documentElement.classList.contains('auth-transition-pending')
+            return oauthCallbackInProgress
+                || document.documentElement.classList.contains('auth-transition-pending')
                 || document.documentElement.classList.contains('auth-transition-active')
                 || hasPendingOAuthAttempt()
                 || hasPkceAuthCode();
+        }
+
+        function isCompletingSignIn() {
+            return isAuthTransitionPending();
+        }
+
+        function revealLoginView() {
+            if (isCompletingSignIn()) return;
+            const loginView = document.getElementById('login-view');
+            if (loginView) loginView.classList.remove('hidden');
+        }
+
+        function hideLoginView() {
+            const loginView = document.getElementById('login-view');
+            if (loginView) loginView.classList.add('hidden');
+        }
+
+        function finishOAuthHandoff() {
+            oauthCallbackInProgress = false;
+            clearPendingOAuthAttempt();
+            hideAuthTransition();
         }
 
         function isOAuthCallbackUrl() {
@@ -1413,9 +1439,8 @@
                 || hashParams.get('error');
 
             if (oauthError) {
-                clearPendingOAuthAttempt();
+                finishOAuthHandoff();
                 history.replaceState(null, '', window.location.pathname);
-                hideAuthTransition();
                 showOAuthStatus('error', decodeURIComponent(oauthError.replace(/\+/g, ' ')));
                 resetGoogleSignInButton();
                 return true;
@@ -1432,9 +1457,8 @@
             subscription.unsubscribe();
 
             if (error) {
-                clearPendingOAuthAttempt();
+                finishOAuthHandoff();
                 history.replaceState(null, '', window.location.pathname);
-                hideAuthTransition();
                 showOAuthStatus('error', 'Google sign-in could not be completed. Please try again.');
                 resetGoogleSignInButton();
                 return true;
@@ -1443,9 +1467,8 @@
             const activeSession = session || (sessionEstablished ? (await supabaseClient.auth.getSession()).data.session : null);
 
             if (!activeSession?.user) {
-                clearPendingOAuthAttempt();
+                finishOAuthHandoff();
                 history.replaceState(null, '', window.location.pathname);
-                hideAuthTransition();
                 if (params.has('code')) {
                     showOAuthStatus('error', 'Google sign-in timed out. Please try again.');
                     resetGoogleSignInButton();
@@ -1476,7 +1499,6 @@
             }
 
             recordMemberActivity();
-            clearPendingOAuthAttempt();
             history.replaceState(null, '', window.location.pathname);
             return true;
         }
@@ -1490,6 +1512,7 @@
             const btn = document.getElementById('google-signin-btn');
             if (btn) btn.disabled = true;
 
+            oauthCallbackInProgress = true;
             markPendingOAuthAttempt();
             showAuthTransition('Redirecting to Google…');
 
@@ -1505,8 +1528,7 @@
             });
 
             if (error) {
-                clearPendingOAuthAttempt();
-                hideAuthTransition();
+                finishOAuthHandoff();
                 resetGoogleSignInButton();
                 await showAppAlert('Google sign-in failed: ' + error.message);
             }
@@ -2689,7 +2711,7 @@
             const dashboardView = document.getElementById('dashboard-view');
             const pendingView = document.getElementById('pending-view');
             const headerLogoutBtn = document.getElementById('header-logout-btn');
-            const authPending = !options.skipAuthTransition && isAuthTransitionPending();
+            const completingSignIn = isCompletingSignIn();
 
             function setLogoutButtonsVisible(visible) {
                 if (!headerLogoutBtn) return;
@@ -2710,7 +2732,7 @@
                     setLogoutButtonsVisible(true);
                     loadMyDocumentsDemo();
                 } else {
-                    loginView.classList.remove('hidden');
+                    revealLoginView();
                     dashboardView.classList.add('hidden');
                     pendingView.classList.add('hidden');
                     setLogoutButtonsVisible(false);
@@ -2721,7 +2743,7 @@
             const { data: { user } } = await supabaseClient.auth.getUser();
 
             if (user) {
-                if (authPending) {
+                if (completingSignIn) {
                     showAuthTransition('Loading your Family Hub…');
                 }
 
@@ -2736,7 +2758,7 @@
                     .eq('id', user.id)
                     .maybeSingle();
 
-                loginView.classList.add('hidden');
+                hideLoginView();
 
                 if (profile && profile.denied === true) {
                     pendingView.classList.remove('hidden');
@@ -2805,17 +2827,16 @@
                     setLogoutButtonsVisible(true);
                 }
 
-                hideAuthTransition();
+                finishOAuthHandoff();
             } else {
-                if (authPending) {
+                if (completingSignIn) {
                     showAuthTransition('Completing sign-in…');
                     return;
                 }
 
-                hideAuthTransition();
+                finishOAuthHandoff();
 
-                // Not logged in
-                loginView.classList.remove('hidden');
+                revealLoginView();
                 dashboardView.classList.add('hidden');
                 pendingView.classList.add('hidden');
 
@@ -6225,11 +6246,26 @@
 
         // Initialize everything
         async function init() {
-            if (document.documentElement.classList.contains('auth-transition-pending')) {
+            if (
+                window.__oauthReturnPending
+                || document.documentElement.classList.contains('auth-transition-pending')
+                || hasPkceAuthCode()
+                || hasPendingOAuthAttempt()
+            ) {
+                oauthCallbackInProgress = true;
+                delete window.__oauthReturnPending;
                 showAuthTransition('Completing Google sign-in…');
             }
 
             initSupabaseClient();
+
+            if (supabaseClient) {
+                supabaseClient.auth.onAuthStateChange(() => {
+                    if (signupInProgress || oauthCallbackInProgress) return;
+                    checkLoginState({ skipAuthTransition: true });
+                });
+            }
+
             updateOpeningNotice();
             handleAuthRedirect();
             setupForms();
@@ -6245,19 +6281,12 @@
 
             // Set initial tab state (support links from enrollment page)
             const authTabHash = window.location.hash.toLowerCase();
-            if (authTabHash === '#signup' || authTabHash === '#create-account') {
-                showAuthTab('signup');
-            } else {
-                showAuthTab('login');
-            }
-
-            // Listen for auth state changes
-            if (supabaseClient) {
-                supabaseClient.auth.onAuthStateChange(() => {
-                    if (signupInProgress) return;
-                    if (isAuthTransitionPending()) return;
-                    checkLoginState({ skipAuthTransition: true });
-                });
+            if (!oauthCallbackInProgress) {
+                if (authTabHash === '#signup' || authTabHash === '#create-account') {
+                    showAuthTab('signup');
+                } else {
+                    showAuthTab('login');
+                }
             }
 
             setupMemberSessionGuards();
