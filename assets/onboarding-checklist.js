@@ -424,14 +424,36 @@
     }
 
     function buildProgressReportGuideBodyHtml() {
+        const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
         return `
-            <p>Each student has a <strong>Progress Report</strong> in Academic Records for the current school year.</p>
-            <p><strong>Semester 1</strong> (Jul–Dec) is due <strong>Dec 31</strong>. Enter grades and attendance, then submit.</p>
-            <p><strong>Semester 2</strong> (Jan–May) is due <strong>May 31</strong> (seniors <strong>May 15</strong>). Enter Semester 2 grades, attendance, and finals, then submit.</p>
-            <p>The school year ends <strong>May 31</strong>.</p>
-            <p class="text-xs text-slate-500">Contact the school office if you need a locked semester reopened.</p>
-            <button type="button" class="mt-2 px-4 py-2 text-sm font-semibold bg-navy text-white rounded-xl"
-                    onclick="window.OnboardingChecklist.markGuideRead()">I've read this</button>
+            <div class="onboarding-progress-guide ar-grade-help">
+                <div class="ar-grade-help-header">
+                    <span class="ar-grade-help-year">${escapeHtml(schoolYear)}</span>
+                    <h3 class="ar-grade-help-title">How progress reports work</h3>
+                </div>
+                <p class="onboarding-guide-lead">Each student has a <strong>Progress Report</strong> in Academic Records for the current school year.</p>
+                <div class="ar-grade-help-grid">
+                    <section class="ar-grade-help-block">
+                        <h4 class="ar-grade-help-label">What you'll do</h4>
+                        <ul class="ar-grade-help-list">
+                            <li>Enter <strong>Semester 1</strong> grades and attendance (Jul–Dec), then submit</li>
+                            <li>Enter <strong>Semester 2</strong> grades, attendance, and finals (Jan–May), then submit</li>
+                            <li>Name each course and tag the subject before submitting</li>
+                        </ul>
+                    </section>
+                    <section class="ar-grade-help-block ar-grade-help-dates">
+                        <h4 class="ar-grade-help-label">Due dates</h4>
+                        <dl class="ar-grade-help-dl">
+                            <div><dt>Semester 1</dt><dd>Dec 31</dd></div>
+                            <div><dt>Semester 2</dt><dd>May 31</dd></div>
+                            <div><dt>Seniors</dt><dd>May 15</dd></div>
+                        </dl>
+                        <p class="ar-grade-help-note">School year ends May 31. Contact the school office if you need a locked semester reopened.</p>
+                    </section>
+                </div>
+                <button type="button" class="onboarding-guide-read-btn"
+                        onclick="window.OnboardingChecklist.markGuideRead()">I've read this</button>
+            </div>
         `;
     }
 
@@ -440,7 +462,7 @@
 
         if (item.id === 'guide') {
             return `
-                <div class="rounded-xl border ${borderClass}" id="onboarding-guide">
+                <div class="onboarding-guide-item rounded-xl border ${borderClass}" id="onboarding-guide">
                     <label class="flex items-start gap-3 p-3 cursor-pointer">
                         <input type="checkbox" class="mt-1 accent-navy onboarding-check-item"
                                data-item-id="${item.id}"
@@ -448,8 +470,8 @@
                                onchange="window.OnboardingChecklist.handleItemToggle('${item.id}', this)">
                         <span class="text-sm text-slate-700 flex-1 font-medium">${escapeHtml(item.label)}</span>
                     </label>
-                    <div class="px-3 pb-3 pt-0 ml-9 mr-3 text-sm text-slate-600 space-y-2 border-t border-slate-100/80">
-                        <div class="pt-3 space-y-2">${buildProgressReportGuideBodyHtml()}</div>
+                    <div class="onboarding-guide-body">
+                        ${buildProgressReportGuideBodyHtml()}
                     </div>
                 </div>
             `;

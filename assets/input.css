@@ -2374,6 +2374,57 @@ body.app-dialog-open {
   }
 }
 
+/* Onboarding checklist — progress reports guide */
+.onboarding-guide-body {
+  padding: 0 0.75rem 0.75rem 2.25rem;
+}
+
+.onboarding-guide-item .onboarding-progress-guide.ar-grade-help {
+  margin-bottom: 0;
+  padding: 1rem 1.1rem;
+}
+
+.onboarding-guide-lead {
+  margin: 0 0 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.onboarding-guide-lead strong {
+  color: #0a2540;
+  font-weight: 600;
+}
+
+.onboarding-guide-read-btn {
+  margin-top: 1rem;
+  width: 100%;
+  min-height: 2.65rem;
+  padding: 0.6rem 1rem;
+  border-radius: 1rem;
+  border: none;
+  background: #0a2540;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.onboarding-guide-read-btn:hover {
+  background: #0f3a5f;
+}
+
+@media (min-width: 640px) {
+  .onboarding-guide-body {
+    padding: 0 1rem 1rem 2.5rem;
+  }
+
+  .onboarding-guide-item .onboarding-progress-guide.ar-grade-help {
+    padding: 1.15rem 1.25rem;
+  }
+}
+
 #ar-grade-chart-modal {
   position: fixed;
   top: 0;
