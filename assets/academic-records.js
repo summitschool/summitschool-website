@@ -2441,7 +2441,7 @@
                     <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
                     <input type="text" id="ack-s1-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
                     <button type="button" class="ar-supplemental-btn ar-supplemental-btn--primary"
-                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1')">Submit Semester 1</button>
+                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1', this)">Submit Semester 1</button>
                 </div>
             `);
         } else if (yearRecord.semester_1_locked) {
@@ -2458,7 +2458,7 @@
                     <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
                     <input type="text" id="ack-s2-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
                     <button type="button" class="ar-supplemental-btn ar-supplemental-btn--primary"
-                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '2')">Submit Semester 2 &amp; Final</button>
+                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '2', this)">Submit Semester 2 &amp; Final</button>
                 </div>
             `);
         } else if (yearRecord.semester_2_locked) {
@@ -2484,27 +2484,36 @@
                 <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm this prior year record is complete.</p>
                 <input type="text" id="ack-year-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
                 <button type="button" class="ar-supplemental-btn ar-supplemental-btn--primary"
-                        onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1')">Submit Semester 1 &amp; 2 &amp; Final</button>
+                        onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1', this)">Submit Semester 1 &amp; 2 &amp; Final</button>
             </div>
         `;
     }
 
     function getAckInputForYearRecord(yearRecordId, semesterKey) {
         const activePanel = document.querySelector(`[data-ar-year-panel="${yearRecordId}"]:not(.hidden)`);
-        if (activePanel) {
-            const scoped = activePanel.querySelector(`#ack-year-${yearRecordId}`)
-                || activePanel.querySelector(`#ack-s2-${yearRecordId}`)
-                || activePanel.querySelector(`#ack-s1-${yearRecordId}`);
+        const candidateIds = semesterKey === '2'
+            ? [`ack-s2-${yearRecordId}`]
+            : [`ack-year-${yearRecordId}`, `ack-s1-${yearRecordId}`];
+
+        for (const id of candidateIds) {
+            const scoped = activePanel?.querySelector(`#${id}`);
             if (scoped) return scoped;
+            const global = document.getElementById(id);
+            if (global) return global;
         }
-        return document.getElementById(`ack-year-${yearRecordId}`)
-            || document.getElementById(semesterKey === '2' ? `ack-s2-${yearRecordId}` : `ack-s1-${yearRecordId}`);
+        return null;
     }
 
-    async function submitFromSection(yearRecordId, semesterKey) {
+    function getAckInputFromSubmitTrigger(triggerEl, yearRecordId, semesterKey) {
+        const panelInput = triggerEl?.closest('.ar-submit-panel')?.querySelector('input[id^="ack-"]');
+        if (panelInput) return panelInput;
+        return getAckInputForYearRecord(yearRecordId, semesterKey);
+    }
+
+    async function submitFromSection(yearRecordId, semesterKey, triggerEl) {
         const panel = document.querySelector(`[data-year-record-id="${yearRecordId}"]`)?.closest('.p-4, .hub-panel, details');
         const table = document.querySelector(`table[data-year-record-id="${yearRecordId}"]`);
-        const ack = getAckInputForYearRecord(yearRecordId, semesterKey);
+        const ack = getAckInputFromSubmitTrigger(triggerEl, yearRecordId, semesterKey);
         const ackName = (ack?.value || '').trim();
         if (!ackName) {
             await window.showAppAlert?.('Please type your full name to confirm.');
