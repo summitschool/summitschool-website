@@ -340,13 +340,11 @@
 
                     <div class="hub-banner-wrap">
                         <div id="member-banner" class="hub-announcement hidden">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="flex-1 min-w-0">
-                                    <strong class="block mb-1 text-sm">Announcement</strong>
-                                    <div id="member-banner-text" class="text-sm whitespace-pre-wrap"></div>
-                                </div>
-                                <button type="button" onclick="dismissBanner()" class="text-amber-800 hover:text-amber-950 text-xs font-semibold shrink-0">Dismiss</button>
+                            <div class="hub-announcement-header">
+                                <strong class="hub-announcement-label">Announcement</strong>
+                                <button type="button" onclick="dismissBanner()" class="hub-announcement-dismiss">Dismiss</button>
                             </div>
+                            <div id="member-banner-text" class="hub-announcement-body whitespace-pre-wrap"></div>
                         </div>
                     </div>
 
