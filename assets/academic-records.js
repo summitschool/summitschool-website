@@ -501,14 +501,29 @@
 
         if (readonly) {
             if (!hasFile) {
-                return '<p class="text-xs text-slate-500 italic">No official transcript photo on file.</p>';
+                return `
+                    <div class="ar-supplemental-card ar-transcript-upload ar-transcript-upload--readonly ar-transcript-upload--empty">
+                        <div class="ar-supplemental-card-header">
+                            <div>
+                                <p class="ar-supplemental-eyebrow">Optional</p>
+                                <h4 class="ar-supplemental-title">Official transcript photo</h4>
+                            </div>
+                        </div>
+                        <p class="ar-supplemental-muted">No official transcript photo on file.</p>
+                    </div>
+                `;
             }
             return `
-                <div class="ar-transcript-upload ar-transcript-upload--readonly border border-amber-200 rounded-xl bg-amber-50/40 p-4">
-                    <h4 class="text-sm font-semibold text-amber-900">Official transcript photo</h4>
-                    <p class="text-xs text-emerald-700 mt-1">${escapeHtml(fileLabel)}${uploadedAt ? ` · ${escapeHtml(uploadedAt)}` : ''}</p>
+                <div class="ar-supplemental-card ar-transcript-upload ar-transcript-upload--readonly" data-ar-transcript="${yearRecord.id}">
+                    <div class="ar-supplemental-card-header">
+                        <div>
+                            <p class="ar-supplemental-eyebrow">On file</p>
+                            <h4 class="ar-supplemental-title">Official transcript photo</h4>
+                        </div>
+                    </div>
+                    <p class="ar-transcript-file-meta">${escapeHtml(fileLabel)}${uploadedAt ? ` · ${escapeHtml(uploadedAt)}` : ''}</p>
                     <button type="button"
-                            class="mt-2 px-3 py-1.5 text-xs font-semibold border border-amber-700 text-amber-900 rounded-lg hover:bg-amber-100"
+                            class="ar-supplemental-btn ar-supplemental-btn--secondary"
                             data-ar-transcript-view="${yearRecord.id}"
                             data-transcript-path="${escapeHtml(yearRecord.transcript_storage_path)}">View transcript</button>
                 </div>
@@ -517,30 +532,37 @@
 
         const canUpload = !yearRecord.year_locked;
         return `
-            <div class="ar-transcript-upload border border-amber-200 rounded-xl bg-amber-50/40 p-4 space-y-3" data-ar-transcript="${yearRecord.id}">
-                <h4 class="text-sm font-semibold text-amber-900">Official transcript photo (optional)</h4>
-                <p class="text-xs text-slate-600">Upload a photo or PDF of the official transcript for this prior year if you have one. You still need to complete the report above even if you upload a picture.</p>
+            <div class="ar-supplemental-card ar-transcript-upload" data-ar-transcript="${yearRecord.id}">
+                <div class="ar-supplemental-card-header">
+                    <div>
+                        <p class="ar-supplemental-eyebrow">Optional</p>
+                        <h4 class="ar-supplemental-title">Official transcript photo</h4>
+                    </div>
+                </div>
+                <p class="ar-supplemental-lead">Upload a photo or PDF of the official transcript for this prior year if you have one. You still need to complete the report above even if you upload a picture.</p>
                 ${hasFile ? `
-                    <p class="text-xs text-emerald-700">${escapeHtml(fileLabel)} on file${uploadedAt ? ` · uploaded ${escapeHtml(uploadedAt)}` : ''}</p>
-                    <button type="button"
-                            class="text-xs font-semibold text-amber-900 underline"
-                            data-ar-transcript-view="${yearRecord.id}"
-                            data-transcript-path="${escapeHtml(yearRecord.transcript_storage_path)}">View uploaded transcript</button>
+                    <div class="ar-transcript-file-block">
+                        <p class="ar-transcript-file-meta">${escapeHtml(fileLabel)} on file${uploadedAt ? ` · uploaded ${escapeHtml(uploadedAt)}` : ''}</p>
+                        <button type="button"
+                                class="ar-transcript-file-link"
+                                data-ar-transcript-view="${yearRecord.id}"
+                                data-transcript-path="${escapeHtml(yearRecord.transcript_storage_path)}">View uploaded transcript</button>
+                    </div>
                 ` : ''}
                 ${canUpload ? `
-                    <div class="space-y-2">
+                    <div class="ar-transcript-upload-controls">
                         <input type="file"
                                accept="image/*,.pdf,application/pdf"
-                               class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                               class="form-input ar-transcript-file-input"
                                data-ar-transcript-input="${yearRecord.id}">
-                        <div class="flex flex-wrap items-center gap-2">
+                        <div class="ar-transcript-upload-actions">
                             <button type="button"
-                                    class="px-4 py-2 text-sm font-semibold border border-amber-700 text-amber-900 rounded-xl hover:bg-amber-100"
+                                    class="ar-supplemental-btn ar-supplemental-btn--secondary"
                                     data-ar-transcript-upload="${yearRecord.id}">Upload</button>
-                            <span class="text-xs text-slate-500 hidden" data-ar-transcript-status="${yearRecord.id}"></span>
+                            <span class="ar-transcript-upload-status hidden" data-ar-transcript-status="${yearRecord.id}"></span>
                         </div>
                     </div>
-                ` : '<p class="text-xs text-slate-500">Transcript upload is locked after this prior year is submitted.</p>'}
+                ` : '<p class="ar-supplemental-muted">Transcript upload is locked after this prior year is submitted.</p>'}
             </div>
         `;
     }
@@ -578,9 +600,13 @@
             <div class="space-y-4">
                 ${buildAttendanceHtml(yearRecord, { readonly })}
                 ${buildGradeTableHtml(yearRecord, entries, { readonly })}
-                ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
                 <div class="ar-year-footer space-y-4" data-ar-scroll-anchor="${yearRecord.id}">
-                    ${buildTranscriptUploadSectionHtml(yearRecord, { readonly })}
+                    ${isHighSchoolGrade(yearRecord.grade_level) ? `
+                        <div class="ar-hs-supplemental">
+                            ${buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id)}
+                            ${buildTranscriptUploadSectionHtml(yearRecord, { readonly })}
+                        </div>
+                    ` : buildTranscriptUploadSectionHtml(yearRecord, { readonly })}
                     ${actionsHtml}
                 </div>
             </div>
@@ -1681,6 +1707,37 @@
         }
     }
 
+    function buildCreditChipsHtml(totals, options = {}) {
+        const { showRequired = false, pending = false } = options;
+        const chips = TRANSCRIPT_COURSE_TYPES.map((type) => {
+            const meta = courseTypeMeta(type);
+            const earned = totals[type] || 0;
+            const required = AL_GRAD_CREDIT_REQUIREMENTS[type];
+            let value;
+            if (pending) {
+                value = '—';
+            } else if (showRequired) {
+                value = `${earned}/${required}`;
+            } else {
+                value = String(earned);
+            }
+            const complete = showRequired && earned >= required;
+            const chipClass = [
+                'ar-credit-chip',
+                complete ? 'is-complete' : '',
+                pending ? 'is-pending' : '',
+            ].filter(Boolean).join(' ');
+            return `
+                <div class="${chipClass}">
+                    <span class="ar-credit-chip-label">${escapeHtml(meta.label)}</span>
+                    <span class="ar-credit-chip-value">${escapeHtml(value)}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `<div class="ar-credit-chips">${chips}</div>`;
+    }
+
     function buildCreditsSummaryHtml(yearRecord, entries, gradeLevel, studentId) {
         if (!isHighSchoolGrade(gradeLevel)) return '';
 
@@ -1688,30 +1745,41 @@
             ? yearRecord.year_locked
             : yearRecord.semester_2_locked;
         const yearTotals = summarizeCredits(entries, gradeLevel, yearComplete);
-
-        const yearParts = TRANSCRIPT_COURSE_TYPES
-            .map((type) => {
-                const count = yearTotals[type] || 0;
-                return count ? `${courseTypeMeta(type).label} ${count}` : null;
-            })
-            .filter(Boolean);
-
         const yearTotal = TRANSCRIPT_COURSE_TYPES.reduce((sum, type) => sum + (yearTotals[type] || 0), 0);
-        const yearLine = yearComplete
+        const badgeLabel = yearComplete
+            ? (yearTotal ? `${yearTotal} credit${yearTotal === 1 ? '' : 's'} this year` : 'No credits yet')
+            : 'Pending Semester 2';
+        const yearNote = yearComplete
             ? (yearTotal
-                ? `Credits earned ${yearRecord.school_year}: ${yearParts.join(', ')} (${yearTotal} total)`
-                : `Credits earned ${yearRecord.school_year}: none yet (passing courses earn 1 credit each).`)
-            : `Credits for ${yearRecord.school_year} are calculated when the school year is complete (after Semester 2 is submitted). Each passing course earns 1 credit.`;
+                ? `Passing courses in ${yearRecord.school_year} earn 1 credit each.`
+                : 'Passing courses earn 1 credit each once grades are submitted.')
+            : `Credits for ${yearRecord.school_year} are calculated after Semester 2 is submitted. Each passing course earns 1 credit.`;
 
         return `
-            <div class="ar-credits-summary">
-                <div class="ar-credits-summary-panel p-3 border border-violet-200 rounded-xl bg-violet-50/40 text-xs text-slate-700 space-y-2"
-                     data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
-                    <div class="font-semibold text-violet-900">High school credits</div>
-                    <p>${escapeHtml(yearLine)}</p>
-                    <p class="text-slate-500">Alabama graduation: 4 English, 4 Math, 4 Science, 4 History, 8 Electives. Tag each course so transcripts count correctly.</p>
-                    <div class="text-slate-600" data-cumulative-credits="${studentId}">Loading cumulative totals...</div>
+            <div class="ar-supplemental-card ar-credits-summary"
+                 data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
+                <div class="ar-supplemental-card-header">
+                    <div>
+                        <p class="ar-supplemental-eyebrow">Graduation tracking</p>
+                        <h4 class="ar-supplemental-title">Credit summary</h4>
+                    </div>
+                    <span class="ar-credits-badge${yearComplete ? ' is-complete' : ''}">${escapeHtml(badgeLabel)}</span>
                 </div>
+
+                <div class="ar-credits-section">
+                    <p class="ar-credits-section-label">This school year</p>
+                    ${buildCreditChipsHtml(yearTotals, { pending: !yearComplete })}
+                    <p class="ar-credits-section-note">${escapeHtml(yearNote)}</p>
+                </div>
+
+                <div class="ar-credits-section ar-credits-section--cumulative">
+                    <p class="ar-credits-section-label">Toward graduation</p>
+                    <div data-cumulative-credits="${studentId}">
+                        <div class="ar-credits-loading">Loading cumulative totals...</div>
+                    </div>
+                </div>
+
+                <p class="ar-credits-footnote">Alabama graduation requires 4 English, 4 Math, 4 Science, 4 History, and 8 Electives. Tag each course so credits count correctly.</p>
             </div>
         `;
     }
@@ -1892,13 +1960,7 @@
                     continue;
                 }
 
-                const parts = TRANSCRIPT_COURSE_TYPES.map((type) => {
-                    const earned = totals[type] || 0;
-                    const required = AL_GRAD_CREDIT_REQUIREMENTS[type];
-                    return `${courseTypeMeta(type).label} ${earned}/${required}`;
-                });
-
-                block.textContent = `Cumulative toward graduation: ${parts.join(', ')}`;
+                block.innerHTML = buildCreditChipsHtml(totals, { showRequired: true });
             } catch (err) {
                 block.textContent = '';
             }

@@ -1295,15 +1295,257 @@ body.app-dialog-open {
   margin-left: auto;
 }
 
-.ar-credits-summary {
+.ar-hs-supplemental {
   display: flex;
-  width: 100%;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid #e2e8f0;
 }
 
-.ar-credits-summary-panel {
-  text-align: right;
-  max-width: 20rem;
+.ar-supplemental-card {
+  border: 1px solid #d7e0ea;
+  border-radius: 1.125rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  padding: 1rem 1.125rem;
+  box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 6px 18px rgb(10 37 64 / 0.04);
+}
+
+.ar-supplemental-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.ar-supplemental-eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7c8f7e;
+}
+
+.ar-supplemental-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #0a2540;
+}
+
+.ar-supplemental-lead,
+.ar-supplemental-muted {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.ar-supplemental-lead {
+  margin-bottom: 0.875rem;
+}
+
+.ar-supplemental-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ar-supplemental-btn--secondary {
+  border: 1px solid #0a2540;
+  background: #ffffff;
+  color: #0a2540;
+}
+
+.ar-supplemental-btn--secondary:hover {
+  background: #0a2540;
+  color: #ffffff;
+}
+
+.ar-credits-summary {
+  border-left: 3px solid #c9a227;
+}
+
+.ar-credits-badge {
+  flex-shrink: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: 9999px;
+  background: #eef2f7;
+  border: 1px solid #d7e0ea;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.ar-credits-badge.is-complete {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.ar-credits-section + .ar-credits-section {
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid #e8edf3;
+}
+
+.ar-credits-section-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.ar-credits-section-note,
+.ar-credits-footnote {
+  margin: 0.5rem 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.ar-credits-footnote {
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.ar-credit-chips {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.ar-credit-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 3.1rem;
+  padding: 0.45rem 0.3rem;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.ar-credit-chip.is-complete {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.ar-credit-chip.is-pending {
+  background: #f8fafc;
+  border-style: dashed;
+  border-color: #cbd5e1;
+}
+
+.ar-credit-chip-label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.ar-credit-chip-value {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #0a2540;
+  line-height: 1.1;
+}
+
+.ar-credit-chip.is-complete .ar-credit-chip-value {
+  color: #047857;
+}
+
+.ar-credit-chip.is-pending .ar-credit-chip-value {
+  color: #94a3b8;
+}
+
+.ar-credits-loading {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.ar-transcript-upload {
+  border-left: 3px solid #7c8f7e;
+}
+
+.ar-transcript-file-block {
+  margin-bottom: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.ar-transcript-file-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #047857;
+}
+
+.ar-transcript-file-link {
+  margin-top: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #0a2540;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ar-transcript-upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.ar-transcript-file-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8125rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+.ar-transcript-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ar-transcript-upload-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.ar-transcript-upload-status.text-emerald-700 {
+  color: #047857;
 }
 
 /* Academic records — accordion panels with obvious open/close affordances */
@@ -1576,9 +1818,7 @@ body.app-dialog-open {
   scroll-margin-top: 5.5rem;
 }
 
-.ar-transcript-upload input[type="file"] {
-  background: #ffffff;
-}
+
 
 .ar-student-year-tabs {
   width: 100%;
@@ -2005,16 +2245,21 @@ body.app-dialog-open {
     line-height: 1.3;
   }
 
-  #academic-records-root .ar-credits-summary,
-  .ar-admin-records-root .ar-credits-summary {
-    justify-content: stretch;
+  #academic-records-root .ar-supplemental-card-header,
+  .ar-admin-records-root .ar-supplemental-card-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  #academic-records-root .ar-credits-summary-panel,
-  .ar-admin-records-root .ar-credits-summary-panel {
-    max-width: none;
-    width: 100%;
-    font-size: 0.7rem;
+  #academic-records-root .ar-credit-chips,
+  .ar-admin-records-root .ar-credit-chips {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #academic-records-root .ar-credits-badge,
+  .ar-admin-records-root .ar-credits-badge {
+    white-space: normal;
+    text-align: left;
   }
 
   #academic-records-root .ar-grade-help {
