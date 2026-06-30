@@ -9,7 +9,7 @@
 
     const INCOMPLETE_MESSAGES = {
         students: 'Add each enrolled student in Academic Records (name and current grade), then check this box.',
-        prior_years: 'Add prior year records for high school students, or mark "no prior years" in Academic Records, then check this box.',
+        prior_years: 'Complete prior high school year records in Academic Records before checking this off.',
         guide: 'Open "How progress reports work" below and click "I\'ve read this" before checking this box.',
         conduct: 'Sign the Code of Conduct form in My Tasks before checking this box.',
         id: 'Upload your government-issued ID in My Tasks before checking this box.',
@@ -314,18 +314,16 @@
         const students = await AR.fetchStudents(userId);
         const hasStudents = students.length > 0;
 
+        const hasHighSchoolStudent = students.some((student) => AR.isHighSchoolGrade(student.current_grade_level));
+
         let priorYearsOk = true;
-        if (hasStudents) {
+        if (hasHighSchoolStudent) {
             priorYearsOk = students.every((student) => {
-                if (!AR.isHighSchoolGrade(student.current_grade_level)) {
-                    return student.prior_years_status === 'not_applicable' || student.prior_years_status === 'complete';
-                }
+                if (!AR.isHighSchoolGrade(student.current_grade_level)) return true;
                 if (student.prior_years_status === 'complete') return true;
                 if (student.current_grade_level === '9' && student.prior_years_status === 'not_applicable') return true;
                 return false;
             });
-        } else {
-            priorYearsOk = false;
         }
 
         const guideRead = Boolean(onboarding?.guide_read);
@@ -343,7 +341,10 @@
             },
             {
                 id: 'prior_years',
-                label: 'Add prior year records for high school students, or mark "no prior years"',
+                label: hasHighSchoolStudent
+                    ? 'Add prior high school year records'
+                    : 'Add prior year records (optional)',
+                required: hasHighSchoolStudent,
                 taskComplete: priorYearsOk,
                 manuallyChecked: Boolean(manualChecks.prior_years),
                 incompleteMessage: INCOMPLETE_MESSAGES.prior_years,
@@ -375,11 +376,12 @@
             },
         ];
 
-        const allTasksComplete = items.every((item) => item.taskComplete);
-        const allManuallyChecked = items.every((item) => item.manuallyChecked);
+        const requiredItems = items.filter((item) => item.required !== false);
+        const allTasksComplete = requiredItems.every((item) => item.taskComplete);
+        const allManuallyChecked = requiredItems.every((item) => item.manuallyChecked);
         const canFinish = allTasksComplete && allManuallyChecked;
 
-        return { items, allTasksComplete, allManuallyChecked, canFinish, onboarding };
+        return { items, requiredItems, allTasksComplete, allManuallyChecked, canFinish, onboarding };
     }
 
     async function setGuideReadFlag(userId) {
@@ -467,7 +469,7 @@
                         onclick="window.OnboardingChecklist.finish()">
                     Complete setup checklist
                 </button>
-                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off every item above after you finish each step.</p>' : ''}
+                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off each required item after you finish that step. Prior years are optional unless you have a high school student.</p>' : ''}
             </div>
         `;
     }
@@ -523,11 +525,11 @@
 
         const { items, allTasksComplete, allManuallyChecked, canFinish } = await getChecklistState(user.id);
         if (!allManuallyChecked) {
-            await window.showAppAlert?.('Please check off every item on the checklist before finishing.');
+            await window.showAppAlert?.('Please check off every required item on the checklist before finishing.');
             return;
         }
         if (!allTasksComplete) {
-            const pending = items.filter((item) => !item.taskComplete).map((item) => item.label);
+            const pending = items.filter((item) => item.required !== false && !item.taskComplete).map((item) => item.label);
             await window.showAppAlert?.(`These steps still need to be completed:\n\n• ${pending.join('\n• ')}`);
             return;
         }
