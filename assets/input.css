@@ -1310,29 +1310,93 @@ body.app-dialog-open {
   box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 6px 18px rgb(10 37 64 / 0.04);
 }
 
-.ar-supplemental-card--accent-navy {
-  border-left-color: var(--navy);
+/* Section accent colors — complementary hues that pair with navy / gold / sage */
+.ar-accent-attendance {
+  --section-accent: #1f9e8f;
+  border-left-color: var(--section-accent);
 }
 
-.ar-supplemental-card--accent-gold {
-  border-left-color: var(--gold);
+.ar-accent-courses {
+  --section-accent: #6d5ce7;
+  border-left-color: var(--section-accent);
 }
 
-.ar-supplemental-card--accent-sage {
-  border-left-color: var(--sage);
+.ar-accent-credits {
+  --section-accent: #c9a227;
+  border-left-color: var(--section-accent);
 }
 
-.ar-supplemental-card--accent-navy .ar-supplemental-eyebrow {
-  color: var(--navy);
+.ar-accent-transcript {
+  --section-accent: #d97706;
+  border-left-color: var(--section-accent);
 }
 
-.ar-supplemental-card--accent-gold .ar-supplemental-eyebrow {
-  color: #9a7d1c;
+.ar-accent-transcript-filed {
+  --section-accent: #059669;
+  border-left-color: var(--section-accent);
 }
 
-.ar-supplemental-card--accent-sage .ar-supplemental-eyebrow {
-  color: var(--sage);
+.ar-accent-submit {
+  --section-accent: #c45c6e;
+  border-left-color: var(--section-accent);
 }
+
+.ar-accent-status-complete {
+  --section-accent: #5f8a72;
+  border-left-color: var(--section-accent);
+}
+
+.ar-accent-status-pending {
+  --section-accent: #8b7bb8;
+  border-left-color: var(--section-accent);
+}
+
+.ar-accent-admin {
+  --section-accent: #4a6fa5;
+  border-left-color: var(--section-accent);
+}
+
+.ar-accent-attendance .ar-supplemental-eyebrow { color: #1f9e8f; }
+.ar-accent-courses .ar-supplemental-eyebrow { color: #6d5ce7; }
+.ar-accent-credits .ar-supplemental-eyebrow { color: #9a7d1c; }
+.ar-accent-transcript .ar-supplemental-eyebrow { color: #d97706; }
+.ar-accent-transcript-filed .ar-supplemental-eyebrow { color: #059669; }
+.ar-accent-submit .ar-supplemental-eyebrow { color: #c45c6e; }
+.ar-accent-status-complete .ar-supplemental-eyebrow { color: #5f8a72; }
+.ar-accent-status-pending .ar-supplemental-eyebrow { color: #8b7bb8; }
+.ar-accent-admin .ar-supplemental-eyebrow { color: #4a6fa5; }
+
+/* Rotating student card accents — one hue per child */
+.ar-accent-student-a {
+  --section-accent: #5b6c9e;
+  border-left-color: var(--section-accent);
+}
+
+.ar-accent-student-b {
+  --section-accent: #c45c6e;
+  border-left-color: var(--section-accent);
+}
+
+.ar-accent-student-c {
+  --section-accent: #2a9d8f;
+  border-left-color: var(--section-accent);
+}
+
+.ar-accent-student-d {
+  --section-accent: #9b6b35;
+  border-left-color: var(--section-accent);
+}
+
+.ar-accent-student-e {
+  --section-accent: #7c5cbf;
+  border-left-color: var(--section-accent);
+}
+
+.ar-accent-student-a .ar-supplemental-eyebrow { color: #5b6c9e; }
+.ar-accent-student-b .ar-supplemental-eyebrow { color: #c45c6e; }
+.ar-accent-student-c .ar-supplemental-eyebrow { color: #2a9d8f; }
+.ar-accent-student-d .ar-supplemental-eyebrow { color: #9b6b35; }
+.ar-accent-student-e .ar-supplemental-eyebrow { color: #7c5cbf; }
 
 .ar-supplemental-card-header {
   display: flex;
@@ -1467,9 +1531,7 @@ body.app-dialog-open {
   color: #047857;
 }
 
-.ar-submit-panel--complete {
-  border-left-color: var(--sage);
-}
+
 
 .ar-admin-panel .ar-supplemental-muted {
   margin-bottom: 0.75rem;
@@ -1892,7 +1954,7 @@ body.app-dialog-open {
 
 .ar-student-panel {
   border: 1px solid #d7e0ea;
-  border-left: 3px solid var(--navy);
+  border-left-width: 3px;
   border-radius: 1.125rem;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 6px 18px rgb(10 37 64 / 0.04);
@@ -1902,9 +1964,9 @@ body.app-dialog-open {
 
 #academic-records-root .student-record-panel[open],
 .ar-admin-records-root .student-record-panel[open] {
-  border-left-color: var(--gold);
-  background: linear-gradient(180deg, #ffffff 0%, rgb(248 244 237 / 0.45) 100%);
-  box-shadow: 0 1px 2px rgb(10 37 64 / 0.04), 0 8px 22px rgb(201 162 39 / 0.12);
+  border-left-width: 4px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 1px 2px rgb(10 37 64 / 0.06), 0 8px 22px rgb(10 37 64 / 0.1);
 }
 
 #academic-records-root .student-record-panel[open] > summary.ar-student-panel-trigger,
@@ -1914,8 +1976,8 @@ body.app-dialog-open {
 
 #academic-records-root .student-record-panel[open] .ar-accordion-chevron,
 .ar-admin-records-root .student-record-panel[open] .ar-accordion-chevron {
-  background: rgb(201 162 39 / 0.16);
-  color: #9a7d1c;
+  background: color-mix(in srgb, var(--section-accent) 18%, white);
+  color: var(--section-accent);
 }
 
 #academic-records-root .student-record-panel > summary,
@@ -1941,7 +2003,6 @@ body.app-dialog-open {
 
 .ar-student-panel-heading .ar-supplemental-eyebrow {
   margin: 0;
-  color: var(--navy);
 }
 
 .ar-student-panel-name {

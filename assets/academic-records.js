@@ -2,6 +2,17 @@
     const GRADE_LEVELS = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
     const KINDERGARTEN_GRADES = new Set(['K', 'K3', 'K4', 'K5']);
     const HIGH_SCHOOL_GRADES = new Set(['9', '10', '11', '12']);
+    const STUDENT_ACCENT_CLASSES = [
+        'ar-accent-student-a',
+        'ar-accent-student-b',
+        'ar-accent-student-c',
+        'ar-accent-student-d',
+        'ar-accent-student-e',
+    ];
+
+    function getStudentAccentClass(studentIndex) {
+        return STUDENT_ACCENT_CLASSES[studentIndex % STUDENT_ACCENT_CLASSES.length];
+    }
     const COURSE_TYPES = [
         { id: 'english', label: 'English', placeholder: 'e.g. English 10' },
         { id: 'math', label: 'Math', placeholder: 'e.g. Geometry' },
@@ -293,7 +304,7 @@
         } = options;
         const statusClass = complete ? 'ar-supplemental-status' : 'ar-supplemental-muted';
         return `
-            <div class="ar-supplemental-card ar-supplemental-card--accent-${complete ? 'sage' : 'gold'} ar-submit-panel${complete ? ' ar-submit-panel--complete' : ''}">
+            <div class="ar-supplemental-card ${complete ? 'ar-accent-status-complete' : 'ar-accent-status-pending'} ar-submit-panel${complete ? ' ar-submit-panel--complete' : ''}">
                 ${buildSupplementalCardHeader(eyebrow, title)}
                 <p class="${statusClass}">${escapeHtml(message)}</p>
             </div>
@@ -312,7 +323,7 @@
         const hasAny = parseAttendanceDays(s1Display) !== null || parseAttendanceDays(s2Display) !== null;
 
         return `
-            <div class="ar-supplemental-card ar-supplemental-card--accent-sage ar-attendance-panel" data-ar-attendance="${yearRecord.id}">
+            <div class="ar-supplemental-card ar-accent-attendance ar-attendance-panel" data-ar-attendance="${yearRecord.id}">
                 ${buildSupplementalCardHeader('Required', 'Attendance')}
                 <p class="ar-supplemental-lead">Enter the number of <strong>school days attended</strong> each semester. Total updates automatically.</p>
                 <div class="ar-attendance-grid">
@@ -558,14 +569,14 @@
         if (readonly) {
             if (!hasFile) {
                 return `
-                    <div class="ar-supplemental-card ar-supplemental-card--accent-sage ar-transcript-upload ar-transcript-upload--readonly ar-transcript-upload--empty">
+                    <div class="ar-supplemental-card ar-accent-transcript ar-transcript-upload ar-transcript-upload--readonly ar-transcript-upload--empty">
                         ${buildSupplementalCardHeader('Optional', 'Official transcript photo')}
                         <p class="ar-supplemental-muted">No official transcript photo on file.</p>
                     </div>
                 `;
             }
             return `
-                <div class="ar-supplemental-card ar-supplemental-card--accent-sage ar-transcript-upload ar-transcript-upload--readonly" data-ar-transcript="${yearRecord.id}">
+                <div class="ar-supplemental-card ar-accent-transcript-filed ar-transcript-upload ar-transcript-upload--readonly" data-ar-transcript="${yearRecord.id}">
                     ${buildSupplementalCardHeader('On file', 'Official transcript photo')}
                     <p class="ar-transcript-file-meta">${escapeHtml(fileLabel)}${uploadedAt ? ` · ${escapeHtml(uploadedAt)}` : ''}</p>
                     <button type="button"
@@ -578,7 +589,7 @@
 
         const canUpload = !yearRecord.year_locked;
         return `
-            <div class="ar-supplemental-card ar-supplemental-card--accent-sage ar-transcript-upload" data-ar-transcript="${yearRecord.id}">
+            <div class="ar-supplemental-card ar-accent-transcript ar-transcript-upload" data-ar-transcript="${yearRecord.id}">
                 ${buildSupplementalCardHeader('Optional', 'Official transcript photo')}
                 <p class="ar-supplemental-lead">Upload a photo or PDF of the official transcript for this prior year if you have one. You still need to complete the report above even if you upload a picture.</p>
                 ${hasFile ? `
@@ -623,7 +634,7 @@
             const name = escapeJsString(studentDisplayName(student));
             const schoolYear = escapeJsString(yearRecord.school_year);
             actionsHtml = `
-                <div class="ar-supplemental-card ar-supplemental-card--accent-navy ar-admin-panel">
+                <div class="ar-supplemental-card ar-accent-admin ar-admin-panel">
                     ${buildSupplementalCardHeader('Staff', 'Record status')}
                     <p class="ar-supplemental-muted">Locked — reopen to let the family edit.</p>
                     <button type="button" class="ar-supplemental-btn ar-supplemental-btn--secondary ar-admin-reopen-btn"
@@ -1799,7 +1810,7 @@
             : `Credits for ${yearRecord.school_year} are calculated after Semester 2 is submitted. Each passing course earns 1 credit.`;
 
         return `
-            <div class="ar-supplemental-card ar-supplemental-card--accent-gold ar-credits-summary"
+            <div class="ar-supplemental-card ar-accent-credits ar-credits-summary"
                  data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
                 ${buildSupplementalCardHeader(
                     'Graduation tracking',
@@ -1921,7 +1932,7 @@
                 : `Semester 2 (Jan–May): enter Semester 2 grades and attendance. Due ${s2Due}. Finals auto-calculate for high school.`);
 
         return `
-            <div class="ar-supplemental-card ar-supplemental-card--accent-navy ar-courses-panel">
+            <div class="ar-supplemental-card ar-accent-courses ar-courses-panel">
                 ${buildSupplementalCardHeader('Grades', 'Courses')}
                 <p class="ar-supplemental-lead">${escapeHtml(semNote)}</p>
                 <div class="overflow-x-auto ar-grade-scroll">
@@ -2319,7 +2330,9 @@
             const focusId = getFocusStudentId();
             const focusYearByStudent = {};
 
-            for (const student of students) {
+            for (let studentIndex = 0; studentIndex < students.length; studentIndex += 1) {
+                const student = students[studentIndex];
+                const studentAccent = getStudentAccentClass(studentIndex);
                 const currentYear = currentSchoolYear();
                 if (student.current_grade_level) {
                     await reconcileStaleCurrentYearRecords(student.id, currentYear);
@@ -2373,7 +2386,7 @@
                     : yearTabPanelsHtml;
 
                 html += `
-                    <details class="ar-accordion ar-student-panel student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
+                    <details class="ar-accordion ar-student-panel ${studentAccent} student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
                         ${buildStudentPanelSummary(student, {
                             gradeLabel,
                             statusLabel,
@@ -2423,7 +2436,7 @@
         const parts = [];
         if (canEditSemester(yearRecord, '1')) {
             parts.push(`
-                <div class="ar-supplemental-card ar-supplemental-card--accent-gold ar-submit-panel">
+                <div class="ar-supplemental-card ar-accent-submit ar-submit-panel">
                     ${buildSupplementalCardHeader('Signature', 'Submit Semester 1')}
                     <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
                     <input type="text" id="ack-s1-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
@@ -2440,7 +2453,7 @@
 
         if (canEditSemester(yearRecord, '2')) {
             parts.push(`
-                <div class="ar-supplemental-card ar-supplemental-card--accent-gold ar-submit-panel">
+                <div class="ar-supplemental-card ar-accent-submit ar-submit-panel">
                     ${buildSupplementalCardHeader('Signature', 'Submit Semester 2 & Final')}
                     <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
                     <input type="text" id="ack-s2-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
@@ -2466,7 +2479,7 @@
             );
         }
         return `
-            <div class="ar-supplemental-card ar-supplemental-card--accent-gold ar-submit-panel">
+            <div class="ar-supplemental-card ar-accent-submit ar-submit-panel">
                 ${buildSupplementalCardHeader('Signature', 'Submit prior year')}
                 <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm this prior year record is complete.</p>
                 <input type="text" id="ack-year-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
@@ -2749,7 +2762,9 @@
             const currentYear = currentSchoolYear();
             let html = '<div class="ar-admin-records-root space-y-3">';
 
-            for (const student of students) {
+            for (let studentIndex = 0; studentIndex < students.length; studentIndex += 1) {
+                const student = students[studentIndex];
+                const studentAccent = getStudentAccentClass(studentIndex);
                 const years = await fetchSchoolYearsForStudent(student.id);
                 const currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
                 const statusLabel = getProgressStatusLabel(currentRecord, student.current_grade_level);
@@ -2803,7 +2818,7 @@
                     : yearTabPanelsHtml;
 
                 html += `
-                    <details class="ar-accordion ar-student-panel student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" data-admin-student="${student.id}">
+                    <details class="ar-accordion ar-student-panel ${studentAccent} student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" data-admin-student="${student.id}">
                         ${buildStudentPanelSummary(student, {
                             gradeLabel,
                             statusLabel,
