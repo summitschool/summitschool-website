@@ -380,9 +380,25 @@
     function currentSchoolYear(date = new Date()) {
         const month = date.getMonth() + 1;
         const year = date.getFullYear();
-        if (month >= 7) return `${year}-${year + 1}`;
-        if (month <= 5) return `${year - 1}-${year}`;
-        return `${year}-${year + 1}`;
+        let schoolYear;
+        if (month >= 7) {
+            schoolYear = `${year}-${year + 1}`;
+        } else if (month <= 5) {
+            schoolYear = `${year - 1}-${year}`;
+        } else {
+            // June: new enrollments and progress reports use the upcoming school year (Jul–May).
+            schoolYear = `${year}-${year + 1}`;
+        }
+
+        // Safety net: after May 31 the labeled year is closed (e.g. cached old JS still returning 2025-2026 in June).
+        if (isSchoolYearClosed(schoolYear)) {
+            const endYear = parseInt(String(schoolYear).split('-')[1], 10);
+            if (Number.isFinite(endYear)) {
+                schoolYear = `${endYear}-${endYear + 1}`;
+            }
+        }
+
+        return schoolYear;
     }
 
     function priorSchoolYears(count = 5, fromYear = currentSchoolYear()) {
@@ -490,14 +506,48 @@
         return data || [];
     }
 
+    function yearRecordHasProgress(yearRecord, entries) {
+        if (!yearRecord) return false;
+        if (yearRecord.semester_1_locked || yearRecord.semester_2_locked || yearRecord.year_locked) return true;
+        return (entries || []).some((entry) => (
+            String(entry.course_name || '').trim()
+            || String(entry.semester_1_grade || '').trim()
+            || String(entry.semester_2_grade || '').trim()
+            || String(entry.final_grade || '').trim()
+        ));
+    }
+
+    async function reconcileStaleCurrentYearRecords(studentId, activeYear) {
+        const client = await getClient();
+        const years = await fetchSchoolYearsForStudent(studentId);
+        const staleRecords = years.filter((record) => (
+            record.entry_type === 'current'
+            && record.school_year !== activeYear
+            && isSchoolYearClosed(record.school_year)
+        ));
+
+        for (const record of staleRecords) {
+            const entries = await fetchGradeEntries(record.id);
+            if (yearRecordHasProgress(record, entries)) continue;
+
+            await client.from('grade_entries').delete().eq('school_year_record_id', record.id);
+            const { error } = await client.from('student_school_years').delete().eq('id', record.id);
+            if (error) console.warn('[Academic Records] Could not remove stale school year:', error.message);
+        }
+    }
+
     async function ensureCurrentSchoolYearRecord(studentId, gradeLevel) {
         const client = await getClient();
         const year = currentSchoolYear();
+
+        await reconcileStaleCurrentYearRecords(studentId, year);
+
         const { data: existing, error: fetchError } = await client
             .from('student_school_years')
             .select('*')
             .eq('student_id', studentId)
             .eq('school_year', year)
+            .eq('entry_type', 'current')
             .maybeSingle();
         if (fetchError) throw fetchError;
         if (existing) return existing;
@@ -1485,8 +1535,11 @@
             const focusId = getFocusStudentId();
 
             for (const student of students) {
-                let years = await fetchSchoolYearsForStudent(student.id);
                 const currentYear = currentSchoolYear();
+                if (student.current_grade_level) {
+                    await reconcileStaleCurrentYearRecords(student.id, currentYear);
+                }
+                let years = await fetchSchoolYearsForStudent(student.id);
                 let currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
                 if (!currentRecord && student.current_grade_level) {
                     currentRecord = await ensureCurrentSchoolYearRecord(student.id, student.current_grade_level);
