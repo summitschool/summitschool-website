@@ -157,7 +157,7 @@
             },
             {
                 id: 'prior_years',
-                label: 'Prior school years: complete backfill for high school students, or mark "no prior years"',
+                label: 'Add prior year records for high school students, or mark "no prior years"',
                 complete: priorYearsOk,
                 action: 'showDashboardTab(\'academic-records\')',
             },
@@ -225,11 +225,11 @@
             <details class="mt-3 border border-slate-200 rounded-2xl bg-white" id="onboarding-guide">
                 <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-navy">How progress reports work</summary>
                 <div class="px-4 pb-4 text-sm text-slate-600 space-y-2 border-t border-slate-100 pt-3">
-                    <p>Each student has their own <strong>Progress Report</strong> task in My Tasks twice a year.</p>
-                    <p><strong>December:</strong> enter Semester 1 grades and submit. The task stays open until May.</p>
-                    <p><strong>May:</strong> enter Semester 2 and final grades, then submit. The task closes for that school year.</p>
-                    <p>Use <strong>Academic Records</strong> to add students, backfill prior high school years, and view history over time.</p>
-                    <p class="text-xs text-slate-500">Grades can be letter grades or percentages. Contact the school office if you need a locked semester reopened.</p>
+                    <p>Each student has a <strong>Progress Report</strong> in Academic Records for the current school year.</p>
+                    <p><strong>Semester 1</strong> (Jul–Dec) is due <strong>Dec 31</strong>. Enter grades and attendance, then submit.</p>
+                    <p><strong>Semester 2</strong> (Jan–May) is due <strong>May 31</strong> (seniors <strong>May 15</strong>). Enter Semester 2 grades, attendance, and finals, then submit.</p>
+                    <p>The school year ends <strong>May 31</strong>. Grades submitted after a due date still count toward that school year.</p>
+                    <p class="text-xs text-slate-500">Contact the school office if you need a locked semester reopened.</p>
                     <button type="button" class="mt-2 px-4 py-2 text-sm font-semibold bg-navy text-white rounded-xl"
                             onclick="window.OnboardingChecklist.markGuideRead()">I've read this</button>
                 </div>

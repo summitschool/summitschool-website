@@ -30,13 +30,12 @@
     const PROGRESS_TASK_URL_PREFIX = 'hub://progress-report/';
     const PROGRESS_TASK_CATEGORY = 'Progress Report (Task)';
 
-    // Letter-to-percentage scale for parent reference; GPA used when transcripts are generated.
     const LETTER_GRADE_SCALE = [
-        { letter: 'A', range: '90–100%', gpa: 4.0 },
-        { letter: 'B', range: '80–89%', gpa: 3.0 },
-        { letter: 'C', range: '70–79%', gpa: 2.0 },
-        { letter: 'D', range: '60–69%', gpa: 1.0 },
-        { letter: 'F', range: 'Below 60%', gpa: 0.0 },
+        { letter: 'A', range: '90–100%' },
+        { letter: 'B', range: '80–89%' },
+        { letter: 'C', range: '70–79%' },
+        { letter: 'D', range: '60–69%' },
+        { letter: 'F', range: 'Below 60%' },
     ];
 
     function percentToGpa(percent) {
@@ -90,9 +89,10 @@
         const month = date.getMonth() + 1;
 
         if (year === startYear && month >= 7) return '1';
-        if (year === endYear && month >= 1 && month <= 6) return '2';
-        if (year === endYear && month > 6) return '1';
-        return '2';
+        if (year === endYear && month >= 1 && month <= 5) return '2';
+        if (year === startYear && month <= 6) return '1';
+        if (year === endYear && month >= 6) return '2';
+        return '1';
     }
 
     function computeFinalGrade(s1, s2, requirePercent) {
@@ -361,7 +361,7 @@
     function schoolYearEndDate(schoolYear) {
         const endYear = parseInt(String(schoolYear).split('-')[1], 10);
         if (!Number.isFinite(endYear)) return null;
-        return new Date(`${endYear}-06-30T23:59:59`);
+        return new Date(`${endYear}-05-31T23:59:59`);
     }
 
     function isSchoolYearClosed(schoolYear) {
@@ -373,8 +373,9 @@
     function currentSchoolYear(date = new Date()) {
         const month = date.getMonth() + 1;
         const year = date.getFullYear();
-        const startYear = month >= 7 ? year : year - 1;
-        return `${startYear}-${startYear + 1}`;
+        if (month >= 7) return `${year}-${year + 1}`;
+        if (month <= 5) return `${year - 1}-${year}`;
+        return `${year}-${year + 1}`;
     }
 
     function priorSchoolYears(count = 5, fromYear = currentSchoolYear()) {
@@ -387,12 +388,22 @@
         return years;
     }
 
-    function defaultProgressDueDates(schoolYear) {
+    function isSeniorGrade(gradeLevel) {
+        return String(gradeLevel || '').trim() === '12';
+    }
+
+    function semester2DueDate(schoolYear, gradeLevel) {
+        const end = parseInt(String(schoolYear).split('-')[1], 10);
+        if (!Number.isFinite(end)) return 'May 31';
+        return isSeniorGrade(gradeLevel) ? `May 15, ${end}` : `May 31, ${end}`;
+    }
+
+    function defaultProgressDueDates(schoolYear, gradeLevel = '') {
         const start = parseInt(String(schoolYear).split('-')[0], 10);
         const end = start + 1;
         return {
-            due_date_1: `${start}-12-15`,
-            due_date_2: `${end}-05-15`,
+            due_date_1: `${start}-12-31`,
+            due_date_2: `${end}-05-${isSeniorGrade(gradeLevel) ? '15' : '31'}`,
         };
     }
 
@@ -421,11 +432,12 @@
 
     let isAddingStudent = false;
 
-    function getProgressStatusLabel(yearRecord) {
+    function getProgressStatusLabel(yearRecord, gradeLevel = '') {
         if (!yearRecord) return 'No current year record';
         if (yearRecord.semester_2_locked) return `${yearRecord.school_year} complete`;
-        if (yearRecord.semester_1_locked) return 'Semester 2 due (May)';
-        return 'Semester 1 due (December)';
+        const level = gradeLevel || yearRecord.grade_level;
+        if (yearRecord.semester_1_locked) return `Semester 2 due ${semester2DueDate(yearRecord.school_year, level)}`;
+        return 'Semester 1 due Dec 31';
     }
 
     async function findDuplicateStudent(userId, firstName, lastName) {
@@ -519,7 +531,7 @@
 
         const title = `${PROGRESS_TASK_PREFIX} ${studentDisplayName(student)}`;
         const url = `${PROGRESS_TASK_URL_PREFIX}${student.id}`;
-        const dues = defaultProgressDueDates(schoolYear);
+        const dues = defaultProgressDueDates(schoolYear, student.current_grade_level);
 
         const { data: existing } = await client
             .from('family_documents')
@@ -534,7 +546,7 @@
         const { error } = await client.from('family_documents').insert({
             user_id: user.id,
             title,
-            description: `Enter ${schoolYear} semester grades for ${studentDisplayName(student)}. Semester 1 is due in December; Semester 2 and final grades in May.`,
+            description: `Enter ${schoolYear} semester grades and attendance for ${studentDisplayName(student)}. Semester 1 is due Dec 31; Semester 2 is due ${semester2DueDate(schoolYear, student.current_grade_level)}.`,
             url,
             category: PROGRESS_TASK_CATEGORY,
             school_year: schoolYear,
@@ -1107,11 +1119,12 @@
                     onclick="window.AcademicRecords.handleAddCourse('${yearRecord.id}')">+ Add course</button>
         ` : '';
 
+        const s2Due = semester2DueDate(yearRecord.school_year, gradeLevel);
         const semNote = !isBackfill ? `
             <p class="text-xs text-slate-500 mb-2">
                 ${calSem === '1'
-                    ? 'Semester 1 (Jul–Dec): enter Semester 1 grades only.'
-                    : 'Semester 2 (Jan–May): enter Semester 2 grades. Finals auto-calculate for high school.'}
+                    ? 'Semester 1 (Jul–Dec): enter Semester 1 grades and attendance. Due Dec 31.'
+                    : `Semester 2 (Jan–May): enter Semester 2 grades and attendance. Due ${s2Due}. Finals auto-calculate for high school.`}
             </p>
         ` : (isHs ? '<p class="text-xs text-slate-500 mb-2">Prior-year backfill: enter percentages only.</p>' : '<p class="text-xs text-slate-500 mb-2">Prior-year backfill: letter or percentage.</p>');
 
@@ -1224,7 +1237,7 @@
         const years = await fetchSchoolYearsForStudent(studentId);
         const currentYear = currentSchoolYear();
         const current = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
-        const statusLabel = getProgressStatusLabel(current);
+        const statusLabel = getProgressStatusLabel(current, student?.current_grade_level);
         const closed = current && isSchoolYearClosed(current.school_year) && !current.admin_reopened_at;
 
         let actionHint = `Enter ${name}'s grades in Academic Records.`;
@@ -1233,9 +1246,9 @@
         } else if (closed) {
             actionHint = `The ${currentYear} school year is closed. Contact the school office for changes.`;
         } else if (current?.semester_1_locked) {
-            actionHint = `Semester 1 is done — add Semester 2 and final grades for ${name} in Academic Records.`;
+            actionHint = `Semester 1 is done — add Semester 2 grades, attendance, and finals for ${name} (due ${semester2DueDate(currentYear, student?.current_grade_level)}).`;
         } else {
-            actionHint = `Add Semester 1 grades for ${name} in Academic Records.`;
+            actionHint = `Add Semester 1 grades and attendance for ${name} (due Dec 31).`;
         }
 
         const borderClass = options.overdueIcon
@@ -1272,13 +1285,32 @@
     }
 
     function buildGradeHelpBanner() {
+        const schoolYear = currentSchoolYear();
         return `
-            <div class="ar-grade-help mb-4 p-3 border border-amber-200 rounded-2xl bg-amber-50/50 text-sm text-slate-700">
-                <strong>Grades K–8:</strong> letter (A–F) or percentage.
-                <strong class="ml-2">High school (9–12):</strong> percentages only — finals auto-calculate; credits and GPA apply at transcript time.
-                Name each course specifically (e.g. Geometry, not Math) and tag the subject type.
-                <button type="button" class="ml-1 text-navy font-semibold underline"
-                        onclick="window.AcademicRecords.showGradeEquivalencyChart()">Letter grade chart</button>
+            <div class="ar-grade-help hub-panel hub-panel-padded mb-4 border border-amber-200/90 bg-gradient-to-br from-amber-50/90 via-amber-50/40 to-white">
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div class="min-w-0 space-y-2">
+                        <h3 class="text-base font-semibold text-navy">${escapeHtml(schoolYear)} progress reports</h3>
+                        <ul class="text-sm text-slate-600 space-y-1.5">
+                            <li><span class="font-semibold text-navy">K–8:</span> enter letter grades or percentages.</li>
+                            <li><span class="font-semibold text-navy">9–12:</span> percentages only — finals calculate automatically.</li>
+                            <li>Name each course specifically (e.g. Geometry) and tag the subject type.</li>
+                            <li>Record attendance for each semester before you submit.</li>
+                        </ul>
+                    </div>
+                    <div class="shrink-0 lg:max-w-[14rem] lg:text-right">
+                        <div class="text-sm font-semibold text-navy mb-1.5">Due dates</div>
+                        <dl class="text-sm text-slate-600 space-y-1">
+                            <div class="flex lg:justify-end gap-2"><dt class="text-slate-500">Semester 1</dt><dd class="font-medium text-navy">Dec 31</dd></div>
+                            <div class="flex lg:justify-end gap-2"><dt class="text-slate-500">Semester 2</dt><dd class="font-medium text-navy">May 31</dd></div>
+                            <div class="flex lg:justify-end gap-2"><dt class="text-slate-500">Seniors</dt><dd class="font-medium text-navy">May 15</dd></div>
+                        </dl>
+                        <p class="text-xs text-slate-500 mt-2 leading-relaxed">School year ends May 31. Grades submitted after a due date still belong to this school year.</p>
+                    </div>
+                </div>
+                <button type="button"
+                        class="ar-grade-chart-btn mt-4 text-sm font-semibold text-navy underline underline-offset-2 hover:text-[#0F3A5F]"
+                        onclick="event.stopPropagation(); window.AcademicRecords.showGradeEquivalencyChart()">Letter-to-percentage chart (K–8)</button>
             </div>
         `;
     }
@@ -1330,24 +1362,22 @@
         if (!modal) {
             const rows = LETTER_GRADE_SCALE.map((row) => `
                 <tr class="border-b border-slate-100">
-                    <td class="py-2 pr-4 font-semibold text-navy">${escapeHtml(row.letter)}</td>
-                    <td class="py-2 pr-4">${escapeHtml(row.range)}</td>
-                    <td class="py-2 text-slate-600">${row.gpa.toFixed(1)}</td>
+                    <td class="py-2.5 pr-4 font-semibold text-navy w-16">${escapeHtml(row.letter)}</td>
+                    <td class="py-2.5 text-slate-700">${escapeHtml(row.range)}</td>
                 </tr>
             `).join('');
 
             document.body.insertAdjacentHTML('beforeend', `
-                <div id="ar-grade-chart-modal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="ar-grade-chart-title">
-                    <button type="button" class="absolute inset-0 w-full h-full border-0 p-0 bg-navy/50" aria-label="Close" data-ar-grade-chart-backdrop></button>
-                    <div class="relative z-10 w-full max-w-sm bg-white rounded-3xl border border-slate-200 shadow-2xl p-6">
-                        <h3 id="ar-grade-chart-title" class="heading-serif text-xl text-navy tracking-tight">Letter to Percentage</h3>
-                        <p class="text-sm text-slate-600 mt-2">If you graded with letters, use this chart to enter the matching percentage. GPA is calculated from the percentage when transcripts are generated.</p>
+                <div id="ar-grade-chart-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="ar-grade-chart-title">
+                    <button type="button" class="ar-grade-chart-backdrop" aria-label="Close" data-ar-grade-chart-backdrop></button>
+                    <div class="ar-grade-chart-panel">
+                        <h3 id="ar-grade-chart-title" class="heading-serif text-xl text-navy tracking-tight text-center">Letter to Percentage</h3>
+                        <p class="text-sm text-slate-600 mt-2 text-center leading-relaxed">If you graded with letters, enter the matching percentage from this chart.</p>
                         <table class="w-full text-sm mt-4">
                             <thead>
                                 <tr class="border-b border-slate-200 text-left text-xs font-semibold text-slate-500">
                                     <th class="pb-2 pr-4">Letter</th>
-                                    <th class="pb-2 pr-4">Use this %</th>
-                                    <th class="pb-2">GPA</th>
+                                    <th class="pb-2">Percentage range</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -1358,7 +1388,11 @@
             `);
 
             modal = document.getElementById('ar-grade-chart-modal');
-            const close = () => modal?.classList.add('hidden');
+            const close = () => {
+                modal?.classList.add('hidden');
+                document.documentElement.classList.remove('app-dialog-open');
+                document.body.classList.remove('app-dialog-open');
+            };
             modal?.querySelector('[data-ar-grade-chart-backdrop]')?.addEventListener('click', close);
             document.getElementById('ar-grade-chart-close')?.addEventListener('click', close);
             modal?.addEventListener('keydown', (event) => {
@@ -1366,6 +1400,11 @@
             });
         }
 
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+        document.documentElement.classList.add('app-dialog-open');
+        document.body.classList.add('app-dialog-open');
         modal.classList.remove('hidden');
         document.getElementById('ar-grade-chart-close')?.focus({ preventScroll: true });
     }
@@ -1402,11 +1441,15 @@
             const focusId = getFocusStudentId();
 
             for (const student of students) {
-                const years = await fetchSchoolYearsForStudent(student.id);
+                let years = await fetchSchoolYearsForStudent(student.id);
                 const currentYear = currentSchoolYear();
-                const currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
+                let currentRecord = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
+                if (!currentRecord && student.current_grade_level) {
+                    currentRecord = await ensureCurrentSchoolYearRecord(student.id, student.current_grade_level);
+                    years = await fetchSchoolYearsForStudent(student.id);
+                }
                 const backfills = years.filter((y) => y.entry_type === 'backfill');
-                const statusLabel = getProgressStatusLabel(currentRecord);
+                const statusLabel = getProgressStatusLabel(currentRecord, student.current_grade_level);
                 const isFocused = focusId === student.id;
                 const gradeLabel = formatGradeLabel(student.current_grade_level);
 
@@ -1424,8 +1467,8 @@
                     priorBlock = `
                         <details class="ar-accordion border border-sky-200 rounded-2xl bg-sky-50/40" data-ar-prior-years="${student.id}">
                             ${buildAccordionSummary({
-                                leftHtml: '<span class="text-sm font-semibold text-sky-900">Prior school years (high school)</span>',
-                                hint: 'Tap to manage prior years',
+                                leftHtml: '<span class="text-sm font-semibold text-sky-900">Add Prior Year Records</span>',
+                                hint: 'Tap to add prior years',
                                 extraClass: 'px-4 py-3 cursor-pointer',
                             })}
                             ${wrapAccordionBody(`<div class="px-4 pb-4 border-t border-sky-100 space-y-3">
@@ -1792,7 +1835,7 @@
                     const entries = await fetchGradeEntries(yearRecord.id);
                     const statusLabel = yearRecord.entry_type === 'backfill'
                         ? (yearRecord.year_locked ? 'Complete' : 'In progress')
-                        : getProgressStatusLabel(yearRecord);
+                        : getProgressStatusLabel(yearRecord, yearRecord.grade_level);
                     const isLocked = yearRecord.year_locked || yearRecord.semester_1_locked || yearRecord.semester_2_locked;
                     const yearTitle = yearRecord.entry_type === 'backfill'
                         ? `${yearRecord.school_year} — ${formatGradeLabel(yearRecord.grade_level)} (prior year)`
