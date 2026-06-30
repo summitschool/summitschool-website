@@ -1418,6 +1418,37 @@ body.app-dialog-open {
   }
 }
 
+/* Admin academic records — student card header */
+.ar-admin-student-summary {
+  display: block;
+}
+
+.ar-admin-student-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ar-admin-student-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: 0.25rem;
+}
+
+.ar-admin-student-delete {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+@media (max-width: 639px) {
+  .ar-admin-student-delete {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.5rem;
+    white-space: nowrap;
+  }
+}
+
 @media print {
   .no-print { display: none !important; }
   .hero { min-height: auto !important; }
