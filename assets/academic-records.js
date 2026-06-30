@@ -536,7 +536,7 @@
                         <div class="flex flex-wrap items-center gap-2">
                             <button type="button"
                                     class="px-4 py-2 text-sm font-semibold border border-amber-700 text-amber-900 rounded-xl hover:bg-amber-100"
-                                    data-ar-transcript-upload="${yearRecord.id}">Upload transcript</button>
+                                    data-ar-transcript-upload="${yearRecord.id}">Upload</button>
                             <span class="text-xs text-slate-500 hidden" data-ar-transcript-status="${yearRecord.id}"></span>
                         </div>
                     </div>
@@ -579,8 +579,10 @@
                 ${buildAttendanceHtml(yearRecord, { readonly })}
                 ${buildGradeTableHtml(yearRecord, entries, { readonly })}
                 ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
-                ${actionsHtml}
-                ${buildTranscriptUploadSectionHtml(yearRecord, { readonly })}
+                <div class="ar-year-footer space-y-4" data-ar-scroll-anchor="${yearRecord.id}">
+                    ${buildTranscriptUploadSectionHtml(yearRecord, { readonly })}
+                    ${actionsHtml}
+                </div>
             </div>
             ${buildBackToStudentTopBar(student.id)}
         `;
@@ -819,7 +821,10 @@
             if (updateError) throw updateError;
 
             await loadAcademicRecords({
-                expandState: buildExpandStateForStudent(yearRecord.student_id, yearRecordId),
+                expandState: {
+                    ...buildExpandStateForStudent(yearRecord.student_id, yearRecordId),
+                    scrollAnchor: yearRecordId,
+                },
             });
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
@@ -1606,7 +1611,28 @@
                 : {},
             addStudentOpen: Boolean(state.addStudentOpen),
             addPanelMode: state.addPanelMode || ADD_MODE_STUDENT,
+            scrollAnchor: state.scrollAnchor || null,
         };
+    }
+
+    function findScrollAnchorElement(anchorId) {
+        if (!anchorId) return null;
+        return document.querySelector(`[data-ar-scroll-anchor="${anchorId}"]`)
+            || document.querySelector(`[data-ar-transcript="${anchorId}"]`)
+            || document.querySelector(`[data-ar-year-panel="${anchorId}"]:not(.hidden)`);
+    }
+
+    function restoreScrollAnchor(anchorId) {
+        if (!anchorId) return;
+        const scrollToAnchor = () => {
+            const el = findScrollAnchorElement(anchorId);
+            if (el) scrollToElementWithOffset(el, { extra: 10, behavior: 'instant' });
+        };
+        requestAnimationFrame(() => {
+            requestAnimationFrame(scrollToAnchor);
+            setTimeout(scrollToAnchor, 120);
+            setTimeout(scrollToAnchor, 350);
+        });
     }
 
     function restoreExpandState(root, state) {
@@ -2257,7 +2283,7 @@
             bindBackToStudentTop(root);
             bindTranscriptHandlers(root);
             bindAddPanelControls(root);
-            hydrateCumulativeCredits();
+            await hydrateCumulativeCredits();
 
             if (focusId) {
                 const focusYearId = focusYearByStudent[focusId];
@@ -2266,6 +2292,8 @@
                 setFocusStudentId(null);
                 const panel = document.getElementById(`student-panel-${focusId}`);
                 scrollToElementWithOffset(panel?.querySelector('summary') || panel, { extra: 10 });
+            } else if (expandState?.scrollAnchor) {
+                restoreScrollAnchor(expandState.scrollAnchor);
             }
         } catch (err) {
             root.innerHTML = `<div class="text-red-600 text-sm p-4">Error loading academic records: ${escapeHtml(err.message || err)}</div>`;
@@ -2317,14 +2345,22 @@
         `;
     }
 
+    function getAckInputForYearRecord(yearRecordId, semesterKey) {
+        const activePanel = document.querySelector(`[data-ar-year-panel="${yearRecordId}"]:not(.hidden)`);
+        if (activePanel) {
+            const scoped = activePanel.querySelector(`#ack-year-${yearRecordId}`)
+                || activePanel.querySelector(`#ack-s2-${yearRecordId}`)
+                || activePanel.querySelector(`#ack-s1-${yearRecordId}`);
+            if (scoped) return scoped;
+        }
+        return document.getElementById(`ack-year-${yearRecordId}`)
+            || document.getElementById(semesterKey === '2' ? `ack-s2-${yearRecordId}` : `ack-s1-${yearRecordId}`);
+    }
+
     async function submitFromSection(yearRecordId, semesterKey) {
         const panel = document.querySelector(`[data-year-record-id="${yearRecordId}"]`)?.closest('.p-4, .hub-panel, details');
         const table = document.querySelector(`table[data-year-record-id="${yearRecordId}"]`);
-        const ack = document.getElementById(semesterKey === '1'
-            ? `ack-s1-${yearRecordId}`
-            : semesterKey === '2'
-                ? `ack-s2-${yearRecordId}`
-                : `ack-year-${yearRecordId}`);
+        const ack = getAckInputForYearRecord(yearRecordId, semesterKey);
         const ackName = (ack?.value || '').trim();
         if (!ackName) {
             await window.showAppAlert?.('Please type your full name to confirm.');
@@ -2337,6 +2373,9 @@
             const attendance = collectAttendanceFromPanel(yearRecordId);
             const root = document.getElementById('academic-records-root');
             const expandState = root ? captureExpandState(root) : null;
+            if (expandState) {
+                expandState.scrollAnchor = yearRecordId;
+            }
             await submitSemester(yearRecord, semesterKey, ackName, entries, attendance);
             await loadAcademicRecords({ expandState });
             if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();

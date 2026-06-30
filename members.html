@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260714">
+    <link rel="stylesheet" href="assets/styles.css?v=20260715">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -970,7 +970,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260715"></script>
+    <script src="assets/academic-records.js?v=20260716"></script>
     <script src="assets/onboarding-checklist.js?v=20260707"></script>
     <script>
         // =============================================
@@ -3051,8 +3051,10 @@
                         let href = doc.url || '#';
                         let icon = 'fas fa-external-link-alt';
                         let linkLabel = 'Open';
+                        const isStoredFile = doc.url && !doc.url.startsWith('http');
+                        const isPdf = isStoredPdfDocument(doc);
 
-                        if (doc.url && !doc.url.startsWith('http')) {
+                        if (isStoredFile) {
                             const signedUrl = await getSignedStorageUrl(doc.url);
                             if (signedUrl) {
                                 href = signedUrl;
@@ -3064,6 +3066,17 @@
                             }
                         }
 
+                        const shareButtonHtml = isPdf && isStoredFile && href !== '#'
+                            ? `<button type="button"
+                                      class="text-xs px-2.5 py-1.5 border border-amber-600 text-amber-900 rounded-lg hover:bg-amber-50 transition"
+                                      data-share-doc-url="${escapeHtml(doc.url)}"
+                                      data-share-doc-title="${escapeHtml(doc.title || 'Document')}"
+                                      data-share-doc-description="${escapeHtml(doc.description || '')}"
+                                      onclick="shareFamilyDocument(this)">
+                                  <i class="fas fa-envelope mr-1"></i>Email
+                               </button>`
+                            : '';
+
                         docsHtml += `
                             <div class="border border-slate-100 rounded-2xl p-4 bg-white">
                                 <div class="flex items-start justify-between gap-3">
@@ -3072,10 +3085,13 @@
                                         ${doc.description ? `<p class="text-xs text-slate-600 mt-1">${escapeHtml(doc.description)}</p>` : ''}
                                         <div class="text-[10px] text-slate-500 mt-2">${escapeHtml(doc.category || 'Document')} • ${new Date(doc.created_at).toLocaleDateString()}</div>
                                     </div>
-                                    <a href="${href}" target="_blank" rel="noopener noreferrer"
-                                       class="shrink-0 text-xs px-2.5 py-1.5 border border-navy text-navy rounded-lg hover:bg-navy hover:text-white transition ${href === '#' ? 'pointer-events-none opacity-40' : ''}">
-                                        <i class="${icon} mr-1"></i>${linkLabel}
-                                    </a>
+                                    <div class="flex flex-col gap-1.5 shrink-0">
+                                        <a href="${href}" target="_blank" rel="noopener noreferrer"
+                                           class="text-xs px-2.5 py-1.5 border border-navy text-navy rounded-lg hover:bg-navy hover:text-white transition text-center ${href === '#' ? 'pointer-events-none opacity-40' : ''}">
+                                            <i class="${icon} mr-1"></i>${linkLabel}
+                                        </a>
+                                        ${shareButtonHtml}
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -4083,6 +4099,80 @@
             } catch (err) {
                 console.warn('[Storage] Could not resolve path for signed URL:', err.message);
                 return null;
+            }
+        }
+
+        function isPdfStoragePath(path) {
+            return /\.pdf$/i.test(String(path || ''));
+        }
+
+        function isStoredPdfDocument(doc) {
+            if (!doc?.url || String(doc.url).startsWith('http')) return false;
+            return isPdfStoragePath(doc.url)
+                || String(doc.mime_type || doc.content_type || '').toLowerCase() === 'application/pdf';
+        }
+
+        async function shareFamilyDocument(button) {
+            const path = button?.dataset?.shareDocUrl;
+            const title = button?.dataset?.shareDocTitle || 'Family document';
+            const description = button?.dataset?.shareDocDescription || '';
+
+            if (!path || path.startsWith('http')) {
+                await showAppAlert('This item is a web link. Open it in your browser to share.');
+                return;
+            }
+
+            if (!isPdfStoragePath(path)) {
+                await showAppAlert('Email share is available for PDF files. Use Download for other file types.');
+                return;
+            }
+
+            const originalHtml = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Preparing...';
+
+            try {
+                const resolvedPath = await resolveStoragePath(path);
+                const { data: fileData, error: downloadError } = await supabaseClient.storage
+                    .from('Family-Documents')
+                    .download(resolvedPath);
+                if (downloadError) throw downloadError;
+
+                const rawName = resolvedPath.split('/').pop() || `${title}.pdf`;
+                const fileName = sanitizeStorageFileName(rawName);
+                const file = new File([fileData], fileName, { type: fileData.type || 'application/pdf' });
+
+                if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                    await navigator.share({
+                        title,
+                        text: description,
+                        files: [file],
+                    });
+                    return;
+                }
+
+                const blobUrl = URL.createObjectURL(file);
+                const downloadLink = document.createElement('a');
+                downloadLink.href = blobUrl;
+                downloadLink.download = fileName;
+                downloadLink.click();
+                URL.revokeObjectURL(blobUrl);
+
+                const signedUrl = await getSignedStorageUrl(resolvedPath);
+                const subject = encodeURIComponent(title);
+                const body = encodeURIComponent(
+                    `${description ? `${description}\n\n` : ''}Please find "${title}" attached. `
+                    + 'If your email app did not attach the file automatically, attach the PDF that was just downloaded to your device.\n\n'
+                    + (signedUrl ? `View online: ${signedUrl}` : '')
+                );
+                window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
+            } catch (err) {
+                if (err?.name !== 'AbortError') {
+                    await showAppAlert('Could not prepare email share: ' + (err.message || String(err)));
+                }
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
             }
         }
 
