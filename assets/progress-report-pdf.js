@@ -126,8 +126,7 @@
         headerColumns.push({
             stack: [
                 { text: 'Summit Church School', style: 'schoolName' },
-                { text: 'Family Hub Progress Report', style: 'reportTitle' },
-                { text: payload.reportLabel || 'Progress Report', style: 'reportSubtitle' },
+                { text: `${payload.schoolYear || ''} Progress Report`.trim(), style: 'reportTitle' },
             ],
             margin: logoDataUrl ? [14, 0, 0, 0] : [0, 0, 0, 0],
         });
