@@ -458,7 +458,7 @@
     function buildBackToStudentTopBar(studentId) {
         return `
             <div class="ar-accordion-closebar ar-accordion-closebar--bottom">
-                <button type="button" class="ar-accordion-close-btn" data-ar-back-to-student-top="${studentId}">
+                <button type="button" class="ar-accordion-close-btn ar-back-to-top-btn" data-ar-back-to-student-top="${studentId}">
                     <span class="ar-accordion-close-icon" aria-hidden="true">↑</span>
                     Back to top
                 </button>
@@ -574,23 +574,12 @@
         }
     }
 
+    let userOpenedStudentId = null;
+
     function bindAcademicRecordsDelegation() {
         const root = document.getElementById('academic-records-root');
         if (!root || root.dataset.arDelegationBound === '1') return;
         root.dataset.arDelegationBound = '1';
-
-        root.addEventListener('submit', (event) => {
-            const form = event.target;
-            if (!(form instanceof HTMLFormElement)) return;
-
-            if (form.id === 'add-student-form') {
-                event.preventDefault();
-                handleAddStudent(event);
-            } else if (form.id === 'add-prior-form') {
-                event.preventDefault();
-                handleAddBackfill(event);
-            }
-        });
 
         root.addEventListener('click', (event) => {
             if (event.target.closest('.ar-add-trigger')) {
@@ -603,8 +592,17 @@
             if (modeBtn) {
                 event.preventDefault();
                 setAddPanelMode(modeBtn.dataset.arAddMode);
+                return;
             }
-        });
+
+            const studentSummary = event.target.closest('.student-record-panel > summary');
+            if (studentSummary) {
+                const panel = studentSummary.closest('.student-record-panel');
+                if (panel?.dataset.studentId && !panel.open) {
+                    userOpenedStudentId = panel.dataset.studentId;
+                }
+            }
+        }, true);
 
         root.addEventListener('toggle', (event) => {
             const panel = event.target;
@@ -615,32 +613,63 @@
             root.querySelectorAll('.student-record-panel[open]').forEach((other) => {
                 if (other !== panel) other.removeAttribute('open');
             });
+
+            if (panel.dataset.studentId && panel.dataset.studentId === userOpenedStudentId) {
+                userOpenedStudentId = null;
+                requestAnimationFrame(() => {
+                    scrollToElementWithOffset(panel.querySelector('summary') || panel, { extra: 10 });
+                });
+            }
+        });
+    }
+
+    function bindAddFormHandlers(root) {
+        if (!root) return;
+
+        const studentForm = root.querySelector('#add-student-form');
+        const priorForm = root.querySelector('#add-prior-form');
+        const studentBtn = root.querySelector('#add-student-submit-btn');
+        const priorBtn = root.querySelector('#add-prior-submit-btn');
+
+        if (studentBtn && studentForm) {
+            studentBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                if (!studentForm.reportValidity()) return;
+                handleAddStudent({ preventDefault: () => {}, target: studentForm, currentTarget: studentForm });
+            });
+        }
+
+        if (priorBtn && priorForm) {
+            priorBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                if (!priorForm.reportValidity()) return;
+                handleAddBackfill({ preventDefault: () => {}, target: priorForm, currentTarget: priorForm });
+            });
+        }
+
+        studentForm?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (!studentForm.reportValidity()) return;
+            handleAddStudent(event);
+        });
+
+        priorForm?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (!priorForm.reportValidity()) return;
+            handleAddBackfill(event);
         });
     }
 
     function buildPriorYearsStatusHtml(student) {
-        if (isHighSchoolGrade(student.current_grade_level)) {
-            if (student.current_grade_level === '9' && student.prior_years_status !== 'not_applicable') {
-                return `
-                    <button type="button" class="px-4 py-2 text-sm border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50"
-                            onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
-                `;
-            }
-            if (student.prior_years_status === 'complete') {
-                return '<span class="text-xs text-emerald-700">Prior years complete</span>';
-            }
-            if (student.prior_years_status === 'not_applicable') {
-                return '<span class="text-xs text-slate-500">No prior years needed</span>';
-            }
-            return '<span class="text-xs text-amber-700">Add each prior school year, then mark complete</span>';
-        }
+        if (!isHighSchoolGrade(student.current_grade_level)) return '';
 
-        return `
-            <span class="text-xs text-slate-500">
-                Prior-year backfill is optional for this grade.
-                <button type="button" class="ml-1 text-navy underline" onclick="window.AcademicRecords.markNoPriorYears('${student.id}')">Mark no prior years</button>
-            </span>
-        `;
+        if (student.prior_years_status === 'complete') {
+            return '<span class="text-xs text-emerald-700">Prior years complete</span>';
+        }
+        if (student.prior_years_status === 'not_applicable') {
+            return '<span class="text-xs text-slate-500">No prior years needed</span>';
+        }
+        return '<span class="text-xs text-amber-700">Add each prior school year using + Add above</span>';
     }
 
     function buildPriorYearsStatusStripHtml(student) {
@@ -1739,7 +1768,7 @@
                     </select>
                 </div>
                 <div class="ar-add-actions">
-                    <button type="submit" id="add-student-submit-btn" class="ar-add-submit-btn">Add student</button>
+                    <button type="button" id="add-student-submit-btn" class="ar-add-submit-btn">Add student</button>
                     <span id="add-student-status" class="text-sm text-slate-500 hidden"></span>
                 </div>
             </form>
@@ -1774,7 +1803,7 @@
                     </select>
                 </div>
                 <div class="ar-add-actions">
-                    <button type="submit" id="add-prior-submit-btn" class="ar-add-submit-btn ar-add-submit-btn--prior">Add prior year</button>
+                    <button type="button" id="add-prior-submit-btn" class="ar-add-submit-btn ar-add-submit-btn--prior">Add prior year</button>
                     <span id="add-prior-status" class="text-sm text-slate-500 hidden"></span>
                 </div>
             </form>
@@ -1912,6 +1941,7 @@
                 html += '<div class="hub-empty-state">No students yet. Add each enrolled child above to begin tracking grades.</div>';
                 root.innerHTML = html;
                 bindAcademicRecordsDelegation();
+                bindAddFormHandlers(root);
                 bindAddPanelControls(root);
                 return;
             }
@@ -1996,6 +2026,7 @@
             root.innerHTML = html;
 
             bindAcademicRecordsDelegation();
+            bindAddFormHandlers(root);
             restoreExpandState(root, expandState);
             bindGradeTableEvents();
             bindAttendanceEvents(root);
