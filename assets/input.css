@@ -1611,6 +1611,24 @@ body.app-dialog-open {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   padding: 1.5rem 1.25rem;
   box-sizing: border-box;
+  text-align: center;
+}
+
+#ar-grade-chart-modal .ar-grade-chart-table {
+  width: auto;
+  min-width: 13rem;
+  margin-left: auto;
+  margin-right: auto;
+  border-collapse: collapse;
+}
+
+#ar-grade-chart-modal .ar-grade-chart-table th,
+#ar-grade-chart-modal .ar-grade-chart-table td,
+#ar-grade-chart-modal table th,
+#ar-grade-chart-modal table td {
+  text-align: center;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
 }
 
 /* Academic records — mobile-friendly layout */

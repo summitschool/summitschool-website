@@ -1365,7 +1365,7 @@
         if (!modal) {
             const rows = LETTER_GRADE_SCALE.map((row) => `
                 <tr class="border-b border-slate-100">
-                    <td class="py-2.5 pr-4 font-semibold text-navy w-16">${escapeHtml(row.letter)}</td>
+                    <td class="py-2.5 font-semibold text-navy">${escapeHtml(row.letter)}</td>
                     <td class="py-2.5 text-slate-700">${escapeHtml(row.range)}</td>
                 </tr>
             `).join('');
@@ -1376,10 +1376,10 @@
                     <div class="ar-grade-chart-panel">
                         <h3 id="ar-grade-chart-title" class="heading-serif text-xl text-navy tracking-tight text-center">Letter to Percentage</h3>
                         <p class="text-sm text-slate-600 mt-2 text-center leading-relaxed">If you graded with letters, enter the matching percentage from this chart.</p>
-                        <table class="w-full text-sm mt-4">
+                        <table class="ar-grade-chart-table text-sm mt-4">
                             <thead>
-                                <tr class="border-b border-slate-200 text-left text-xs font-semibold text-slate-500">
-                                    <th class="pb-2 pr-4">Letter</th>
+                                <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500">
+                                    <th class="pb-2">Letter</th>
                                     <th class="pb-2">Percentage range</th>
                                 </tr>
                             </thead>
@@ -1406,6 +1406,12 @@
         if (modal.parentElement !== document.body) {
             document.body.appendChild(modal);
         }
+
+        const chartTable = modal.querySelector('.ar-grade-chart-table') || modal.querySelector('table');
+        if (chartTable && !chartTable.classList.contains('ar-grade-chart-table')) {
+            chartTable.classList.add('ar-grade-chart-table');
+        }
+
         document.documentElement.classList.add('app-dialog-open');
         document.body.classList.add('app-dialog-open');
         modal.classList.remove('hidden');
