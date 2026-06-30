@@ -808,8 +808,8 @@
             : `Credits for ${yearRecord.school_year} are calculated when the school year is complete (after Semester 2 is submitted). Each passing course earns 1 credit.`;
 
         return `
-            <div class="flex justify-end">
-                <div class="p-3 border border-violet-200 rounded-xl bg-violet-50/40 text-xs text-slate-700 space-y-2 text-right w-full max-w-md ml-auto"
+            <div class="ar-credits-summary">
+                <div class="ar-credits-summary-panel p-3 border border-violet-200 rounded-xl bg-violet-50/40 text-xs text-slate-700 space-y-2"
                      data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
                     <div class="font-semibold text-violet-900">High school credits</div>
                     <p>${escapeHtml(yearLine)}</p>
@@ -1222,7 +1222,7 @@
                     const cumulative = await summarizeCumulativeCredits(student.id, student.current_grade_level);
                     const creditLine = formatCumulativeCreditsLine(cumulative);
                     if (creditLine) {
-                        creditHeaderHtml = `<span class="block text-xs text-violet-800 font-medium mt-0.5">Credits: ${escapeHtml(creditLine)}</span>`;
+                        creditHeaderHtml = `<span class="block text-xs text-violet-800 font-medium mt-0.5 text-right">Credits: ${escapeHtml(creditLine)}</span>`;
                     }
                 }
 
@@ -1268,9 +1268,9 @@
                     const entries = await fetchGradeEntries(currentRecord.id);
                     currentYearSection = `
                         <details class="border border-amber-200 rounded-2xl bg-amber-50/30" data-ar-progress-year="${currentRecord.id}" ${isFocused ? 'open' : ''}>
-                            <summary class="px-4 py-3 cursor-pointer flex items-center gap-3">
-                                <span class="font-semibold text-navy min-w-0">${currentYear} progress report — ${escapeHtml(statusLabel)}</span>
-                                <span class="ml-auto text-xs text-slate-500 text-right shrink-0">Grade ${escapeHtml(currentRecord.grade_level)} · ${escapeHtml(currentYear)}</span>
+                            <summary class="ar-summary-row px-4 py-3 cursor-pointer list-none">
+                                <span class="ar-summary-left font-semibold text-navy">${currentYear} progress report</span>
+                                <span class="ar-summary-right text-xs text-slate-500">Grade ${escapeHtml(currentRecord.grade_level)} · ${escapeHtml(currentYear)} · ${escapeHtml(statusLabel)}</span>
                             </summary>
                             <div class="p-4 border-t border-amber-100 space-y-4">
                                 ${buildGradeTableHtml(currentRecord, entries)}
@@ -1288,7 +1288,10 @@
                         const entries = await fetchGradeEntries(bf.id);
                         backfillItems.push(`
                             <details class="border border-slate-200 rounded-xl" data-ar-backfill-year="${bf.id}">
-                                <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy">${escapeHtml(bf.school_year)} — Grade ${escapeHtml(bf.grade_level)} ${bf.year_locked ? '✓' : ''}</summary>
+                                <summary class="ar-summary-row px-3 py-2 cursor-pointer text-sm list-none">
+                                    <span class="ar-summary-left font-medium text-navy">Prior year</span>
+                                    <span class="ar-summary-right font-medium text-slate-600">${escapeHtml(bf.school_year)} · Grade ${escapeHtml(bf.grade_level)}${bf.year_locked ? ' ✓' : ''}</span>
+                                </summary>
                                 <div class="p-3 border-t border-slate-100 space-y-3">
                                     ${buildGradeTableHtml(bf, entries)}
                                     ${isHighSchoolGrade(bf.grade_level) ? buildCreditsSummaryHtml(bf, entries, bf.grade_level, student.id) : ''}
@@ -1307,9 +1310,9 @@
 
                 html += `
                     <details class="border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
-                        <summary class="px-5 py-4 cursor-pointer list-none flex items-center gap-3 hover:bg-slate-50">
-                            <span class="font-semibold text-lg text-navy min-w-0">${escapeHtml(studentDisplayName(student))}</span>
-                            <span class="ml-auto text-sm text-slate-500 text-right shrink-0">
+                        <summary class="ar-summary-row px-5 py-4 cursor-pointer list-none hover:bg-slate-50">
+                            <span class="ar-summary-left font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>
+                            <span class="ar-summary-right text-sm text-slate-500">
                                 ${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}
                                 ${creditHeaderHtml}
                             </span>

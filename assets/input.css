@@ -1251,6 +1251,44 @@ body.app-dialog-open {
   overflow: hidden;
 }
 
+/* Academic records — name left, grade/year/credits flush right */
+.ar-summary-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-sizing: border-box;
+  list-style: none;
+}
+
+.ar-summary-row::-webkit-details-marker {
+  display: none;
+}
+
+.ar-summary-left {
+  text-align: left;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.ar-summary-right {
+  text-align: right;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.ar-credits-summary {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.ar-credits-summary-panel {
+  text-align: right;
+  max-width: 20rem;
+}
+
 @media print {
   .no-print { display: none !important; }
   .hero { min-height: auto !important; }
