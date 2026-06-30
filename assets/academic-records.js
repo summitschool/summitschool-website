@@ -332,6 +332,7 @@
                 event.stopPropagation();
                 const details = button.closest('details');
                 if (!details) return;
+                details.querySelectorAll('details').forEach((nested) => nested.removeAttribute('open'));
                 details.removeAttribute('open');
                 const summary = details.querySelector('summary');
                 if (summary) {
@@ -1587,7 +1588,7 @@
                                     ? '<span class="text-xs text-emerald-700">Prior years complete</span>'
                                     : student.prior_years_status === 'not_applicable'
                                         ? '<span class="text-xs text-slate-500">No prior years needed</span>'
-                                        : '<span class="text-xs text-amber-700">Add each prior high school year, then mark complete</span>'}
+                                        : '<span class="text-xs text-amber-700">Add each prior school year, then mark complete</span>'}
                             </div>`, 'Close prior years')}
                         </details>
                     `;
