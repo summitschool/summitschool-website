@@ -1295,17 +1295,15 @@ body.app-dialog-open {
   margin-left: auto;
 }
 
-.ar-hs-supplemental {
+.ar-year-cards {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  margin-top: 0.25rem;
-  padding-top: 1.25rem;
-  border-top: 2px solid #e2e8f0;
 }
 
 .ar-supplemental-card {
   border: 1px solid #d7e0ea;
+  border-left: 3px solid #0a2540;
   border-radius: 1.125rem;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   padding: 1rem 1.125rem;
@@ -1372,8 +1370,89 @@ body.app-dialog-open {
   color: #ffffff;
 }
 
-.ar-credits-summary {
-  border-left: 3px solid #c9a227;
+.ar-supplemental-btn--primary {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid #0a2540;
+  background: #0a2540;
+  color: #ffffff;
+}
+
+.ar-supplemental-btn--primary:hover {
+  background: #0f3a5f;
+  border-color: #0f3a5f;
+}
+
+.ar-supplemental-input {
+  width: 100%;
+  margin-bottom: 0.625rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8125rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: #0a2540;
+}
+
+.ar-supplemental-input--readonly {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+  cursor: default;
+}
+
+.ar-field-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.ar-attendance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+.ar-attendance-field {
+  min-width: 0;
+}
+
+.ar-attendance-panel input[readonly] {
+  cursor: default;
+}
+
+.ar-courses-panel .ar-grade-scroll {
+  margin-bottom: 0.75rem;
+}
+
+.ar-add-course-btn {
+  margin-top: 0.125rem;
+}
+
+.ar-submit-note {
+  margin-bottom: 0.625rem;
+}
+
+.ar-supplemental-status {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #047857;
+}
+
+.ar-submit-panel--complete {
+  border-left-color: #047857;
+}
+
+.ar-admin-panel .ar-supplemental-muted {
+  margin-bottom: 0.75rem;
+}
+
+.ar-admin-reopen-btn {
+  width: 100%;
 }
 
 .ar-credits-badge {
@@ -1483,10 +1562,6 @@ body.app-dialog-open {
   font-size: 0.75rem;
   color: #94a3b8;
   font-style: italic;
-}
-
-.ar-transcript-upload {
-  border-left: 3px solid #7c8f7e;
 }
 
 .ar-transcript-file-block {
@@ -1904,10 +1979,6 @@ body.app-dialog-open {
   font-size: 0.75rem;
 }
 
-.ar-attendance-panel input[readonly] {
-  cursor: default;
-}
-
 .ar-remove-course-btn {
   padding: 0.35rem 0.55rem;
   font-size: 0.65rem;
@@ -2251,6 +2322,11 @@ body.app-dialog-open {
     align-items: flex-start;
   }
 
+  #academic-records-root .ar-attendance-grid,
+  .ar-admin-records-root .ar-attendance-grid {
+    grid-template-columns: 1fr;
+  }
+
   #academic-records-root .ar-credit-chips,
   .ar-admin-records-root .ar-credit-chips {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2260,6 +2336,13 @@ body.app-dialog-open {
   .ar-admin-records-root .ar-credits-badge {
     white-space: normal;
     text-align: left;
+  }
+
+  #academic-records-root .ar-supplemental-btn--secondary,
+  #academic-records-root .ar-supplemental-btn--primary,
+  .ar-admin-records-root .ar-supplemental-btn--secondary,
+  .ar-admin-records-root .ar-supplemental-btn--primary {
+    width: 100%;
   }
 
   #academic-records-root .ar-grade-help {

@@ -243,6 +243,33 @@
         `;
     }
 
+    function buildSupplementalCardHeader(eyebrow, title, trailingHtml = '') {
+        return `
+            <div class="ar-supplemental-card-header">
+                <div>
+                    <p class="ar-supplemental-eyebrow">${escapeHtml(eyebrow)}</p>
+                    <h4 class="ar-supplemental-title">${escapeHtml(title)}</h4>
+                </div>
+                ${trailingHtml}
+            </div>
+        `;
+    }
+
+    function buildSupplementalStatusCard(message, options = {}) {
+        const {
+            eyebrow = 'Status',
+            title = 'Submission',
+            complete = true,
+        } = options;
+        const statusClass = complete ? 'ar-supplemental-status' : 'ar-supplemental-muted';
+        return `
+            <div class="ar-supplemental-card ar-submit-panel${complete ? ' ar-submit-panel--complete' : ''}">
+                ${buildSupplementalCardHeader(eyebrow, title)}
+                <p class="${statusClass}">${escapeHtml(message)}</p>
+            </div>
+        `;
+    }
+
     function buildAttendanceHtml(yearRecord, options = {}) {
         const readonly = options.readonly || false;
         const editS1 = canEditSemester(yearRecord, '1') && !readonly;
@@ -255,33 +282,32 @@
         const hasAny = parseAttendanceDays(s1Display) !== null || parseAttendanceDays(s2Display) !== null;
 
         return `
-            <div class="ar-attendance-panel p-3 border border-emerald-200 rounded-xl bg-emerald-50/40"
-                 data-ar-attendance="${yearRecord.id}">
-                <div class="text-sm font-semibold text-emerald-900 mb-1">Attendance</div>
-                <p class="text-xs text-slate-600 mb-3">Enter the number of <strong>school days attended</strong> each semester. Total updates automatically.</p>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Semester 1 days</label>
+            <div class="ar-supplemental-card ar-attendance-panel" data-ar-attendance="${yearRecord.id}">
+                ${buildSupplementalCardHeader('Required', 'Attendance')}
+                <p class="ar-supplemental-lead">Enter the number of <strong>school days attended</strong> each semester. Total updates automatically.</p>
+                <div class="ar-attendance-grid">
+                    <div class="ar-attendance-field">
+                        <label class="ar-field-label">Semester 1 days</label>
                         <input type="number" min="0" max="200" step="1" inputmode="numeric"
-                               class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                               class="ar-supplemental-input"
                                value="${escapeHtml(s1Display)}"
                                data-field="semester_1_attendance_days"
                                placeholder="e.g. 88"
                                ${editS1 ? '' : 'readonly'}>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Semester 2 days</label>
+                    <div class="ar-attendance-field">
+                        <label class="ar-field-label">Semester 2 days</label>
                         <input type="number" min="0" max="200" step="1" inputmode="numeric"
-                               class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                               class="ar-supplemental-input"
                                value="${escapeHtml(s2Display)}"
                                data-field="semester_2_attendance_days"
                                placeholder="e.g. 90"
                                ${editS2 ? '' : 'readonly'}>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Total days</label>
+                    <div class="ar-attendance-field">
+                        <label class="ar-field-label">Total days</label>
                         <input type="text" readonly tabindex="-1"
-                               class="form-input w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700"
+                               class="ar-supplemental-input ar-supplemental-input--readonly"
                                value="${hasAny ? String(total) : ''}"
                                data-field="attendance_total"
                                placeholder="Auto-calculated">
@@ -503,24 +529,14 @@
             if (!hasFile) {
                 return `
                     <div class="ar-supplemental-card ar-transcript-upload ar-transcript-upload--readonly ar-transcript-upload--empty">
-                        <div class="ar-supplemental-card-header">
-                            <div>
-                                <p class="ar-supplemental-eyebrow">Optional</p>
-                                <h4 class="ar-supplemental-title">Official transcript photo</h4>
-                            </div>
-                        </div>
+                        ${buildSupplementalCardHeader('Optional', 'Official transcript photo')}
                         <p class="ar-supplemental-muted">No official transcript photo on file.</p>
                     </div>
                 `;
             }
             return `
                 <div class="ar-supplemental-card ar-transcript-upload ar-transcript-upload--readonly" data-ar-transcript="${yearRecord.id}">
-                    <div class="ar-supplemental-card-header">
-                        <div>
-                            <p class="ar-supplemental-eyebrow">On file</p>
-                            <h4 class="ar-supplemental-title">Official transcript photo</h4>
-                        </div>
-                    </div>
+                    ${buildSupplementalCardHeader('On file', 'Official transcript photo')}
                     <p class="ar-transcript-file-meta">${escapeHtml(fileLabel)}${uploadedAt ? ` · ${escapeHtml(uploadedAt)}` : ''}</p>
                     <button type="button"
                             class="ar-supplemental-btn ar-supplemental-btn--secondary"
@@ -533,12 +549,7 @@
         const canUpload = !yearRecord.year_locked;
         return `
             <div class="ar-supplemental-card ar-transcript-upload" data-ar-transcript="${yearRecord.id}">
-                <div class="ar-supplemental-card-header">
-                    <div>
-                        <p class="ar-supplemental-eyebrow">Optional</p>
-                        <h4 class="ar-supplemental-title">Official transcript photo</h4>
-                    </div>
-                </div>
+                ${buildSupplementalCardHeader('Optional', 'Official transcript photo')}
                 <p class="ar-supplemental-lead">Upload a photo or PDF of the official transcript for this prior year if you have one. You still need to complete the report above even if you upload a picture.</p>
                 ${hasFile ? `
                     <div class="ar-transcript-file-block">
@@ -582,33 +593,35 @@
             const name = escapeJsString(studentDisplayName(student));
             const schoolYear = escapeJsString(yearRecord.school_year);
             actionsHtml = `
-                <div class="flex flex-wrap items-center justify-between gap-2 text-xs p-3 border border-slate-200 rounded-xl bg-slate-50">
-                    <span class="text-slate-500">Locked — reopen to let the family edit.</span>
-                    <button type="button" class="px-3 py-1.5 border border-navy text-navy rounded-lg hover:bg-navy hover:text-white text-xs font-semibold"
+                <div class="ar-supplemental-card ar-admin-panel">
+                    ${buildSupplementalCardHeader('Staff', 'Record status')}
+                    <p class="ar-supplemental-muted">Locked — reopen to let the family edit.</p>
+                    <button type="button" class="ar-supplemental-btn ar-supplemental-btn--secondary ar-admin-reopen-btn"
                             onclick="adminReopenSchoolYear('${yearRecord.id}', '${name}', '${schoolYear}')">Reopen</button>
                 </div>
             `;
         } else if (admin) {
-            actionsHtml = '<p class="text-xs text-slate-500">In progress — family can still edit.</p>';
+            actionsHtml = buildSupplementalStatusCard('In progress — family can still edit.', {
+                eyebrow: 'Staff',
+                title: 'Record status',
+                complete: false,
+            });
         }
+
+        const hsSupplemental = isHighSchoolGrade(yearRecord.grade_level)
+            ? `${buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id)}${buildTranscriptUploadSectionHtml(yearRecord, { readonly })}`
+            : buildTranscriptUploadSectionHtml(yearRecord, { readonly });
 
         return `
             <div class="ar-year-detail-intro mb-4 pb-3 border-b border-slate-100">
                 <p class="text-sm font-semibold text-navy">${escapeHtml(yearRecord.school_year)} ${reportLabel}</p>
                 <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(formatGradeLabel(yearRecord.grade_level))} · ${escapeHtml(statusLabel)}</p>
             </div>
-            <div class="space-y-4">
+            <div class="ar-year-cards" data-ar-scroll-anchor="${yearRecord.id}">
                 ${buildAttendanceHtml(yearRecord, { readonly })}
                 ${buildGradeTableHtml(yearRecord, entries, { readonly })}
-                <div class="ar-year-footer space-y-4" data-ar-scroll-anchor="${yearRecord.id}">
-                    ${isHighSchoolGrade(yearRecord.grade_level) ? `
-                        <div class="ar-hs-supplemental">
-                            ${buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id)}
-                            ${buildTranscriptUploadSectionHtml(yearRecord, { readonly })}
-                        </div>
-                    ` : buildTranscriptUploadSectionHtml(yearRecord, { readonly })}
-                    ${actionsHtml}
-                </div>
+                ${hsSupplemental}
+                ${actionsHtml}
             </div>
             ${buildBackToStudentTopBar(student.id)}
         `;
@@ -1758,13 +1771,11 @@
         return `
             <div class="ar-supplemental-card ar-credits-summary"
                  data-credits-summary="${yearRecord.id}" data-student-id="${studentId}" data-grade-level="${escapeHtml(gradeLevel)}">
-                <div class="ar-supplemental-card-header">
-                    <div>
-                        <p class="ar-supplemental-eyebrow">Graduation tracking</p>
-                        <h4 class="ar-supplemental-title">Credit summary</h4>
-                    </div>
-                    <span class="ar-credits-badge${yearComplete ? ' is-complete' : ''}">${escapeHtml(badgeLabel)}</span>
-                </div>
+                ${buildSupplementalCardHeader(
+                    'Graduation tracking',
+                    'Credit summary',
+                    `<span class="ar-credits-badge${yearComplete ? ' is-complete' : ''}">${escapeHtml(badgeLabel)}</span>`
+                )}
 
                 <div class="ar-credits-section">
                     <p class="ar-credits-section-label">This school year</p>
@@ -1868,35 +1879,31 @@
         const headers = `<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 1 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 2 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final ${gradeLabel}</th>`;
 
         const addCourseBtn = canEditMeta ? `
-            <button type="button" class="mt-3 px-4 py-2 text-sm font-semibold border border-navy text-navy rounded-xl hover:bg-navy hover:text-white"
+            <button type="button" class="ar-supplemental-btn ar-supplemental-btn--secondary ar-add-course-btn"
                     onclick="window.AcademicRecords.handleAddCourse('${yearRecord.id}')">+ Add course</button>
         ` : '';
 
         const s2Due = semester2DueDate(yearRecord.school_year, gradeLevel);
-        const semNote = isBackfill ? `
-            <p class="text-xs text-slate-500 mb-2">
-                Prior year: enter Semester 1 and Semester 2 grades, attendance, and finals.
-                ${isHs ? 'Percentages only; finals auto-calculate.' : 'Letter or percentage.'}
-            </p>
-        ` : `
-            <p class="text-xs text-slate-500 mb-2">
-                ${calSem === '1'
-                    ? 'Semester 1 (Jul–Dec): enter Semester 1 grades and attendance. Due Dec 31.'
-                    : `Semester 2 (Jan–May): enter Semester 2 grades and attendance. Due ${s2Due}. Finals auto-calculate for high school.`}
-            </p>
-        `;
+        const semNote = isBackfill
+            ? `Prior year: enter Semester 1 and Semester 2 grades, attendance, and finals. ${isHs ? 'Percentages only; finals auto-calculate.' : 'Letter or percentage.'}`
+            : (calSem === '1'
+                ? 'Semester 1 (Jul–Dec): enter Semester 1 grades and attendance. Due Dec 31.'
+                : `Semester 2 (Jan–May): enter Semester 2 grades and attendance. Due ${s2Due}. Finals auto-calculate for high school.`);
 
         return `
-            ${semNote}
-            <div class="overflow-x-auto ar-grade-scroll">
-                <table class="w-full min-w-[640px] text-sm ar-grade-table"
-                       data-year-record-id="${yearRecord.id}"
-                       data-grade-level="${escapeHtml(gradeLevel)}">
-                    <thead><tr>${headers}</tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
+            <div class="ar-supplemental-card ar-courses-panel">
+                ${buildSupplementalCardHeader('Grades', 'Courses')}
+                <p class="ar-supplemental-lead">${escapeHtml(semNote)}</p>
+                <div class="overflow-x-auto ar-grade-scroll">
+                    <table class="w-full min-w-[640px] text-sm ar-grade-table"
+                           data-year-record-id="${yearRecord.id}"
+                           data-grade-level="${escapeHtml(gradeLevel)}">
+                        <thead><tr>${headers}</tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+                ${addCourseBtn}
             </div>
-            ${addCourseBtn}
         `;
     }
 
@@ -2387,28 +2394,36 @@
         const parts = [];
         if (canEditSemester(yearRecord, '1')) {
             parts.push(`
-                <div class="p-3 border border-sky-200 rounded-xl">
-                    <div class="text-sm font-semibold text-sky-900 mb-2">Submit Semester 1</div>
-                    <input type="text" id="ack-s1-${yearRecord.id}" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl mb-2" placeholder="Parent full name">
-                    <button type="button" class="px-4 py-2 bg-navy text-white text-sm font-semibold rounded-xl"
+                <div class="ar-supplemental-card ar-submit-panel">
+                    ${buildSupplementalCardHeader('Signature', 'Submit Semester 1')}
+                    <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
+                    <input type="text" id="ack-s1-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
+                    <button type="button" class="ar-supplemental-btn ar-supplemental-btn--primary"
                             onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1')">Submit Semester 1</button>
                 </div>
             `);
         } else if (yearRecord.semester_1_locked) {
-            parts.push(`<p class="text-xs text-emerald-700">Semester 1 submitted ${yearRecord.semester_1_submitted_at ? new Date(yearRecord.semester_1_submitted_at).toLocaleDateString() : ''}</p>`);
+            parts.push(buildSupplementalStatusCard(
+                `Semester 1 submitted ${yearRecord.semester_1_submitted_at ? new Date(yearRecord.semester_1_submitted_at).toLocaleDateString() : ''}`,
+                { title: 'Semester 1' }
+            ));
         }
 
         if (canEditSemester(yearRecord, '2')) {
             parts.push(`
-                <div class="p-3 border border-violet-200 rounded-xl">
-                    <div class="text-sm font-semibold text-violet-900 mb-2">Submit Semester 2 &amp; Final</div>
-                    <input type="text" id="ack-s2-${yearRecord.id}" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl mb-2" placeholder="Parent full name">
-                    <button type="button" class="px-4 py-2 bg-navy text-white text-sm font-semibold rounded-xl"
+                <div class="ar-supplemental-card ar-submit-panel">
+                    ${buildSupplementalCardHeader('Signature', 'Submit Semester 2 & Final')}
+                    <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
+                    <input type="text" id="ack-s2-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
+                    <button type="button" class="ar-supplemental-btn ar-supplemental-btn--primary"
                             onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '2')">Submit Semester 2 &amp; Final</button>
                 </div>
             `);
         } else if (yearRecord.semester_2_locked) {
-            parts.push(`<p class="text-xs text-emerald-700">Semester 2 &amp; final submitted ${yearRecord.semester_2_submitted_at ? new Date(yearRecord.semester_2_submitted_at).toLocaleDateString() : ''}</p>`);
+            parts.push(buildSupplementalStatusCard(
+                `Semester 2 & final submitted ${yearRecord.semester_2_submitted_at ? new Date(yearRecord.semester_2_submitted_at).toLocaleDateString() : ''}`,
+                { title: 'Semester 2 & Final' }
+            ));
         }
 
         return parts.join('');
@@ -2416,13 +2431,17 @@
 
     function renderBackfillActions(yearRecord) {
         if (!canEditSemester(yearRecord, '1')) {
-            return `<p class="text-xs text-emerald-700">Prior year locked ${yearRecord.year_submitted_at ? new Date(yearRecord.year_submitted_at).toLocaleDateString() : ''}</p>`;
+            return buildSupplementalStatusCard(
+                `Prior year locked ${yearRecord.year_submitted_at ? new Date(yearRecord.year_submitted_at).toLocaleDateString() : ''}`,
+                { title: 'Prior year' }
+            );
         }
         return `
-            <div class="p-3 border border-amber-200 rounded-xl">
-                <div class="text-sm font-semibold text-amber-900 mb-2">Submit prior year</div>
-                <input type="text" id="ack-year-${yearRecord.id}" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl mb-2" placeholder="Parent full name">
-                <button type="button" class="px-4 py-2 bg-navy text-white text-sm font-semibold rounded-xl"
+            <div class="ar-supplemental-card ar-submit-panel">
+                ${buildSupplementalCardHeader('Signature', 'Submit prior year')}
+                <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm this prior year record is complete.</p>
+                <input type="text" id="ack-year-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
+                <button type="button" class="ar-supplemental-btn ar-supplemental-btn--primary"
                         onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1')">Submit Semester 1 &amp; 2 &amp; Final</button>
             </div>
         `;
