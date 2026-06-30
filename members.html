@@ -4143,11 +4143,7 @@
                 const file = new File([fileData], fileName, { type: fileData.type || 'application/pdf' });
 
                 if (navigator.share && navigator.canShare?.({ files: [file] })) {
-                    await navigator.share({
-                        title,
-                        text: description,
-                        files: [file],
-                    });
+                    await navigator.share({ files: [file] });
                     return;
                 }
 
@@ -4158,14 +4154,10 @@
                 downloadLink.click();
                 URL.revokeObjectURL(blobUrl);
 
-                const signedUrl = await getSignedStorageUrl(resolvedPath);
-                const subject = encodeURIComponent(title);
-                const body = encodeURIComponent(
-                    `${description ? `${description}\n\n` : ''}Please find "${title}" attached. `
-                    + 'If your email app did not attach the file automatically, attach the PDF that was just downloaded to your device.\n\n'
-                    + (signedUrl ? `View online: ${signedUrl}` : '')
-                );
-                window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
+                // Browsers cannot attach files via mailto — download first, then open a blank compose window.
+                setTimeout(() => {
+                    window.location.href = 'mailto:';
+                }, 400);
             } catch (err) {
                 if (err?.name !== 'AbortError') {
                     await showAppAlert('Could not prepare email share: ' + (err.message || String(err)));
