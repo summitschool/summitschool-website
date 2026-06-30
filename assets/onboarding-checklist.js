@@ -9,8 +9,8 @@
 
     const INCOMPLETE_MESSAGES = {
         students: 'Add each enrolled student in Academic Records (name and current grade), then check this box.',
-        prior_years: 'Add prior year records for any previously completed high school years in Academic Records before checking this off.',
-        guide: 'Open "How progress reports work" below and click "I\'ve read this" before checking this box.',
+        prior_years: 'Optional for K–8. If your student has previously completed high school years, add those records in Academic Records before checking this off.',
+        guide: 'Read how progress reports work below and click "I\'ve read this" before checking this box.',
         conduct: 'Sign the Code of Conduct form in My Tasks before checking this box.',
         id: 'Upload your government-issued ID in My Tasks before checking this box.',
     };
@@ -341,8 +341,8 @@
             },
             {
                 id: 'prior_years',
-                label: 'Add prior year records (optional)',
-                detail: 'Required for any previously completed high school years.',
+                label: 'Add prior year records',
+                detail: 'Optional for K–8. Required for any previously completed high school years.',
                 required: hasHighSchoolStudent,
                 taskComplete: priorYearsOk,
                 manuallyChecked: Boolean(manualChecks.prior_years),
@@ -351,7 +351,7 @@
             },
             {
                 id: 'guide',
-                label: 'Read how progress reports work in Academic Records',
+                label: 'Read how progress reports work',
                 taskComplete: guideRead,
                 manuallyChecked: Boolean(manualChecks.guide),
                 incompleteMessage: INCOMPLETE_MESSAGES.guide,
@@ -423,15 +423,40 @@
             .ilike('category', '%task%');
     }
 
-    async function renderOnboardingTaskCard(task) {
-        const client = window.supabaseClient;
-        const { data: { user } } = await client.auth.getUser();
-        if (!user) return '';
+    function buildProgressReportGuideBodyHtml() {
+        return `
+            <p>Each student has a <strong>Progress Report</strong> in Academic Records for the current school year.</p>
+            <p><strong>Semester 1</strong> (Jul–Dec) is due <strong>Dec 31</strong>. Enter grades and attendance, then submit.</p>
+            <p><strong>Semester 2</strong> (Jan–May) is due <strong>May 31</strong> (seniors <strong>May 15</strong>). Enter Semester 2 grades, attendance, and finals, then submit.</p>
+            <p>The school year ends <strong>May 31</strong>.</p>
+            <p class="text-xs text-slate-500">Contact the school office if you need a locked semester reopened.</p>
+            <button type="button" class="mt-2 px-4 py-2 text-sm font-semibold bg-navy text-white rounded-xl"
+                    onclick="window.OnboardingChecklist.markGuideRead()">I've read this</button>
+        `;
+    }
 
-        const { items, canFinish } = await getChecklistState(user.id);
+    function buildChecklistItemHtml(item) {
+        const borderClass = item.manuallyChecked ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white';
 
-        const list = items.map((item) => `
-            <label class="flex items-start gap-3 p-3 rounded-xl border ${item.manuallyChecked ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white'}">
+        if (item.id === 'guide') {
+            return `
+                <div class="rounded-xl border ${borderClass}" id="onboarding-guide">
+                    <label class="flex items-start gap-3 p-3 cursor-pointer">
+                        <input type="checkbox" class="mt-1 accent-navy onboarding-check-item"
+                               data-item-id="${item.id}"
+                               ${item.manuallyChecked ? 'checked' : ''}
+                               onchange="window.OnboardingChecklist.handleItemToggle('${item.id}', this)">
+                        <span class="text-sm text-slate-700 flex-1 font-medium">${escapeHtml(item.label)}</span>
+                    </label>
+                    <div class="px-3 pb-3 pt-0 ml-9 mr-3 text-sm text-slate-600 space-y-2 border-t border-slate-100/80">
+                        <div class="pt-3 space-y-2">${buildProgressReportGuideBodyHtml()}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <label class="flex items-start gap-3 p-3 rounded-xl border ${borderClass}">
                 <input type="checkbox" class="mt-1 accent-navy onboarding-check-item"
                        data-item-id="${item.id}"
                        ${item.manuallyChecked ? 'checked' : ''}
@@ -442,22 +467,16 @@
                 </span>
                 ${item.action ? `<button type="button" class="text-xs text-navy underline shrink-0" onclick="${item.action}">Open</button>` : ''}
             </label>
-        `).join('');
-
-        const guideBlock = `
-            <details class="mt-3 border border-slate-200 rounded-2xl bg-white" id="onboarding-guide">
-                <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-navy">How progress reports work</summary>
-                <div class="px-4 pb-4 text-sm text-slate-600 space-y-2 border-t border-slate-100 pt-3">
-                    <p>Each student has a <strong>Progress Report</strong> in Academic Records for the current school year.</p>
-                    <p><strong>Semester 1</strong> (Jul–Dec) is due <strong>Dec 31</strong>. Enter grades and attendance, then submit.</p>
-                    <p><strong>Semester 2</strong> (Jan–May) is due <strong>May 31</strong> (seniors <strong>May 15</strong>). Enter Semester 2 grades, attendance, and finals, then submit.</p>
-                    <p>The school year ends <strong>May 31</strong>.</p>
-                    <p class="text-xs text-slate-500">Contact the school office if you need a locked semester reopened.</p>
-                    <button type="button" class="mt-2 px-4 py-2 text-sm font-semibold bg-navy text-white rounded-xl"
-                            onclick="window.OnboardingChecklist.markGuideRead()">I've read this</button>
-                </div>
-            </details>
         `;
+    }
+
+    async function renderOnboardingTaskCard(task) {
+        const client = window.supabaseClient;
+        const { data: { user } } = await client.auth.getUser();
+        if (!user) return '';
+
+        const { items, canFinish } = await getChecklistState(user.id);
+        const list = items.map((item) => buildChecklistItemHtml(item)).join('');
 
         return `
             <div class="hub-panel hub-panel-padded border-navy/20 !bg-slate-50" id="onboarding-task-card">
@@ -465,13 +484,12 @@
                 <p class="text-sm text-slate-600 mt-1">${escapeHtml(task.description || '')}</p>
                 <p class="text-xs text-slate-500 mt-2">Complete each step, then check it off. The checklist stays until every box is checked and every step is finished.</p>
                 <div class="mt-4 space-y-2">${list}</div>
-                ${guideBlock}
                 <button type="button" class="mt-4 w-full py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl text-sm ${canFinish ? '' : 'opacity-50 cursor-not-allowed'}"
                         ${canFinish ? '' : 'disabled'}
                         onclick="window.OnboardingChecklist.finish()">
                     Complete setup checklist
                 </button>
-                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off each required item after you finish that step. Prior year records are optional, but required for any previously completed high school years.</p>' : ''}
+                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off each required item after you finish that step. Prior year records are optional for K–8 and required for any previously completed high school years.</p>' : ''}
             </div>
         `;
     }
