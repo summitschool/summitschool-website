@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260715">
+    <link rel="stylesheet" href="assets/styles.css?v=20260716">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -24,7 +24,10 @@
                 var hasPkceCode = search.indexOf('code=') !== -1 && search.indexOf('token_hash=') === -1;
                 if (pendingOAuth || hasPkceCode || search.indexOf('auth=oauth') !== -1) {
                     document.documentElement.classList.add('auth-transition-pending');
+                    document.documentElement.classList.add('auth-login-locked');
                     window.__oauthReturnPending = true;
+                } else {
+                    window.__showLoginImmediately = true;
                 }
             } catch (e) {}
         })();
@@ -35,6 +38,10 @@
         html.auth-transition-pending .portal-main,
         html.auth-transition-active .portal-main {
             visibility: hidden !important;
+        }
+
+        html.auth-login-locked #login-view {
+            display: none !important;
         }
 
         html.auth-transition-pending #login-view,
@@ -152,7 +159,15 @@
     <div class="portal-main">
 
         <!-- Login / Signup View -->
-        <div id="login-view">
+        <div id="login-view" class="hidden">
+            <script>
+                (function () {
+                    if (window.__showLoginImmediately) {
+                        var loginEl = document.getElementById('login-view');
+                        if (loginEl) loginEl.classList.remove('hidden');
+                    }
+                })();
+            </script>
             <div class="auth-shell">
                 <div id="session-banner-anchor"></div>
 
@@ -1019,7 +1034,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260715"></script>
+    <script src="assets/academic-records.js?v=20260716"></script>
     <script src="assets/onboarding-checklist.js?v=20260711"></script>
     <script>
         // =============================================
@@ -1266,6 +1281,7 @@
 
         function revealLoginView() {
             if (isCompletingSignIn()) return;
+            document.documentElement.classList.remove('auth-login-locked');
             const loginView = document.getElementById('login-view');
             if (loginView) loginView.classList.remove('hidden');
         }
@@ -1278,19 +1294,39 @@
         function finishOAuthHandoff() {
             oauthCallbackInProgress = false;
             clearPendingOAuthAttempt();
+            document.documentElement.classList.remove('auth-login-locked');
             hideAuthTransition();
         }
 
         function releaseAuthTransitionHandoff() {
-            if (!oauthCallbackInProgress
-                && !document.documentElement.classList.contains('auth-transition-pending')
-                && !document.documentElement.classList.contains('auth-transition-active')) {
+            const transitionActive = oauthCallbackInProgress
+                || document.documentElement.classList.contains('auth-transition-pending')
+                || document.documentElement.classList.contains('auth-transition-active')
+                || document.documentElement.classList.contains('auth-login-locked');
+
+            if (!transitionActive) return;
+
+            const loginView = document.getElementById('login-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const pendingView = document.getElementById('pending-view');
+            const dashboardReady = dashboardView && !dashboardView.classList.contains('hidden');
+            const pendingReady = pendingView && !pendingView.classList.contains('hidden');
+            const authResolved = dashboardReady || pendingReady;
+
+            if (oauthCallbackInProgress && !authResolved) {
+                requestAnimationFrame(() => releaseAuthTransitionHandoff());
                 return;
+            }
+
+            if (authResolved && loginView) {
+                loginView.classList.add('hidden');
             }
 
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    finishOAuthHandoff();
+                    setTimeout(() => {
+                        finishOAuthHandoff();
+                    }, 32);
                 });
             });
         }
@@ -1540,6 +1576,7 @@
 
             oauthCallbackInProgress = true;
             markPendingOAuthAttempt();
+            document.documentElement.classList.add('auth-login-locked');
             showAuthTransition('Redirecting to Google…');
 
             const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -2013,6 +2050,11 @@
             if (familySelect) {
                 familySelect.innerHTML = '<option value="">Select a family...</option>';
             }
+
+            const familiesAcademicList = document.getElementById('admin-academic-records-list');
+            if (familiesAcademicList) {
+                familiesAcademicList.innerHTML = 'Select a family above to view courses, grades, and credits.';
+            }
         }
 
         function resetAdminRecordsSection() {
@@ -2081,6 +2123,12 @@
                 idsStatus.textContent = '';
                 idsStatus.classList.add('hidden');
             }
+
+            const approvalsStatus = document.getElementById('admin-pending-approvals-status');
+            if (approvalsStatus) {
+                approvalsStatus.textContent = '';
+                approvalsStatus.classList.add('hidden');
+            }
         }
 
         function resetAdminSectionState(section) {
@@ -2088,6 +2136,9 @@
             switch (section) {
                 case 'families':
                     resetAdminFamiliesSection();
+                    break;
+                case 'academic':
+                    resetAdminAcademicSection();
                     break;
                 case 'records':
                     resetAdminRecordsSection();
@@ -2127,6 +2178,7 @@
             if (currentAdminSection && isSwitching) {
                 resetAdminSectionState(currentAdminSection);
             }
+            resetAdminSectionState(section);
 
             const sections = {
                 members: document.getElementById('admin-section-members'),
@@ -2154,30 +2206,28 @@
             if (activeSection) activeSection.classList.remove('hidden');
             activateHubTabButtons(Object.values(navButtons), activeButton);
 
-            if (isSwitching) {
-                if (section === 'members') {
-                    if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
-                    if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
-                }
-                if (section === 'families' && typeof loadAdminFamilies === 'function') {
-                    loadAdminFamilies();
-                }
-                if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
-                    loadAdminAcademicFamilies();
-                }
-                if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
-                    loadAdminRecordsFamilies();
-                }
-                if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
-                    loadStaffAccessPanel();
-                }
-                if (section === 'library' && typeof loadAdminStandards === 'function') {
-                    loadAdminStandards();
-                }
-                if (section === 'site') {
-                    if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
-                    if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
-                }
+            if (section === 'members') {
+                if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
+                if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
+            }
+            if (section === 'families' && typeof loadAdminFamilies === 'function') {
+                loadAdminFamilies();
+            }
+            if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
+                loadAdminAcademicFamilies();
+            }
+            if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
+                loadAdminRecordsFamilies();
+            }
+            if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
+                loadStaffAccessPanel();
+            }
+            if (section === 'library' && typeof loadAdminStandards === 'function') {
+                loadAdminStandards();
+            }
+            if (section === 'site') {
+                if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
+                if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
             }
 
             lastAdminSection = section;
@@ -2188,6 +2238,12 @@
         function showDashboardTab(tab) {
             if (lastDashboardTab === 'academic-records' && tab !== 'academic-records') {
                 window.AcademicRecords?.dismissAddPanel?.();
+            }
+
+            if (lastDashboardTab === 'admin' && tab !== 'admin') {
+                if (currentAdminSection) resetAdminSectionState(currentAdminSection);
+                currentAdminSection = null;
+                lastAdminSection = 'members';
             }
 
             const myDocsContent = document.getElementById('dashboard-my-documents');
@@ -2239,10 +2295,9 @@
                 activeTab = tabAdmin;
 
                 applyStaffAdminNavVisibility();
-                const allowedSection = staffHasAdminSection(lastAdminSection)
-                    ? lastAdminSection
-                    : getFirstAllowedAdminSection();
-                showAdminSection(allowedSection);
+                if (currentAdminSection) resetAdminSectionState(currentAdminSection);
+                currentAdminSection = null;
+                showAdminSection(getFirstAllowedAdminSection());
             }
 
             activateHubTabButtons(hubTabs, activeTab);
@@ -5205,7 +5260,10 @@
 
         function resetAdminAcademicSection() {
             const select = document.getElementById('admin-academic-family-select');
-            if (select) select.value = '';
+            if (select) {
+                select.value = '';
+                select.innerHTML = '<option value="">Select a family...</option>';
+            }
 
             const listEl = document.getElementById('admin-academic-records-standalone-list');
             if (listEl) listEl.innerHTML = ADMIN_ACADEMIC_RECORDS_PLACEHOLDER;
@@ -6278,6 +6336,7 @@
             ) {
                 oauthCallbackInProgress = true;
                 delete window.__oauthReturnPending;
+                document.documentElement.classList.add('auth-login-locked');
                 showAuthTransition('Completing Google sign-in…');
             }
 

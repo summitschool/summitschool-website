@@ -1945,6 +1945,37 @@
         if (error) throw error;
     }
 
+    async function validatePriorYearAddition(studentId, schoolYear, gradeLevel) {
+        const years = recordsLoadContext?.yearsByStudent?.[studentId]
+            || await fetchSchoolYearsForStudent(studentId);
+
+        const duplicateSchoolYear = years.find((year) => year.school_year === schoolYear);
+        if (duplicateSchoolYear) {
+            throw new Error(
+                `This student already has a record for school year ${schoolYear}. Each school year can only be added once.`
+            );
+        }
+
+        const duplicateGrade = years.find((year) => year.grade_level === gradeLevel);
+        if (duplicateGrade) {
+            const gradeLabel = formatGradeLabel(gradeLevel);
+            throw new Error(
+                `This student already has a record for ${gradeLabel} (school year ${duplicateGrade.school_year}). Each grade can only be added once.`
+            );
+        }
+
+        return years;
+    }
+
+    function formatBackfillDuplicateError(err, schoolYear) {
+        const msg = err?.message || String(err);
+        const code = err?.code || '';
+        if (code === '23505' || /duplicate key|unique constraint/i.test(msg)) {
+            return `This student already has a record for school year ${schoolYear}. Each school year can only be added once.`;
+        }
+        return msg;
+    }
+
     async function addBackfillYear(studentId, schoolYear, gradeLevel) {
         const client = await getClient();
         const { data, error } = await client
@@ -3578,6 +3609,7 @@
                 statusEl.classList.remove('hidden');
             }
 
+            await validatePriorYearAddition(studentId, schoolYear, gradeLevel);
             const yearRecord = await addBackfillYear(studentId, schoolYear, gradeLevel);
             form.reset();
             closeAddPanel();
@@ -3589,7 +3621,10 @@
                 await window.OnboardingChecklist.refresh();
             }
         } catch (err) {
-            await window.showAppAlert?.(err.message || String(err));
+            const message = /already has a record/i.test(err?.message || '')
+                ? err.message
+                : formatBackfillDuplicateError(err, schoolYear);
+            await window.showAppAlert?.(message);
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
