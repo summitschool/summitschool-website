@@ -1307,9 +1307,158 @@
 
     let isAddingStudent = false;
     let recordsLoadContext = null;
-    const ACADEMIC_RECORDS_STALE_MS = 60000;
-    let lastAcademicRecordsLoadAt = 0;
     let lastAcademicRecordsUserId = null;
+
+    const AR_CACHE_VERSION = 2;
+    const AR_CACHE_LS_PREFIX = 'ar_cache_v2_';
+    const AR_CACHE_SS_PREFIX = 'ar_session_cache_v2_';
+
+    function buildYearFingerprint(yearRecord) {
+        if (!yearRecord) return '';
+        return [
+            yearRecord.updated_at || '',
+            yearRecord.semester_1_locked ? '1' : '0',
+            yearRecord.semester_2_locked ? '1' : '0',
+            yearRecord.year_locked ? '1' : '0',
+            yearRecord.semester_1_submitted_at || '',
+            yearRecord.semester_2_submitted_at || '',
+            yearRecord.year_submitted_at || '',
+            yearRecord.grade_level || '',
+        ].join('|');
+    }
+
+    function isYearRecordStable(yearRecord) {
+        if (!yearRecord) return false;
+        if (yearRecord.entry_type === 'backfill' && yearRecord.year_locked) return true;
+        return Boolean(yearRecord.semester_2_locked);
+    }
+
+    function loadPersistentArCache(userId) {
+        if (!userId) return null;
+        try {
+            const raw = localStorage.getItem(`${AR_CACHE_LS_PREFIX}${userId}`);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed?.version === AR_CACHE_VERSION ? parsed : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function savePersistentArCache(userId, payload) {
+        if (!userId) return;
+        try {
+            localStorage.setItem(`${AR_CACHE_LS_PREFIX}${userId}`, JSON.stringify({
+                version: AR_CACHE_VERSION,
+                savedAt: Date.now(),
+                ...payload,
+            }));
+        } catch (err) {
+            console.warn('[Academic Records] Could not save persistent cache:', err.message || err);
+        }
+    }
+
+    function loadSessionArCache(userId) {
+        if (!userId) return null;
+        try {
+            const raw = sessionStorage.getItem(`${AR_CACHE_SS_PREFIX}${userId}`);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed?.version === AR_CACHE_VERSION ? parsed : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function saveSessionArCache(userId, payload) {
+        if (!userId) return;
+        try {
+            sessionStorage.setItem(`${AR_CACHE_SS_PREFIX}${userId}`, JSON.stringify({
+                version: AR_CACHE_VERSION,
+                savedAt: Date.now(),
+                ...payload,
+            }));
+        } catch (err) {
+            console.warn('[Academic Records] Could not save session cache:', err.message || err);
+        }
+    }
+
+    function clearAcademicRecordsCache(userId) {
+        if (userId) {
+            localStorage.removeItem(`${AR_CACHE_LS_PREFIX}${userId}`);
+            sessionStorage.removeItem(`${AR_CACHE_SS_PREFIX}${userId}`);
+        }
+        lastAcademicRecordsUserId = null;
+        recordsLoadContext = null;
+    }
+
+    function resolveCachedEntriesForYears(yearRecordsById, userId, options = {}) {
+        const persistentCache = options.force ? null : loadPersistentArCache(userId);
+        const sessionCache = options.force ? null : loadSessionArCache(userId);
+
+        const mergedEntries = {
+            ...(persistentCache?.entriesByYearId || {}),
+            ...(sessionCache?.entriesByYearId || {}),
+        };
+        const mergedFingerprints = {
+            ...(persistentCache?.yearFingerprints || {}),
+            ...(sessionCache?.yearFingerprints || {}),
+        };
+
+        const yearIdsNeedingFetch = [];
+        Object.values(yearRecordsById).forEach((yearRecord) => {
+            const fingerprint = buildYearFingerprint(yearRecord);
+            const cachedFingerprint = mergedFingerprints[yearRecord.id];
+            const cachedEntries = mergedEntries[yearRecord.id];
+
+            if (
+                Array.isArray(cachedEntries)
+                && cachedFingerprint === fingerprint
+                && (isYearRecordStable(yearRecord) || sessionCache?.entriesByYearId?.[yearRecord.id])
+            ) {
+                return;
+            }
+
+            yearIdsNeedingFetch.push(yearRecord.id);
+        });
+
+        return {
+            mergedEntries,
+            mergedFingerprints,
+            yearIdsNeedingFetch,
+        };
+    }
+
+    function persistAcademicRecordsCache(userId, yearRecordsById, entriesByYearId) {
+        if (!userId) return;
+
+        const yearFingerprints = {};
+        Object.values(yearRecordsById).forEach((yearRecord) => {
+            if (entriesByYearId[yearRecord.id]) {
+                yearFingerprints[yearRecord.id] = buildYearFingerprint(yearRecord);
+            }
+        });
+
+        const stableEntries = {};
+        const stableFingerprints = {};
+        Object.values(yearRecordsById).forEach((yearRecord) => {
+            if (!isYearRecordStable(yearRecord) || !entriesByYearId[yearRecord.id]) return;
+            stableEntries[yearRecord.id] = entriesByYearId[yearRecord.id];
+            stableFingerprints[yearRecord.id] = yearFingerprints[yearRecord.id];
+        });
+
+        if (Object.keys(stableEntries).length) {
+            savePersistentArCache(userId, {
+                entriesByYearId: stableEntries,
+                yearFingerprints: stableFingerprints,
+            });
+        }
+
+        saveSessionArCache(userId, {
+            entriesByYearId,
+            yearFingerprints,
+        });
+    }
 
     function getProgressStatusLabel(yearRecord, gradeLevel = '') {
         if (!yearRecord) return 'No current year record';
@@ -2703,8 +2852,7 @@
         if (options.force || options.expandState || options.scrollAnchor) return false;
         const root = document.getElementById('academic-records-root');
         if (!root?.querySelector('.student-record-panel')) return false;
-        if (!userId || userId !== lastAcademicRecordsUserId) return false;
-        return Date.now() - lastAcademicRecordsLoadAt < ACADEMIC_RECORDS_STALE_MS;
+        return Boolean(userId && userId === lastAcademicRecordsUserId);
     }
 
     async function loadAcademicRecords(options = {}) {
@@ -2715,6 +2863,10 @@
         if (!user) {
             root.innerHTML = '<div class="hub-empty-state">Please log in to manage academic records.</div>';
             return;
+        }
+
+        if (options.force) {
+            clearAcademicRecordsCache(user.id);
         }
 
         if (shouldSkipAcademicRecordsReload(user.id, options)) {
@@ -2786,11 +2938,23 @@
                 });
             });
 
+            const {
+                mergedEntries,
+                yearIdsNeedingFetch,
+            } = resolveCachedEntriesForYears(yearRecordsById, user.id, options);
+
+            const freshEntries = yearIdsNeedingFetch.length
+                ? await fetchGradeEntriesForYearRecords(yearIdsNeedingFetch)
+                : {};
+            const entriesByYearId = { ...mergedEntries, ...freshEntries };
+
+            persistAcademicRecordsCache(user.id, yearRecordsById, entriesByYearId);
+
             recordsLoadContext = {
                 studentsById: Object.fromEntries(students.map((student) => [student.id, student])),
                 yearsByStudent,
                 yearRecordsById,
-                entriesByYearId: {},
+                entriesByYearId,
             };
 
             const preloadTargets = [];
@@ -2876,7 +3040,6 @@
             restoreExpandState(root, expandState);
             bindAccordionControls(root);
             bindAddPanelControls(root);
-            lastAcademicRecordsLoadAt = Date.now();
             lastAcademicRecordsUserId = user.id;
 
             const uniquePreloadTargets = [...new Map(preloadTargets.map((target) => [
@@ -3374,6 +3537,7 @@
         dismissAddPanel,
         setAddPanelMode,
         loadAcademicRecords,
+        clearAcademicRecordsCache,
         showGradeEquivalencyChart,
         handleAddStudent,
         handleAddCourse,

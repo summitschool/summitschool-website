@@ -9,12 +9,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260708">
+    <link rel="stylesheet" href="assets/styles.css?v=20260712">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-[#F8F6F1] text-slate-800 body-text antialiased">
+    <div id="auth-transition-overlay" class="auth-transition-overlay hidden" aria-live="polite" aria-busy="true" role="status">
+        <div class="auth-transition-card">
+            <img src="images/logo.png?v=20260615" alt="" class="auth-transition-logo" width="72" height="72" decoding="async">
+            <div class="auth-transition-spinner" aria-hidden="true"></div>
+            <p class="auth-transition-title heading-serif">Signing you in</p>
+            <p class="auth-transition-subtitle" id="auth-transition-message">Setting up your Family Hub…</p>
+        </div>
+    </div>
     <script>
         (function () {
             var hash = window.location.hash || '';
@@ -27,6 +35,7 @@
 
             // Google OAuth / PKCE sign-in must stay on members.html (do not bounce to confirm-email).
             if (pendingOAuth || hasPkceCode || search.indexOf('auth=oauth') !== -1) {
+                document.documentElement.classList.add('auth-transition-pending');
                 return;
             }
 
@@ -968,7 +977,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260711"></script>
+    <script src="assets/academic-records.js?v=20260712"></script>
     <script src="assets/onboarding-checklist.js?v=20260711"></script>
     <script>
         // =============================================
@@ -1016,8 +1025,6 @@
         let lastAdminSection = 'members';
         let lastDashboardTab = 'my-tasks';
         let currentAdminSection = null;
-        const MY_TASKS_STALE_MS = 60000;
-        let lastMyTasksLoadAt = 0;
         let lastMyTasksUserId = null;
 
         const ADMIN_FAMILY_TASKS_PLACEHOLDER = 'Select a family above to view and manage task due dates.';
@@ -1074,8 +1081,15 @@
         }
 
         async function logoutDueToInactivity() {
+            const { data: { user } } = supabaseClient
+                ? await supabaseClient.auth.getUser()
+                : { data: { user: null } };
+
             sessionStorage.setItem(MEMBER_LOGOUT_REASON_KEY, 'inactivity');
             clearMemberSessionTracking();
+            window.AcademicRecords?.clearAcademicRecordsCache?.(user?.id);
+            lastMyTasksUserId = null;
+
             if (supabaseClient) {
                 await supabaseClient.auth.signOut({ scope: 'local' });
             }
@@ -1180,6 +1194,28 @@
         function clearPendingOAuthAttempt() {
             sessionStorage.removeItem(OAUTH_CALLBACK_KEY);
             localStorage.removeItem(OAUTH_CALLBACK_KEY);
+        }
+
+        function showAuthTransition(message = 'Setting up your Family Hub…') {
+            const overlay = document.getElementById('auth-transition-overlay');
+            const msgEl = document.getElementById('auth-transition-message');
+            if (msgEl) msgEl.textContent = message;
+            if (overlay) overlay.classList.remove('hidden');
+            document.documentElement.classList.add('auth-transition-active');
+        }
+
+        function hideAuthTransition() {
+            const overlay = document.getElementById('auth-transition-overlay');
+            if (overlay) overlay.classList.add('hidden');
+            document.documentElement.classList.remove('auth-transition-active');
+            document.documentElement.classList.remove('auth-transition-pending');
+        }
+
+        function isAuthTransitionPending() {
+            return document.documentElement.classList.contains('auth-transition-pending')
+                || document.documentElement.classList.contains('auth-transition-active')
+                || hasPendingOAuthAttempt()
+                || hasPkceAuthCode();
         }
 
         function isOAuthCallbackUrl() {
@@ -1340,6 +1376,8 @@
         async function processOAuthCallback() {
             if (!supabaseClient || !shouldHandleAuthCallbackOnMembersPage()) return false;
 
+            showAuthTransition('Completing Google sign-in…');
+
             const params = new URLSearchParams(window.location.search);
             const hashParams = new URLSearchParams(
                 window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash
@@ -1352,6 +1390,7 @@
             if (oauthError) {
                 clearPendingOAuthAttempt();
                 history.replaceState(null, '', window.location.pathname);
+                hideAuthTransition();
                 showOAuthStatus('error', decodeURIComponent(oauthError.replace(/\+/g, ' ')));
                 resetGoogleSignInButton();
                 return true;
@@ -1370,6 +1409,7 @@
             if (error) {
                 clearPendingOAuthAttempt();
                 history.replaceState(null, '', window.location.pathname);
+                hideAuthTransition();
                 showOAuthStatus('error', 'Google sign-in could not be completed. Please try again.');
                 resetGoogleSignInButton();
                 return true;
@@ -1380,6 +1420,7 @@
             if (!activeSession?.user) {
                 clearPendingOAuthAttempt();
                 history.replaceState(null, '', window.location.pathname);
+                hideAuthTransition();
                 if (params.has('code')) {
                     showOAuthStatus('error', 'Google sign-in timed out. Please try again.');
                     resetGoogleSignInButton();
@@ -1425,6 +1466,7 @@
             if (btn) btn.disabled = true;
 
             markPendingOAuthAttempt();
+            showAuthTransition('Redirecting to Google…');
 
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
@@ -1439,6 +1481,7 @@
 
             if (error) {
                 clearPendingOAuthAttempt();
+                hideAuthTransition();
                 resetGoogleSignInButton();
                 await showAppAlert('Google sign-in failed: ' + error.message);
             }
@@ -2250,12 +2293,7 @@
             }
 
             const hasRenderedTasks = list.querySelector('.hub-surface-card, .hub-panel, #onboarding-task-card, #id-task-card');
-            if (
-                !options.force
-                && hasRenderedTasks
-                && lastMyTasksUserId === user.id
-                && Date.now() - lastMyTasksLoadAt < MY_TASKS_STALE_MS
-            ) {
+            if (!options.force && hasRenderedTasks && lastMyTasksUserId === user.id) {
                 return;
             }
 
@@ -2429,7 +2467,6 @@
             }));
 
             list.innerHTML = taskCards.join('');
-            lastMyTasksLoadAt = Date.now();
             lastMyTasksUserId = user.id;
         }
 
@@ -2622,11 +2659,12 @@
         }
 
         // Check current auth state and approval
-        async function checkLoginState() {
+        async function checkLoginState(options = {}) {
             const loginView = document.getElementById('login-view');
             const dashboardView = document.getElementById('dashboard-view');
             const pendingView = document.getElementById('pending-view');
             const headerLogoutBtn = document.getElementById('header-logout-btn');
+            const authPending = !options.skipAuthTransition && isAuthTransitionPending();
 
             function setLogoutButtonsVisible(visible) {
                 if (!headerLogoutBtn) return;
@@ -2658,6 +2696,10 @@
             const { data: { user } } = await supabaseClient.auth.getUser();
 
             if (user) {
+                if (authPending) {
+                    showAuthTransition('Loading your Family Hub…');
+                }
+
                 if (!sessionStorage.getItem(MEMBER_ACTIVITY_KEY)) {
                     recordMemberActivity();
                 }
@@ -2737,7 +2779,16 @@
 
                     setLogoutButtonsVisible(true);
                 }
+
+                hideAuthTransition();
             } else {
+                if (authPending) {
+                    showAuthTransition('Completing sign-in…');
+                    return;
+                }
+
+                hideAuthTransition();
+
                 // Not logged in
                 loginView.classList.remove('hidden');
                 dashboardView.classList.add('hidden');
@@ -5954,25 +6005,26 @@
             const submitBtn = document.querySelector('#login-form button[type="submit"]');
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Signing in...';
             }
 
-            const { data: signInData, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            showAuthTransition('Signing you in…');
+
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
             if (error) {
+                hideAuthTransition();
                 if (submitBtn) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Sign In';
                 }
                 await showAppAlert('Login failed: ' + error.message);
                 return;
             }
 
-            // Success - reload the page to ensure a clean auth state with the new session.
-            // This is the most reliable way on a static site.
-            setTimeout(() => {
-                window.location.reload();
-            }, 150);
+            await checkLoginState();
+            showDashboardTab('my-tasks');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
         }
 
         // Handle Sign Up (with admin approval flow)
@@ -6081,8 +6133,15 @@
 
         // Logout
         async function logout() {
+            const { data: { user } } = supabaseClient
+                ? await supabaseClient.auth.getUser()
+                : { data: { user: null } };
+
             clearMemberSessionTracking();
             sessionStorage.removeItem(MEMBER_LOGOUT_REASON_KEY);
+            window.AcademicRecords?.clearAcademicRecordsCache?.(user?.id);
+            lastMyTasksUserId = null;
+
             if (supabaseClient) {
                 await supabaseClient.auth.signOut({ scope: 'local' });
             }
@@ -6141,6 +6200,10 @@
 
         // Initialize everything
         async function init() {
+            if (document.documentElement.classList.contains('auth-transition-pending')) {
+                showAuthTransition('Completing Google sign-in…');
+            }
+
             initSupabaseClient();
             updateOpeningNotice();
             handleAuthRedirect();
@@ -6167,7 +6230,8 @@
             if (supabaseClient) {
                 supabaseClient.auth.onAuthStateChange(() => {
                     if (signupInProgress) return;
-                    checkLoginState();
+                    if (isAuthTransitionPending()) return;
+                    checkLoginState({ skipAuthTransition: true });
                 });
             }
 
