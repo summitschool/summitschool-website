@@ -1034,7 +1034,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260717"></script>
+    <script src="assets/academic-records.js?v=20260718"></script>
     <script src="assets/onboarding-checklist.js?v=20260711"></script>
     <script>
         // =============================================
@@ -2249,7 +2249,7 @@
         // Tab switching for the logged-in dashboard (My Documents / My Tasks / Resources / Family Records / Admin)
         function showDashboardTab(tab) {
             if (lastDashboardTab === 'academic-records' && tab !== 'academic-records') {
-                window.AcademicRecords?.dismissAddPanel?.();
+                window.AcademicRecords?.collapseStudentPanels?.();
             }
 
             if (lastDashboardTab === 'admin' && tab !== 'admin') {

@@ -688,6 +688,38 @@
         });
     }
 
+    function collapseStudentPanels() {
+        closeAddPanel();
+        const root = document.getElementById('academic-records-root');
+        collapseOpenStudentPanels(root);
+        setFocusStudentId(null);
+    }
+
+    async function focusStudentPanel(studentId) {
+        if (!studentId) return;
+
+        const root = document.getElementById('academic-records-root');
+        if (!root) return;
+
+        closeAddPanel();
+        collapseOpenStudentPanels(root);
+
+        const panel = document.getElementById(`student-panel-${studentId}`)
+            || root.querySelector(`.student-record-panel[data-student-id="${studentId}"]`);
+        if (!panel) return;
+
+        root.querySelectorAll('.student-record-panel[open]').forEach((other) => {
+            if (other !== panel) other.removeAttribute('open');
+        });
+        panel.setAttribute('open', '');
+
+        const container = getStudentTabsContainer(studentId);
+        const yearId = container?.dataset.arActiveYear || container?.dataset.arDefaultYear;
+        if (yearId) await ensureYearPanelLoaded(studentId, yearId);
+        void hydrateHeaderCreditsForStudent(studentId);
+        scrollToStudentPanel(studentId);
+    }
+
     function resetAddPanelForms(root) {
         root = root || document.getElementById('academic-records-root');
         if (!root) return;
@@ -3006,12 +3038,13 @@
         `;
     }
 
-    function openStudentRecord(studentId) {
+    async function openStudentRecord(studentId) {
+        if (!studentId) return;
         setFocusStudentId(studentId);
         if (typeof window.showDashboardTab === 'function') {
             window.showDashboardTab('academic-records');
         } else if (typeof window.loadAcademicRecords === 'function') {
-            window.loadAcademicRecords();
+            await window.loadAcademicRecords();
         }
     }
 
@@ -3242,7 +3275,7 @@
     }
 
     function shouldSkipAcademicRecordsReload(userId, options = {}) {
-        if (options.force || options.expandState || options.scrollAnchor) return false;
+        if (options.force || options.expandState || options.scrollAnchor || getFocusStudentId()) return false;
         const root = document.getElementById('academic-records-root');
         if (!root?.querySelector('.student-record-panel')) return false;
         return Boolean(userId && userId === lastAcademicRecordsUserId);
@@ -3263,6 +3296,11 @@
         }
 
         if (shouldSkipAcademicRecordsReload(user.id, options)) {
+            const pendingFocusId = getFocusStudentId();
+            if (pendingFocusId) {
+                await focusStudentPanel(pendingFocusId);
+                setFocusStudentId(null);
+            }
             return;
         }
 
@@ -3372,6 +3410,11 @@
                 };
                 lastAcademicRecordsUserId = user.id;
                 void hydrateAllHeaderCredits(students);
+                const pendingFocusId = getFocusStudentId();
+                if (pendingFocusId) {
+                    await focusStudentPanel(pendingFocusId);
+                    setFocusStudentId(null);
+                }
                 return;
             }
 
@@ -3864,6 +3907,8 @@
         scrollToStudentTop,
         toggleAddPanel,
         dismissAddPanel,
+        collapseStudentPanels,
+        focusStudentPanel,
         setAddPanelMode,
         loadAcademicRecords,
         clearAcademicRecordsCache,
