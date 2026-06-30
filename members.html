@@ -971,7 +971,7 @@
 
     <script src="assets/app-dialog.js?v=20260707"></script>
     <script src="assets/academic-records.js?v=20260701"></script>
-    <script src="assets/onboarding-checklist.js?v=20260713"></script>
+    <script src="assets/onboarding-checklist.js?v=20260702"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -2258,7 +2258,9 @@
                 return;
             }
 
-            const tasks = (taskDocs || []).filter(isTaskDocument);
+            const tasks = window.OnboardingChecklist?.sortTasksForDisplay
+                ? window.OnboardingChecklist.sortTasksForDisplay((taskDocs || []).filter(isTaskDocument))
+                : (taskDocs || []).filter(isTaskDocument);
 
             const pendingCount = tasks.length;
             const hasOverdue = tasks.some(task => getTaskDueDateInfo(task).overdue);
@@ -2285,13 +2287,13 @@
             }
 
             let html = '';
-            const ID_TASK_TITLE = 'Upload Government Issued ID (required)';
 
             for (const task of tasks) {
                 const isOnboardingTask = window.OnboardingChecklist?.isOnboardingTask?.(task);
                 const progressStudentId = window.AcademicRecords?.parseProgressReportStudentId?.(task.url);
                 const isProgressReportTask = Boolean(progressStudentId);
-                const isIDTask = task.title && task.title.toLowerCase().includes('upload government issued id');
+                const isIDTask = window.OnboardingChecklist?.isIdUploadTask?.(task)
+                    || (task.title && task.title.toLowerCase().includes('upload government issued id'));
                 const dueDates = renderTaskDueDatesHtml(task);
                 const overdueIcon = dueDates.overdue
                     ? '<span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-red-100 text-red-600" title="Overdue"><i class="fas fa-exclamation text-sm"></i></span>'
@@ -3632,7 +3634,7 @@
             try {
                 await sendApprovalEmail(profile);
                 const name = formatFamilyName(profile);
-                showPendingApprovalsStatus('success', `Family approved! Setup checklist and ID task assigned. Approval email sent to ${name} at ${profile.email}.`);
+                showPendingApprovalsStatus('success', `Family approved! Setup checklist, Code of Conduct, and ID tasks assigned. Approval email sent to ${name} at ${profile.email}.`);
             } catch (emailErr) {
                 console.error('Approval email failed:', emailErr);
                 showPendingApprovalsStatus('warning', `Family approved and setup tasks assigned, but the approval email could not be sent to ${profile.email}: ${emailErr.message || emailErr}`);

@@ -86,6 +86,7 @@ ALTER TABLE public.grade_entries ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS public.family_onboarding (
   family_user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   guide_read boolean NOT NULL DEFAULT false,
+  manual_checks jsonb NOT NULL DEFAULT '{}'::jsonb,
   completed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
