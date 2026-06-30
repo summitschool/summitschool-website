@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260716">
+    <link rel="stylesheet" href="assets/styles.css?v=20260717">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1034,7 +1034,7 @@
     </div>
 
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/academic-records.js?v=20260716"></script>
+    <script src="assets/academic-records.js?v=20260717"></script>
     <script src="assets/onboarding-checklist.js?v=20260711"></script>
     <script>
         // =============================================
@@ -1298,6 +1298,23 @@
             hideAuthTransition();
         }
 
+        function completeSignInTransition() {
+            const loginView = document.getElementById('login-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const pendingView = document.getElementById('pending-view');
+            const authResolved = (dashboardView && !dashboardView.classList.contains('hidden'))
+                || (pendingView && !pendingView.classList.contains('hidden'));
+
+            if (authResolved && loginView) {
+                loginView.classList.add('hidden');
+            }
+
+            oauthCallbackInProgress = false;
+            clearPendingOAuthAttempt();
+            document.documentElement.classList.remove('auth-login-locked');
+            hideAuthTransition();
+        }
+
         function releaseAuthTransitionHandoff() {
             const transitionActive = oauthCallbackInProgress
                 || document.documentElement.classList.contains('auth-transition-pending')
@@ -1306,7 +1323,6 @@
 
             if (!transitionActive) return;
 
-            const loginView = document.getElementById('login-view');
             const dashboardView = document.getElementById('dashboard-view');
             const pendingView = document.getElementById('pending-view');
             const dashboardReady = dashboardView && !dashboardView.classList.contains('hidden');
@@ -1318,14 +1334,10 @@
                 return;
             }
 
-            if (authResolved && loginView) {
-                loginView.classList.add('hidden');
-            }
-
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     setTimeout(() => {
-                        finishOAuthHandoff();
+                        completeSignInTransition();
                     }, 32);
                 });
             });
@@ -6150,6 +6162,7 @@
 
             await checkLoginState();
             showDashboardTab('my-tasks');
+            completeSignInTransition();
             if (submitBtn) {
                 submitBtn.disabled = false;
             }

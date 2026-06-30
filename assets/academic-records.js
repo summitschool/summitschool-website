@@ -244,6 +244,18 @@
         `;
     }
 
+    function buildStudentOpenButtonHtml(studentId) {
+        return `
+            <button type="button"
+                    class="ar-add-close-btn ar-student-open-btn"
+                    data-ar-student-open="${escapeHtml(studentId)}"
+                    aria-label="Open student record">
+                <span class="ar-add-close-icon" aria-hidden="true">›</span>
+                <span>Open</span>
+            </button>
+        `;
+    }
+
     function buildStudentCloseButtonHtml(studentId) {
         return `
             <button type="button"
@@ -313,7 +325,7 @@
             hint: 'Tap student to open',
             hintOpen: 'Tap student to close',
             extraClass,
-            trailingActionHtml: buildStudentCloseButtonHtml(student.id),
+            trailingActionHtml: `${buildStudentOpenButtonHtml(student.id)}${buildStudentCloseButtonHtml(student.id)}`,
         });
     }
 
@@ -951,6 +963,21 @@
 
     function bindStudentPanelBehavior(root) {
         if (!root) return;
+
+        root.querySelectorAll('[data-ar-student-open]').forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const panel = button.closest('.student-record-panel');
+                if (!panel || panel.hasAttribute('open')) return;
+
+                closeAddPanel();
+                root.querySelectorAll('.student-record-panel[open]').forEach((other) => {
+                    if (other !== panel) other.removeAttribute('open');
+                });
+                panel.setAttribute('open', '');
+            });
+        });
 
         root.querySelectorAll('[data-ar-student-close]').forEach((button) => {
             button.addEventListener('click', (event) => {

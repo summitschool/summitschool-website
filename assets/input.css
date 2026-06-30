@@ -2176,11 +2176,13 @@ html.auth-transition-active #pending-view {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
+.student-record-panel .ar-student-open-btn,
 .student-record-panel .ar-student-close-btn {
   display: none;
 }
 
 @media (max-width: 639px) {
+  .student-record-panel:not([open]) .ar-student-open-btn,
   .student-record-panel[open] .ar-student-close-btn {
     display: inline-flex;
     position: absolute;
@@ -2189,8 +2191,14 @@ html.auth-transition-active #pending-view {
     z-index: 3;
   }
 
+  .student-record-panel:not([open]) > summary.ar-student-panel-trigger,
   .student-record-panel[open] > summary.ar-student-panel-trigger {
     padding-right: 5.75rem;
+  }
+
+  #academic-records-root .student-record-panel .ar-accordion-hint,
+  .ar-admin-records-root .student-record-panel .ar-accordion-hint {
+    display: none !important;
   }
 }
 
