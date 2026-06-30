@@ -209,7 +209,6 @@
 
     function wrapAccordionBody(bodyHtml, closeLabel) {
         return `
-            ${buildAccordionCloseBar(closeLabel)}
             <div class="ar-accordion-body">${bodyHtml}</div>
             ${buildAccordionCloseBar(closeLabel, true)}
         `;
