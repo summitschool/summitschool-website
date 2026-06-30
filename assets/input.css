@@ -1306,6 +1306,108 @@ body.app-dialog-open {
   max-width: 20rem;
 }
 
+/* Academic records — accordion panels with obvious open/close affordances */
+.ar-accordion > summary.ar-accordion-trigger {
+  position: relative;
+}
+
+.ar-accordion-leading {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.ar-accordion-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #0a2540;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.ar-accordion[open] > summary .ar-accordion-chevron {
+  transform: rotate(180deg);
+  background: #e2e8f0;
+}
+
+.ar-accordion-label {
+  min-width: 0;
+}
+
+.ar-accordion-hint {
+  flex: 1 0 100%;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #64748b;
+  padding-top: 0.15rem;
+}
+
+.ar-accordion[open] .ar-accordion-hint {
+  display: none;
+}
+
+.ar-accordion-closebar {
+  padding: 0.65rem 1rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.ar-accordion-closebar--bottom {
+  border-bottom: 0;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 0.5rem;
+  padding-top: 0.85rem;
+  padding-bottom: 0.65rem;
+}
+
+.ar-accordion-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: 2.85rem;
+  padding: 0.7rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0a2540;
+  font-size: 0.875rem;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  touch-action: manipulation;
+}
+
+.ar-accordion-close-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.ar-accordion-close-btn:active {
+  transform: scale(0.99);
+}
+
+.ar-accordion-close-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.ar-accordion-body {
+  display: block;
+}
+
+.ar-attendance-panel input[readonly] {
+  cursor: default;
+}
+
 /* Academic records — mobile-friendly layout */
 @media (max-width: 639px) {
   #academic-records-root .ar-summary-row {
@@ -1322,20 +1424,26 @@ body.app-dialog-open {
     max-width: 100%;
   }
 
-  #academic-records-root .student-record-panel > summary,
-  #academic-records-root [data-ar-progress-year] > summary,
-  #academic-records-root [data-ar-backfill-year] > summary {
+  #academic-records-root .ar-accordion-trigger {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
   }
 
-  #academic-records-root .student-record-panel > div,
-  #academic-records-root [data-ar-progress-year] > div,
-  #academic-records-root [data-ar-backfill-year] > div,
-  #academic-records-root [data-ar-backfill-group] > div,
-  #academic-records-root [data-ar-prior-years] > div {
+  #academic-records-root .ar-accordion-body > div,
+  #academic-records-root .ar-accordion-closebar {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
+  }
+
+  #academic-records-root .ar-accordion-hint {
+    font-size: 0.72rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0.1rem;
+  }
+
+  #academic-records-root .ar-accordion-close-btn {
+    min-height: 3rem;
+    font-size: 0.95rem;
   }
 
   #academic-records-root .ar-summary-left {

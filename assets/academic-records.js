@@ -183,6 +183,178 @@
         return `Grade ${raw}`;
     }
 
+    function parseAttendanceDays(value) {
+        const raw = String(value ?? '').trim();
+        if (!raw) return null;
+        const num = Number(raw);
+        if (!Number.isFinite(num) || num < 0 || num > 200 || Math.floor(num) !== num) return null;
+        return num;
+    }
+
+    const ACCORDION_CHEVRON_SVG = '<svg class="ar-accordion-chevron-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    function buildAccordionCloseButton(label) {
+        return `
+            <button type="button" class="ar-accordion-close-btn" data-ar-collapse>
+                <span class="ar-accordion-close-icon" aria-hidden="true">←</span>
+                ${escapeHtml(label)}
+            </button>
+        `;
+    }
+
+    function buildAccordionCloseBar(label, bottom = false) {
+        const bottomClass = bottom ? ' ar-accordion-closebar--bottom' : '';
+        return `<div class="ar-accordion-closebar${bottomClass}">${buildAccordionCloseButton(label)}</div>`;
+    }
+
+    function wrapAccordionBody(bodyHtml, closeLabel) {
+        return `
+            ${buildAccordionCloseBar(closeLabel)}
+            <div class="ar-accordion-body">${bodyHtml}</div>
+            ${buildAccordionCloseBar(closeLabel, true)}
+        `;
+    }
+
+    function buildAccordionSummary(options = {}) {
+        const {
+            leftHtml,
+            rightHtml = '',
+            hint = 'Tap to open',
+            extraClass = '',
+        } = options;
+
+        return `
+            <summary class="ar-accordion-trigger ar-summary-row list-none ${extraClass}">
+                <span class="ar-accordion-leading ar-summary-left">
+                    <span class="ar-accordion-chevron">${ACCORDION_CHEVRON_SVG}</span>
+                    <span class="ar-accordion-label">${leftHtml}</span>
+                </span>
+                ${rightHtml ? `<span class="ar-summary-right">${rightHtml}</span>` : ''}
+                <span class="ar-accordion-hint">${escapeHtml(hint)}</span>
+            </summary>
+        `;
+    }
+
+    function buildAttendanceHtml(yearRecord, options = {}) {
+        if (yearRecord.entry_type !== 'current') return '';
+
+        const readonly = options.readonly || false;
+        const editS1 = canEditSemester(yearRecord, '1') && !readonly;
+        const editS2 = canEditSemester(yearRecord, '2') && !readonly;
+        const s1Value = yearRecord.semester_1_attendance_days ?? '';
+        const s2Value = yearRecord.semester_2_attendance_days ?? '';
+        const s1Display = s1Value === '' || s1Value === null ? '' : String(s1Value);
+        const s2Display = s2Value === '' || s2Value === null ? '' : String(s2Value);
+        const total = (parseAttendanceDays(s1Display) ?? 0) + (parseAttendanceDays(s2Display) ?? 0);
+        const hasAny = parseAttendanceDays(s1Display) !== null || parseAttendanceDays(s2Display) !== null;
+
+        return `
+            <div class="ar-attendance-panel p-3 border border-emerald-200 rounded-xl bg-emerald-50/40"
+                 data-ar-attendance="${yearRecord.id}">
+                <div class="text-sm font-semibold text-emerald-900 mb-1">Attendance</div>
+                <p class="text-xs text-slate-600 mb-3">Enter the number of <strong>school days attended</strong> each semester. Total updates automatically.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Semester 1 days</label>
+                        <input type="number" min="0" max="200" step="1" inputmode="numeric"
+                               class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                               value="${escapeHtml(s1Display)}"
+                               data-field="semester_1_attendance_days"
+                               placeholder="e.g. 88"
+                               ${editS1 ? '' : 'readonly'}>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Semester 2 days</label>
+                        <input type="number" min="0" max="200" step="1" inputmode="numeric"
+                               class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                               value="${escapeHtml(s2Display)}"
+                               data-field="semester_2_attendance_days"
+                               placeholder="e.g. 90"
+                               ${editS2 ? '' : 'readonly'}>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Total days</label>
+                        <input type="text" readonly tabindex="-1"
+                               class="form-input w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700"
+                               value="${hasAny ? String(total) : ''}"
+                               data-field="attendance_total"
+                               placeholder="Auto-calculated">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function collectAttendanceFromPanel(yearRecordId) {
+        const panel = document.querySelector(`[data-ar-attendance="${yearRecordId}"]`);
+        if (!panel) return {};
+        return {
+            semester_1_attendance_days: parseAttendanceDays(
+                panel.querySelector('[data-field="semester_1_attendance_days"]')?.value
+            ),
+            semester_2_attendance_days: parseAttendanceDays(
+                panel.querySelector('[data-field="semester_2_attendance_days"]')?.value
+            ),
+        };
+    }
+
+    function validateAttendanceForSubmit(yearRecord, semesterKey, attendance) {
+        if (yearRecord.entry_type !== 'current') return;
+
+        if (semesterKey === '1' && attendance.semester_1_attendance_days === null) {
+            throw new Error('Enter Semester 1 attendance (school days attended) before submitting.');
+        }
+
+        if (semesterKey === '2') {
+            if (attendance.semester_1_attendance_days === null) {
+                throw new Error('Semester 1 attendance is missing. Reopen with the school office if needed.');
+            }
+            if (attendance.semester_2_attendance_days === null) {
+                throw new Error('Enter Semester 2 attendance (school days attended) before submitting.');
+            }
+        }
+    }
+
+    function bindAccordionControls(root) {
+        if (!root) return;
+
+        root.querySelectorAll('[data-ar-collapse]').forEach((button) => {
+            if (button.dataset.arCollapseBound === '1') return;
+            button.dataset.arCollapseBound = '1';
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const details = button.closest('details');
+                if (!details) return;
+                details.removeAttribute('open');
+                const summary = details.querySelector('summary');
+                if (summary) {
+                    summary.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        });
+    }
+
+    function bindAttendanceEvents(root) {
+        if (!root) return;
+
+        root.querySelectorAll('[data-ar-attendance]').forEach((panel) => {
+            const s1Input = panel.querySelector('[data-field="semester_1_attendance_days"]');
+            const s2Input = panel.querySelector('[data-field="semester_2_attendance_days"]');
+            const totalInput = panel.querySelector('[data-field="attendance_total"]');
+
+            const updateTotal = () => {
+                const total = (parseAttendanceDays(s1Input?.value) ?? 0) + (parseAttendanceDays(s2Input?.value) ?? 0);
+                const hasAny = parseAttendanceDays(s1Input?.value) !== null || parseAttendanceDays(s2Input?.value) !== null;
+                if (totalInput) totalInput.value = hasAny ? String(total) : '';
+            };
+
+            s1Input?.addEventListener('input', updateTotal);
+            s2Input?.addEventListener('input', updateTotal);
+            updateTotal();
+        });
+    }
+
     function isHighSchoolGrade(level) {
         return HIGH_SCHOOL_GRADES.has(String(level || '').trim());
     }
@@ -585,7 +757,7 @@
         return false;
     }
 
-    async function submitSemester(yearRecord, semesterKey, ackName, entries) {
+    async function submitSemester(yearRecord, semesterKey, ackName, entries, attendance = {}) {
         const client = await getClient();
         if (!canEditSemester(yearRecord, semesterKey)) {
             throw new Error('This semester is locked. Contact the school office to request changes.');
@@ -593,10 +765,20 @@
 
         const gradeLevel = yearRecord.grade_level;
         validateEntriesForSubmit(entries, yearRecord, gradeLevel, semesterKey);
+        validateAttendanceForSubmit(yearRecord, semesterKey, attendance);
         await saveGradeEntries(entries, gradeLevel);
 
         const now = new Date().toISOString();
         const patch = { updated_at: now, admin_reopened_at: null, admin_reopened_note: null };
+
+        if (yearRecord.entry_type === 'current') {
+            if (attendance.semester_1_attendance_days !== null && attendance.semester_1_attendance_days !== undefined) {
+                patch.semester_1_attendance_days = attendance.semester_1_attendance_days;
+            }
+            if (attendance.semester_2_attendance_days !== null && attendance.semester_2_attendance_days !== undefined) {
+                patch.semester_2_attendance_days = attendance.semester_2_attendance_days;
+            }
+        }
 
         if (yearRecord.entry_type === 'backfill') {
             Object.assign(patch, {
@@ -1241,9 +1423,13 @@
                 let priorBlock = '';
                 if (isHighSchoolGrade(student.current_grade_level)) {
                     priorBlock = `
-                        <details class="border border-sky-200 rounded-2xl bg-sky-50/40" data-ar-prior-years="${student.id}">
-                            <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-sky-900">Prior school years (high school)</summary>
-                            <div class="px-4 pb-4 border-t border-sky-100 space-y-3">
+                        <details class="ar-accordion border border-sky-200 rounded-2xl bg-sky-50/40" data-ar-prior-years="${student.id}">
+                            ${buildAccordionSummary({
+                                leftHtml: '<span class="text-sm font-semibold text-sky-900">Prior school years (high school)</span>',
+                                hint: 'Tap to manage prior years',
+                                extraClass: 'px-4 py-3 cursor-pointer',
+                            })}
+                            ${wrapAccordionBody(`<div class="px-4 pb-4 border-t border-sky-100 space-y-3">
                                 <p class="text-xs text-slate-600 pt-3">Add years before Summit if this student joined mid-stream. Full-year grades only.</p>
                                 <form class="flex flex-wrap gap-2 items-end" onsubmit="window.AcademicRecords.handleAddBackfill(event, '${student.id}')">
                                     <select name="school_year" class="form-input px-3 py-2 text-sm border border-slate-300 rounded-xl" required>
@@ -1263,7 +1449,7 @@
                                     : student.prior_years_status === 'not_applicable'
                                         ? '<span class="text-xs text-slate-500">No prior years needed</span>'
                                         : '<span class="text-xs text-amber-700">Add each prior high school year, then mark complete</span>'}
-                            </div>
+                            </div>`, 'Close prior years')}
                         </details>
                     `;
                 } else {
@@ -1279,16 +1465,19 @@
                 if (currentRecord) {
                     const entries = await fetchGradeEntries(currentRecord.id);
                     currentYearSection = `
-                        <details class="border border-amber-200 rounded-2xl bg-amber-50/30" data-ar-progress-year="${currentRecord.id}" ${isFocused ? 'open' : ''}>
-                            <summary class="ar-summary-row px-4 py-3 cursor-pointer list-none">
-                                <span class="ar-summary-left font-semibold text-navy">${currentYear} progress report</span>
-                                <span class="ar-summary-right text-xs text-slate-500">${escapeHtml(formatGradeLabel(currentRecord.grade_level))} · ${escapeHtml(currentYear)} · ${escapeHtml(statusLabel)}</span>
-                            </summary>
-                            <div class="p-4 border-t border-amber-100 space-y-4">
+                        <details class="ar-accordion border border-amber-200 rounded-2xl bg-amber-50/30" data-ar-progress-year="${currentRecord.id}" ${isFocused ? 'open' : ''}>
+                            ${buildAccordionSummary({
+                                leftHtml: `<span class="font-semibold text-navy">${escapeHtml(currentYear)} progress report</span>`,
+                                rightHtml: `<span class="text-xs text-slate-500">${escapeHtml(formatGradeLabel(currentRecord.grade_level))} · ${escapeHtml(currentYear)} · ${escapeHtml(statusLabel)}</span>`,
+                                hint: 'Tap to open progress report',
+                                extraClass: 'px-4 py-3 cursor-pointer',
+                            })}
+                            ${wrapAccordionBody(`<div class="p-4 border-t border-amber-100 space-y-4">
+                                ${buildAttendanceHtml(currentRecord)}
                                 ${buildGradeTableHtml(currentRecord, entries)}
                                 ${isHighSchoolGrade(currentRecord.grade_level) ? buildCreditsSummaryHtml(currentRecord, entries, currentRecord.grade_level, student.id) : ''}
                                 ${renderSemesterActions(currentRecord)}
-                            </div>
+                            </div>`, 'Close progress report')}
                         </details>
                     `;
                 }
@@ -1299,41 +1488,46 @@
                     for (const bf of backfills) {
                         const entries = await fetchGradeEntries(bf.id);
                         backfillItems.push(`
-                            <details class="border border-slate-200 rounded-xl" data-ar-backfill-year="${bf.id}">
-                                <summary class="ar-summary-row px-3 py-2 cursor-pointer text-sm list-none">
-                                    <span class="ar-summary-left font-medium text-navy">Prior year</span>
-                                    <span class="ar-summary-right font-medium text-slate-600">${escapeHtml(bf.school_year)} · ${escapeHtml(formatGradeLabel(bf.grade_level))}${bf.year_locked ? ' ✓' : ''}</span>
-                                </summary>
-                                <div class="p-3 border-t border-slate-100 space-y-3">
+                            <details class="ar-accordion border border-slate-200 rounded-xl" data-ar-backfill-year="${bf.id}">
+                                ${buildAccordionSummary({
+                                    leftHtml: '<span class="font-medium text-navy">Prior year</span>',
+                                    rightHtml: `<span class="font-medium text-slate-600">${escapeHtml(bf.school_year)} · ${escapeHtml(formatGradeLabel(bf.grade_level))}${bf.year_locked ? ' ✓' : ''}</span>`,
+                                    hint: 'Tap to open',
+                                    extraClass: 'px-3 py-2 cursor-pointer text-sm',
+                                })}
+                                ${wrapAccordionBody(`<div class="p-3 border-t border-slate-100 space-y-3">
                                     ${buildGradeTableHtml(bf, entries)}
                                     ${isHighSchoolGrade(bf.grade_level) ? buildCreditsSummaryHtml(bf, entries, bf.grade_level, student.id) : ''}
                                     ${renderBackfillActions(bf)}
-                                </div>
+                                </div>`, 'Close prior year')}
                             </details>
                         `);
                     }
                     backfillSections = `
-                        <details class="border border-slate-200 rounded-2xl" data-ar-backfill-group="${student.id}">
-                            <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-navy">Prior year records (${backfills.length})</summary>
-                            <div class="p-4 border-t border-slate-100 space-y-2">${backfillItems.join('')}</div>
+                        <details class="ar-accordion border border-slate-200 rounded-2xl" data-ar-backfill-group="${student.id}">
+                            ${buildAccordionSummary({
+                                leftHtml: `<span class="text-sm font-semibold text-navy">Prior year records (${backfills.length})</span>`,
+                                hint: 'Tap to view prior years',
+                                extraClass: 'px-4 py-3 cursor-pointer',
+                            })}
+                            ${wrapAccordionBody(`<div class="p-4 border-t border-slate-100 space-y-2">${backfillItems.join('')}</div>`, 'Close prior year records')}
                         </details>
                     `;
                 }
 
                 html += `
-                    <details class="border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
-                        <summary class="ar-summary-row px-5 py-4 cursor-pointer list-none hover:bg-slate-50">
-                            <span class="ar-summary-left font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>
-                            <span class="ar-summary-right text-sm text-slate-500">
-                                ${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}
-                                ${creditHeaderHtml}
-                            </span>
-                        </summary>
-                        <div class="px-5 pb-5 border-t border-slate-100 space-y-4">
+                    <details class="ar-accordion border border-slate-200 rounded-3xl bg-white overflow-hidden student-record-panel" id="student-panel-${student.id}" data-student-id="${student.id}" ${isFocused ? 'open' : ''}>
+                        ${buildAccordionSummary({
+                            leftHtml: `<span class="font-semibold text-lg text-navy">${escapeHtml(studentDisplayName(student))}</span>`,
+                            rightHtml: `<span class="text-sm text-slate-500">${escapeHtml(gradeLabel)} · ${escapeHtml(statusLabel)}${creditHeaderHtml}</span>`,
+                            hint: 'Tap student to open',
+                            extraClass: 'px-5 py-4 cursor-pointer hover:bg-slate-50',
+                        })}
+                        ${wrapAccordionBody(`<div class="px-5 pb-5 border-t border-slate-100 space-y-4">
                             ${priorBlock}
                             ${currentYearSection}
                             ${backfillSections}
-                        </div>
+                        </div>`, 'Back to all students')}
                     </details>
                 `;
             }
@@ -1344,6 +1538,8 @@
 
             restoreExpandState(root, expandState);
             bindGradeTableEvents();
+            bindAttendanceEvents(root);
+            bindAccordionControls(root);
             hydrateCumulativeCredits();
 
             if (focusId) {
@@ -1419,9 +1615,10 @@
             const client = await getClient();
             const { data: yearRecord } = await client.from('student_school_years').select('*').eq('id', yearRecordId).single();
             const entries = collectEntriesFromTable(table);
+            const attendance = collectAttendanceFromPanel(yearRecordId);
             const root = document.getElementById('academic-records-root');
             const expandState = root ? captureExpandState(root) : null;
-            await submitSemester(yearRecord, semesterKey, ackName, entries);
+            await submitSemester(yearRecord, semesterKey, ackName, entries, attendance);
             await loadAcademicRecords({ expandState });
             if (typeof window.loadMyTasks === 'function') await window.loadMyTasks();
         } catch (err) {
@@ -1606,6 +1803,7 @@
                         <details class="border border-slate-200 rounded-xl mt-2">
                             <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy list-none">${escapeHtml(yearTitle)}</summary>
                             <div class="p-3 border-t border-slate-100 space-y-3">
+                                ${yearRecord.entry_type === 'current' ? buildAttendanceHtml(yearRecord, { readonly: true }) : ''}
                                 ${buildGradeTableHtml(yearRecord, entries, { readonly: true })}
                                 ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
                                 ${isLocked ? `
@@ -1645,6 +1843,7 @@
             }
             html += '</div>';
             container.innerHTML = html;
+            bindAttendanceEvents(container);
             hydrateCumulativeCredits();
         } catch (err) {
             container.innerHTML = `<div class="text-red-600 text-xs">${escapeHtml(err.message || String(err))}</div>`;
