@@ -90,6 +90,24 @@
         return letter !== 'F';
     }
 
+    function hasSemester1DeadlinePassed(schoolYear, date = new Date()) {
+        const startYear = parseInt(String(schoolYear).split('-')[0], 10);
+        if (!Number.isFinite(startYear)) return false;
+        const deadlineEnd = new Date(startYear, 11, 31, 23, 59, 59, 999);
+        return date.getTime() > deadlineEnd.getTime();
+    }
+
+    function isSemester2Open(yearRecord, date = new Date()) {
+        if (!yearRecord || yearRecord.entry_type === 'backfill') return true;
+        if (yearRecord.admin_reopened_at) return true;
+        return hasSemester1DeadlinePassed(yearRecord.school_year, date);
+    }
+
+    function semester1DeadlineLabel(schoolYear) {
+        const startYear = parseInt(String(schoolYear).split('-')[0], 10);
+        return Number.isFinite(startYear) ? `Dec 31, ${startYear}` : 'Dec 31';
+    }
+
     function getCalendarSemester(schoolYear, date = new Date()) {
         const parts = String(schoolYear || '').split('-');
         const startYear = parseInt(parts[0], 10);
@@ -143,20 +161,20 @@
         }
 
         const reopened = Boolean(yearRecord.admin_reopened_at);
-        const calSem = getCalendarSemester(yearRecord.school_year);
+        const sem2Open = isSemester2Open(yearRecord);
         const editSem1 = canEditSemester(yearRecord, '1');
         const editSem2 = canEditSemester(yearRecord, '2');
         const requirePercent = isHighSchoolGrade(gradeLevel);
 
         if (field === 'semester_1_grade') {
-            return editSem1 && (reopened || calSem === '1');
+            return editSem1;
         }
         if (field === 'semester_2_grade') {
-            return editSem2 && (reopened || calSem === '2');
+            return editSem2 && (reopened || sem2Open);
         }
         if (field === 'final_grade') {
             if (requirePercent) return false;
-            return editSem2 && (reopened || calSem === '2');
+            return editSem2 && (reopened || sem2Open);
         }
         return false;
     }
@@ -314,7 +332,10 @@
     function buildAttendanceHtml(yearRecord, options = {}) {
         const readonly = options.readonly || false;
         const editS1 = canEditSemester(yearRecord, '1') && !readonly;
-        const editS2 = canEditSemester(yearRecord, '2') && !readonly;
+        const sem2Open = isSemester2Open(yearRecord);
+        const editS2 = canEditSemester(yearRecord, '2') && sem2Open && !readonly;
+        const s2Pending = canEditSemester(yearRecord, '2') && !sem2Open && !readonly
+            && yearRecord.entry_type === 'current';
         const s1Value = yearRecord.semester_1_attendance_days ?? '';
         const s2Value = yearRecord.semester_2_attendance_days ?? '';
         const s1Display = s1Value === '' || s1Value === null ? '' : String(s1Value);
@@ -336,14 +357,15 @@
                                placeholder="e.g. 88"
                                ${editS1 ? '' : 'readonly'}>
                     </div>
-                    <div class="ar-attendance-field">
+                    <div class="ar-attendance-field${s2Pending ? ' ar-semester-field--pending' : ''}">
                         <label class="ar-field-label">Semester 2 days</label>
                         <input type="number" min="0" max="200" step="1" inputmode="numeric"
-                               class="ar-supplemental-input"
+                               class="ar-supplemental-input${s2Pending ? ' ar-supplemental-input--pending' : ''}"
                                value="${escapeHtml(s2Display)}"
                                data-field="semester_2_attendance_days"
                                placeholder="e.g. 90"
-                               ${editS2 ? '' : 'readonly'}>
+                               ${editS2 ? '' : 'readonly'}
+                               ${s2Pending ? 'disabled' : ''}>
                     </div>
                     <div class="ar-attendance-field">
                         <label class="ar-field-label">Total days</label>
@@ -1514,6 +1536,9 @@
         if (!canEditSemester(yearRecord, semesterKey)) {
             throw new Error('This semester is locked. Contact the school office to request changes.');
         }
+        if (semesterKey === '2' && yearRecord.entry_type === 'current' && !isSemester2Open(yearRecord)) {
+            throw new Error(`Semester 2 opens after the Semester 1 deadline (${semester1DeadlineLabel(yearRecord.school_year)}).`);
+        }
 
         const gradeLevel = yearRecord.grade_level;
         validateEntriesForSubmit(entries, yearRecord, gradeLevel, semesterKey);
@@ -1846,6 +1871,9 @@
         const editS1 = canEditGradeField(yearRecord, 'semester_1_grade', gradeLevel) && !readonly;
         const editS2 = canEditGradeField(yearRecord, 'semester_2_grade', gradeLevel) && !readonly;
         const editFinal = canEditGradeField(yearRecord, 'final_grade', gradeLevel) && !readonly;
+        const s2Pending = !readonly && yearRecord.entry_type === 'current'
+            && canEditSemester(yearRecord, '2') && !isSemester2Open(yearRecord);
+        const s2FieldClass = s2Pending ? ' ar-grade-field--pending' : '';
         const autoFinal = isHs;
         const displayFinal = autoFinal
             ? computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, true)
@@ -1884,15 +1912,16 @@
                            placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's1'))}"
                            ${editS1 ? '' : 'readonly'}>
                 </td>
-                <td class="py-2 px-2 align-top" data-label="Semester 2${isHs ? ' %' : ''}">
-                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s2"
+                <td class="py-2 px-2 align-top${s2Pending ? ' ar-semester-field--pending' : ''}" data-label="Semester 2${isHs ? ' %' : ''}">
+                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s2${s2FieldClass}"
                            value="${escapeHtml(entry.semester_2_grade || '')}"
                            data-field="semester_2_grade"
                            placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's2'))}"
-                           ${editS2 ? '' : 'readonly'}>
+                           ${editS2 ? '' : 'readonly'}
+                           ${s2Pending ? 'disabled' : ''}>
                 </td>
-                <td class="py-2 pl-2 align-top" data-label="${finalLabel || 'Final'}">
-                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-final ${autoFinal ? 'bg-slate-50' : ''}"
+                <td class="py-2 pl-2 align-top${s2Pending ? ' ar-semester-field--pending' : ''}" data-label="${finalLabel || 'Final'}">
+                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-final ${autoFinal ? 'bg-slate-50' : ''}${s2Pending ? ' ar-grade-field--pending' : ''}"
                            value="${escapeHtml(displayFinal)}"
                            data-field="final_grade"
                            placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 'final'))}"
@@ -2452,13 +2481,18 @@
         }
 
         if (canEditSemester(yearRecord, '2')) {
+            const sem2Open = isSemester2Open(yearRecord);
+            const sem2PendingClass = sem2Open ? '' : ' ar-submit-panel--pending';
+            const sem2Note = sem2Open
+                ? 'Type your full name to confirm grades and attendance are complete.'
+                : `Semester 2 opens after the Semester 1 deadline (${semester1DeadlineLabel(yearRecord.school_year)}).`;
             parts.push(`
-                <div class="ar-supplemental-card ar-accent-submit ar-submit-panel">
+                <div class="ar-supplemental-card ar-accent-submit ar-submit-panel${sem2PendingClass}">
                     ${buildSupplementalCardHeader('Signature', 'Submit Semester 2 & Final')}
-                    <p class="ar-supplemental-muted ar-submit-note">Type your full name to confirm grades and attendance are complete.</p>
-                    <input type="text" id="ack-s2-${yearRecord.id}" class="ar-supplemental-input" placeholder="Parent full name">
+                    <p class="ar-supplemental-muted ar-submit-note">${escapeHtml(sem2Note)}</p>
+                    <input type="text" id="ack-s2-${yearRecord.id}" class="ar-supplemental-input${sem2Open ? '' : ' ar-supplemental-input--pending'}" placeholder="Parent full name" ${sem2Open ? '' : 'disabled'}>
                     <button type="button" class="ar-supplemental-btn ar-supplemental-btn--primary"
-                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '2', this)">Submit Semester 2 &amp; Final</button>
+                            onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '2', this)" ${sem2Open ? '' : 'disabled'}>Submit Semester 2 &amp; Final</button>
                 </div>
             `);
         } else if (yearRecord.semester_2_locked) {
