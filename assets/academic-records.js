@@ -126,8 +126,9 @@
         if (!yearRecord) return false;
 
         if (yearRecord.entry_type === 'backfill') {
-            if (field !== 'final_grade') return false;
-            return canEditSemester(yearRecord, '1');
+            if (!canEditSemester(yearRecord, '1')) return false;
+            if (field === 'final_grade' && isHighSchoolGrade(gradeLevel)) return false;
+            return field === 'semester_1_grade' || field === 'semester_2_grade' || field === 'final_grade';
         }
 
         const reopened = Boolean(yearRecord.admin_reopened_at);
@@ -235,8 +236,6 @@
     }
 
     function buildAttendanceHtml(yearRecord, options = {}) {
-        if (yearRecord.entry_type !== 'current') return '';
-
         const readonly = options.readonly || false;
         const editS1 = canEditSemester(yearRecord, '1') && !readonly;
         const editS2 = canEditSemester(yearRecord, '2') && !readonly;
@@ -298,7 +297,15 @@
     }
 
     function validateAttendanceForSubmit(yearRecord, semesterKey, attendance) {
-        if (yearRecord.entry_type !== 'current') return;
+        if (yearRecord.entry_type === 'backfill') {
+            if (attendance.semester_1_attendance_days === null) {
+                throw new Error('Enter Semester 1 attendance (school days attended) before submitting.');
+            }
+            if (attendance.semester_2_attendance_days === null) {
+                throw new Error('Enter Semester 2 attendance (school days attended) before submitting.');
+            }
+            return;
+        }
 
         if (semesterKey === '1' && attendance.semester_1_attendance_days === null) {
             throw new Error('Enter Semester 1 attendance (school days attended) before submitting.');
@@ -517,7 +524,7 @@
             school_year_record_id: schoolYearRecordId,
             course_name: '',
             course_type: courseType,
-            is_core: courseType !== 'elective',
+            is_core: true,
             sort_order: index,
         }));
         const { error } = await client.from('grade_entries').insert(rows);
@@ -695,7 +702,7 @@
         const s1 = String(entry.semester_1_grade || '').trim();
         const s2 = String(entry.semester_2_grade || '').trim();
         const final = String(entry.final_grade || '').trim();
-        if (isBackfill) return !name && !final;
+        if (isBackfill) return !name && !s1 && !s2 && !final;
         if (semesterKey === '1') return !name && !s1;
         if (semesterKey === '2') return !name && !s1 && !s2;
         return !name && !s1 && !s2 && !final;
@@ -719,7 +726,38 @@
                 throw new Error(`High school courses must use English, Math, Science, History, or Elective tags. Check "${name}".`);
             }
 
-            if (isBackfill || semesterKey === '2') {
+            if (isBackfill) {
+                const s1 = String(entry.semester_1_grade || '').trim();
+                const s2 = String(entry.semester_2_grade || '').trim();
+                if (!s1) {
+                    throw new Error(`Enter Semester 1 grades for "${name}" before submitting.`);
+                }
+                if (!s2) {
+                    throw new Error(`Enter Semester 2 grades for "${name}" before submitting.`);
+                }
+                if (requirePercent && parsePercent(s1) === null) {
+                    throw new Error(`High school Semester 1 grades must be percentages for "${name}".`);
+                }
+                if (requirePercent && parsePercent(s2) === null) {
+                    throw new Error(`High school Semester 2 grades must be percentages for "${name}".`);
+                }
+                if (!requirePercent && !parsePercent(s1) && !parseLetterGrade(s1)) {
+                    throw new Error(`Enter a letter (A–F) or percentage for "${name}" Semester 1.`);
+                }
+                if (!requirePercent && !parsePercent(s2) && !parseLetterGrade(s2)) {
+                    throw new Error(`Enter a letter (A–F) or percentage for "${name}" Semester 2.`);
+                }
+                const final = getEffectiveFinal(entry, gradeLevel);
+                if (!final) {
+                    throw new Error(`Enter grades for "${name}" before submitting.`);
+                }
+                if (requirePercent && parsePercent(final) === null) {
+                    throw new Error(`High school grades must be percentages (0–100) for "${name}".`);
+                }
+                continue;
+            }
+
+            if (semesterKey === '2') {
                 const final = getEffectiveFinal(entry, gradeLevel);
                 if (!final) {
                     throw new Error(`Enter grades for "${name}" before submitting.`);
@@ -729,7 +767,7 @@
                 }
             }
 
-            if (!isBackfill && semesterKey === '1') {
+            if (semesterKey === '1') {
                 const s1 = String(entry.semester_1_grade || '').trim();
                 if (!s1) {
                     throw new Error(`Enter Semester 1 grades for "${name}" before submitting.`);
@@ -742,7 +780,7 @@
                 }
             }
 
-            if (!isBackfill && semesterKey === '2') {
+            if (semesterKey === '2') {
                 const s2 = String(entry.semester_2_grade || '').trim();
                 const s1 = String(entry.semester_1_grade || '').trim();
                 if (!s2 && !s1) {
@@ -782,13 +820,11 @@
         const now = new Date().toISOString();
         const patch = { updated_at: now, admin_reopened_at: null, admin_reopened_note: null };
 
-        if (yearRecord.entry_type === 'current') {
-            if (attendance.semester_1_attendance_days !== null && attendance.semester_1_attendance_days !== undefined) {
-                patch.semester_1_attendance_days = attendance.semester_1_attendance_days;
-            }
-            if (attendance.semester_2_attendance_days !== null && attendance.semester_2_attendance_days !== undefined) {
-                patch.semester_2_attendance_days = attendance.semester_2_attendance_days;
-            }
+        if (attendance.semester_1_attendance_days !== null && attendance.semester_1_attendance_days !== undefined) {
+            patch.semester_1_attendance_days = attendance.semester_1_attendance_days;
+        }
+        if (attendance.semester_2_attendance_days !== null && attendance.semester_2_attendance_days !== undefined) {
+            patch.semester_2_attendance_days = attendance.semester_2_attendance_days;
         }
 
         if (yearRecord.entry_type === 'backfill') {
@@ -1027,10 +1063,8 @@
 
     function buildGradeEntryRowHtml(entry, yearRecord, options = {}) {
         const gradeLevel = yearRecord.grade_level;
-        const isBackfill = yearRecord.entry_type === 'backfill';
         const isHs = isHighSchoolGrade(gradeLevel);
         const readonly = options.readonly || false;
-        const calSem = getCalendarSemester(yearRecord.school_year);
         const canEditMeta = !readonly && (canEditSemester(yearRecord, '1') || canEditSemester(yearRecord, '2'));
         const type = entry.course_type || 'other';
         const meta = courseTypeMeta(type);
@@ -1043,55 +1077,53 @@
             : (computeFinalGrade(entry.semester_1_grade, entry.semester_2_grade, false) || entry.final_grade || '');
 
         const finalLabel = `Final${isHs ? ' %' : ''}`;
+        const showRemove = canEditMeta && !entry.is_core;
 
         return `
             <tr class="border-b border-slate-100" data-entry-id="${entry.id}">
                 <td class="py-2 pr-2 align-top" data-label="Course">
-                    <select class="form-input w-full px-2 py-2 text-xs border border-slate-300 rounded-xl mb-1"
-                            data-field="course_type"
-                            ${canEditMeta ? '' : 'disabled'}>
-                        ${buildCourseTypeOptions(type, gradeLevel)}
-                    </select>
-                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                           value="${escapeHtml(entry.course_name || '')}"
-                           data-field="course_name"
-                           placeholder="${escapeHtml(meta.placeholder)}"
-                           ${canEditMeta ? '' : 'readonly'}>
+                    <div class="flex items-start gap-2">
+                        <div class="flex-1 min-w-0">
+                            <select class="form-input w-full px-2 py-2 text-xs border border-slate-300 rounded-xl mb-1"
+                                    data-field="course_type"
+                                    ${canEditMeta ? '' : 'disabled'}>
+                                ${buildCourseTypeOptions(type, gradeLevel)}
+                            </select>
+                            <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
+                                   value="${escapeHtml(entry.course_name || '')}"
+                                   data-field="course_name"
+                                   placeholder="${escapeHtml(meta.placeholder)}"
+                                   ${canEditMeta ? '' : 'readonly'}>
+                        </div>
+                        ${showRemove ? `
+                            <button type="button" class="ar-remove-course-btn shrink-0"
+                                    title="Remove course"
+                                    onclick="window.AcademicRecords.handleRemoveCourse('${entry.id}', '${yearRecord.id}')">Remove</button>
+                        ` : ''}
+                    </div>
                 </td>
-                ${isBackfill ? `
-                    <td class="py-2 px-2 align-top" data-label="${finalLabel || 'Final'}">
-                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl"
-                               value="${escapeHtml(entry.final_grade || '')}"
-                               data-field="final_grade"
-                               placeholder="${escapeHtml(isHs ? 'e.g. 92' : 'A–F or %')}"
-                               ${editS1 ? '' : 'readonly'}>
-                    </td>
-                ` : `
-                    <td class="py-2 px-2 align-top" data-label="Semester 1${isHs ? ' %' : ''}">
-                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s1"
-                               value="${escapeHtml(entry.semester_1_grade || '')}"
-                               data-field="semester_1_grade"
-                               placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's1'))}"
-                               ${editS1 ? '' : 'readonly'}>
-                        ${!editS1 && calSem === '2' && !yearRecord.semester_1_locked ? '<span class="text-[10px] text-slate-400">Opens Jul–Dec</span>' : ''}
-                    </td>
-                    <td class="py-2 px-2 align-top" data-label="Semester 2${isHs ? ' %' : ''}">
-                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s2"
-                               value="${escapeHtml(entry.semester_2_grade || '')}"
-                               data-field="semester_2_grade"
-                               placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's2'))}"
-                               ${editS2 ? '' : 'readonly'}>
-                        ${!editS2 && calSem === '1' ? '<span class="text-[10px] text-slate-400">Opens Jan–May</span>' : ''}
-                    </td>
-                    <td class="py-2 pl-2 align-top" data-label="${finalLabel || 'Final'}">
-                        <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-final ${autoFinal ? 'bg-slate-50' : ''}"
-                               value="${escapeHtml(displayFinal)}"
-                               data-field="final_grade"
-                               placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 'final'))}"
-                               ${editFinal ? '' : 'readonly'}
-                               ${autoFinal ? 'readonly' : ''}>
-                    </td>
-                `}
+                <td class="py-2 px-2 align-top" data-label="Semester 1${isHs ? ' %' : ''}">
+                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s1"
+                           value="${escapeHtml(entry.semester_1_grade || '')}"
+                           data-field="semester_1_grade"
+                           placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's1'))}"
+                           ${editS1 ? '' : 'readonly'}>
+                </td>
+                <td class="py-2 px-2 align-top" data-label="Semester 2${isHs ? ' %' : ''}">
+                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-s2"
+                           value="${escapeHtml(entry.semester_2_grade || '')}"
+                           data-field="semester_2_grade"
+                           placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 's2'))}"
+                           ${editS2 ? '' : 'readonly'}>
+                </td>
+                <td class="py-2 pl-2 align-top" data-label="${finalLabel || 'Final'}">
+                    <input type="text" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl ar-grade-final ${autoFinal ? 'bg-slate-50' : ''}"
+                           value="${escapeHtml(displayFinal)}"
+                           data-field="final_grade"
+                           placeholder="${escapeHtml(gradePlaceholder(gradeLevel, 'final'))}"
+                           ${editFinal ? '' : 'readonly'}
+                           ${autoFinal ? 'readonly' : ''}>
+                </td>
             </tr>
         `;
     }
@@ -1110,9 +1142,7 @@
         }
 
         const gradeLabel = isHs ? '%' : '';
-        const headers = isBackfill
-            ? `<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final ${gradeLabel}</th>`
-            : `<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 1 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 2 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final ${gradeLabel}</th>`;
+        const headers = `<th class="text-left text-xs font-semibold text-slate-600 pb-2">Course</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 1 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Sem 2 ${gradeLabel}</th><th class="text-left text-xs font-semibold text-slate-600 pb-2">Final ${gradeLabel}</th>`;
 
         const addCourseBtn = canEditMeta ? `
             <button type="button" class="mt-3 px-4 py-2 text-sm font-semibold border border-navy text-navy rounded-xl hover:bg-navy hover:text-white"
@@ -1120,13 +1150,18 @@
         ` : '';
 
         const s2Due = semester2DueDate(yearRecord.school_year, gradeLevel);
-        const semNote = !isBackfill ? `
+        const semNote = isBackfill ? `
+            <p class="text-xs text-slate-500 mb-2">
+                Prior year: enter Semester 1 and Semester 2 grades, attendance, and finals.
+                ${isHs ? 'Percentages only; finals auto-calculate.' : 'Letter or percentage.'}
+            </p>
+        ` : `
             <p class="text-xs text-slate-500 mb-2">
                 ${calSem === '1'
                     ? 'Semester 1 (Jul–Dec): enter Semester 1 grades and attendance. Due Dec 31.'
                     : `Semester 2 (Jan–May): enter Semester 2 grades and attendance. Due ${s2Due}. Finals auto-calculate for high school.`}
             </p>
-        ` : (isHs ? '<p class="text-xs text-slate-500 mb-2">Prior-year backfill: enter percentages only.</p>' : '<p class="text-xs text-slate-500 mb-2">Prior-year backfill: letter or percentage.</p>');
+        `;
 
         return `
             ${semNote}
@@ -1309,7 +1344,7 @@
                             <div><dt>Semester 2</dt><dd>May 31</dd></div>
                             <div><dt>Seniors</dt><dd>May 15</dd></div>
                         </dl>
-                        <p class="ar-grade-help-note">School year ends May 31. Late grades still count for this year.</p>
+                        <p class="ar-grade-help-note">School year ends May 31.</p>
                     </section>
                 </div>
                 <button type="button" class="ar-grade-chart-btn"
@@ -1481,7 +1516,7 @@
                                 extraClass: 'px-4 py-3 cursor-pointer',
                             })}
                             ${wrapAccordionBody(`<div class="px-4 pb-4 border-t border-sky-100 space-y-3">
-                                <p class="text-xs text-slate-600 pt-3">Add years before Summit if this student joined mid-stream. Full-year grades only.</p>
+                                <p class="text-xs text-slate-600 pt-3">Add years before Summit if this student joined mid-stream. Enter both semesters, attendance, and finals.</p>
                                 <form class="flex flex-wrap gap-2 items-end" onsubmit="window.AcademicRecords.handleAddBackfill(event, '${student.id}')">
                                     <select name="school_year" class="form-input px-3 py-2 text-sm border border-slate-300 rounded-xl" required>
                                         <option value="">School year</option>
@@ -1547,6 +1582,7 @@
                                     extraClass: 'px-3 py-2 cursor-pointer text-sm',
                                 })}
                                 ${wrapAccordionBody(`<div class="p-3 border-t border-slate-100 space-y-3">
+                                    ${buildAttendanceHtml(bf)}
                                     ${buildGradeTableHtml(bf, entries)}
                                     ${isHighSchoolGrade(bf.grade_level) ? buildCreditsSummaryHtml(bf, entries, bf.grade_level, student.id) : ''}
                                     ${renderBackfillActions(bf)}
@@ -1642,9 +1678,10 @@
         }
         return `
             <div class="p-3 border border-amber-200 rounded-xl">
+                <div class="text-sm font-semibold text-amber-900 mb-2">Submit prior year</div>
                 <input type="text" id="ack-year-${yearRecord.id}" class="form-input w-full px-3 py-2 text-sm border border-slate-300 rounded-xl mb-2" placeholder="Parent full name">
                 <button type="button" class="px-4 py-2 bg-navy text-white text-sm font-semibold rounded-xl"
-                        onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1')">Mark prior year complete</button>
+                        onclick="window.AcademicRecords.submitFromSection('${yearRecord.id}', '1')">Submit Semester 1 &amp; 2 &amp; Final</button>
             </div>
         `;
     }
@@ -1807,6 +1844,41 @@
         }
     }
 
+    async function handleRemoveCourse(entryId, yearRecordId) {
+        const proceed = await window.showAppConfirm?.({
+            title: 'Remove course',
+            message: 'Remove this course row? You can add it again before submitting.',
+            confirmLabel: 'Remove',
+            tone: 'danger',
+        });
+        if (!proceed) return;
+
+        try {
+            const yearRecord = await fetchSchoolYearRecord(yearRecordId);
+            if (!canEditSemester(yearRecord, '1') && !canEditSemester(yearRecord, '2')) {
+                throw new Error('This record is locked. Contact the school office to request changes.');
+            }
+
+            const client = await getClient();
+            const { data: entry, error: fetchError } = await client
+                .from('grade_entries')
+                .select('is_core')
+                .eq('id', entryId)
+                .single();
+            if (fetchError) throw fetchError;
+            if (entry?.is_core) {
+                throw new Error('Core courses cannot be removed.');
+            }
+
+            const { error } = await client.from('grade_entries').delete().eq('id', entryId);
+            if (error) throw error;
+
+            document.querySelector(`tr[data-entry-id="${entryId}"]`)?.remove();
+        } catch (err) {
+            await window.showAppAlert?.(err.message || String(err));
+        }
+    }
+
     async function renderAdminFamilyAcademicRecords(container, familyUserId) {
         if (!container) return;
 
@@ -1854,7 +1926,7 @@
                         <details class="border border-slate-200 rounded-xl mt-2">
                             <summary class="px-3 py-2 cursor-pointer text-sm font-medium text-navy list-none">${escapeHtml(yearTitle)}</summary>
                             <div class="p-3 border-t border-slate-100 space-y-3">
-                                ${yearRecord.entry_type === 'current' ? buildAttendanceHtml(yearRecord, { readonly: true }) : ''}
+                                ${buildAttendanceHtml(yearRecord, { readonly: true })}
                                 ${buildGradeTableHtml(yearRecord, entries, { readonly: true })}
                                 ${isHighSchoolGrade(yearRecord.grade_level) ? buildCreditsSummaryHtml(yearRecord, entries, yearRecord.grade_level, student.id) : ''}
                                 ${isLocked ? `
@@ -1931,6 +2003,7 @@
         showGradeEquivalencyChart,
         handleAddStudent,
         handleAddCourse,
+        handleRemoveCourse,
         handleAddBackfill,
         markNoPriorYears,
         submitFromSection,
