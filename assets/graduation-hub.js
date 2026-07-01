@@ -185,7 +185,7 @@
                 </div>
                 <div>
                     <dt class="text-slate-500 font-medium">Practice</dt>
-                    <dd class="text-navy font-semibold">${escapeHtml(formatEventDetail(settings.practice_date, settings.practice_time, settings.practice_location))} <span class="text-slate-500 font-normal">(night before)</span></dd>
+                    <dd class="text-navy font-semibold">${escapeHtml(formatEventDetail(settings.practice_date, settings.practice_time, settings.practice_location))}</dd>
                 </div>
                 <div>
                     <dt class="text-slate-500 font-medium">Pictures</dt>
@@ -224,11 +224,61 @@
         `).join('');
     }
 
+    function formatRequirementsHtml(text) {
+        const sections = [];
+        let section = { title: '', paragraphs: [], bullets: [] };
+
+        function flush() {
+            if (section.title || section.paragraphs.length || section.bullets.length) {
+                sections.push({ ...section });
+            }
+            section = { title: '', paragraphs: [], bullets: [] };
+        }
+
+        const lines = String(text || '').split('\n');
+        for (const raw of lines) {
+            const line = raw.trim();
+            if (!line) {
+                if (section.paragraphs.length || section.bullets.length) flush();
+                continue;
+            }
+            if (line.startsWith('•')) {
+                section.bullets.push(line.replace(/^•\s*/, ''));
+                continue;
+            }
+            if (!section.paragraphs.length && !section.bullets.length) {
+                if (section.title) section.paragraphs.push(line);
+                else section.title = line;
+            } else if (!section.bullets.length) {
+                section.paragraphs.push(line);
+            } else {
+                flush();
+                section.title = line;
+            }
+        }
+        flush();
+
+        if (!sections.length) {
+            return '<p class="grad-req-fallback">Graduation requirements will be posted by the school office.</p>';
+        }
+
+        return `<div class="grad-req-body">${sections.map((block) => {
+            let html = '';
+            if (block.title) html += `<h3 class="grad-req-heading">${escapeHtml(block.title)}</h3>`;
+            block.paragraphs.forEach((para) => {
+                html += `<p class="grad-req-para">${escapeHtml(para)}</p>`;
+            });
+            if (block.bullets.length) {
+                html += `<ul class="grad-req-list">${block.bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+            }
+            return `<div class="grad-req-block">${html}</div>`;
+        }).join('')}</div>`;
+    }
+
     function renderRequirements() {
         const el = document.getElementById('grad-requirements-text');
         if (!el || !settings) return;
-        const text = settings.requirements_text?.trim();
-        el.textContent = text || 'Graduation requirements will be posted by the school office.';
+        el.innerHTML = formatRequirementsHtml(settings.requirements_text?.trim());
     }
 
     async function loadContext() {
