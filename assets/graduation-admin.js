@@ -22,11 +22,13 @@
     function buildGradAccordionSummary(label, hint = 'Tap to open') {
         return `
             <summary class="ar-accordion-trigger grad-admin-accordion-trigger list-none">
-                <span class="ar-accordion-leading">
+                <span class="ar-accordion-leading grad-admin-accordion-leading">
                     <span class="ar-accordion-chevron">${GRAD_ACCORDION_CHEVRON}</span>
-                    <span class="ar-accordion-label font-semibold text-navy">${escapeHtml(label)}</span>
+                    <span class="grad-admin-accordion-copy">
+                        <span class="grad-admin-accordion-title">${escapeHtml(label)}</span>
+                        <span class="grad-admin-accordion-hint">${escapeHtml(hint)}</span>
+                    </span>
                 </span>
-                <span class="grad-admin-accordion-hint">${escapeHtml(hint)}</span>
             </summary>
         `;
     }
@@ -42,13 +44,26 @@
         `;
     }
 
+    function getFixedHeaderOffset(extra = 16) {
+        const nav = document.querySelector('nav.sticky');
+        const navHeight = nav ? nav.getBoundingClientRect().height : 0;
+        return navHeight + extra;
+    }
+
+    function scrollToGradElement(element, behavior = 'smooth') {
+        if (!element) return;
+        const offset = getFixedHeaderOffset(16);
+        const top = element.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top: Math.max(0, top), behavior });
+    }
+
     function scrollToGradAccordion(details) {
         if (!details?.open) return;
+        const scrollToSummary = () => scrollToGradElement(details.querySelector('summary'), 'smooth');
         requestAnimationFrame(() => {
-            const summary = details.querySelector('summary');
-            if (!summary) return;
-            const top = summary.getBoundingClientRect().top + window.scrollY - 12;
-            window.scrollTo({ top, behavior: 'smooth' });
+            requestAnimationFrame(scrollToSummary);
+            setTimeout(scrollToSummary, 120);
+            setTimeout(scrollToSummary, 350);
         });
     }
 
@@ -87,7 +102,7 @@
                 const details = button.closest('[data-grad-admin-accordion]');
                 if (!details) return;
                 details.removeAttribute('open');
-                details.querySelector('summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                scrollToGradElement(details.querySelector('summary'), 'smooth');
             });
         });
     }
