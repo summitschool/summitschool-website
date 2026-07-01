@@ -1304,6 +1304,35 @@
         });
     }
 
+    function resetGraduationAdminPortal() {
+        activeGradProgram = 'senior';
+        closeReviewModal();
+        window.KindergartenGraduationAdmin?.closeReviewModal?.();
+
+        const placeholders = {
+            senior: 'Open this tab to load the senior graduation roster.',
+            kindergarten: 'Open this tab to load the kindergarten graduation roster.',
+        };
+        ['senior', 'kindergarten'].forEach((program) => {
+            const root = document.getElementById(gradProgramRootId(program));
+            if (!root) return;
+            root.innerHTML = `<div class="hub-empty-state">${placeholders[program]}</div>`;
+            delete root.dataset.gradProgramLoaded;
+            if (program === 'kindergarten') delete root.dataset.kgGradAdminBound;
+            root.style.minHeight = '';
+            root.classList.toggle('hidden', program !== 'senior');
+        });
+
+        const tabBar = document.getElementById('grad-program-tabs');
+        if (tabBar) {
+            tabBar.querySelectorAll('[data-grad-program-tab]').forEach((btn) => {
+                const active = btn.dataset.gradProgramTab === 'senior';
+                btn.classList.toggle('is-active', active);
+                btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+    }
+
     window.GraduationAdmin = {
         loadGraduationAdmin,
         loadSeniorGraduationAdmin,
@@ -1313,5 +1342,6 @@
         approveSubmission,
         markSubmissionPaid,
         openReviewModal,
+        resetGraduationAdminPortal,
     };
 })();

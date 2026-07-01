@@ -1091,9 +1091,9 @@
     <script src="assets/task-notify.js?v=20260750"></script>
     <script src="assets/graduation-tasks.js?v=20260750"></script>
     <script src="assets/kindergarten-graduation-tasks.js?v=20260750"></script>
-    <script src="assets/graduation-admin.js?v=20260752"></script>
-    <script src="assets/kindergarten-graduation-admin.js?v=20260752"></script>
-    <script src="assets/academic-records.js?v=20260749"></script>
+    <script src="assets/graduation-admin.js?v=20260753"></script>
+    <script src="assets/kindergarten-graduation-admin.js?v=20260753"></script>
+    <script src="assets/academic-records.js?v=20260753"></script>
     <script src="assets/onboarding-checklist.js?v=20260749"></script>
     <script>
         // =============================================
@@ -1141,6 +1141,7 @@
 
         let lastAdminSection = 'members';
         let lastDashboardTab = 'my-tasks';
+        let lastAuthTab = 'login';
         let currentAdminSection = null;
         let lastMyTasksUserId = null;
         let oauthCallbackInProgress = false;
@@ -1936,6 +1937,10 @@
 
         // Tab switching for login/signup
         function showAuthTab(tab) {
+            if (tab !== lastAuthTab) {
+                resetAuthTabState(lastAuthTab);
+            }
+
             const loginContainer = document.getElementById('login-form-container');
             const signupContainer = document.getElementById('signup-form-container');
             const forgotContainer = document.getElementById('forgot-password-form-container');
@@ -1979,6 +1984,8 @@
             if (modePicker) {
                 modePicker.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
+
+            lastAuthTab = tab;
         }
 
         function isFullAdminUser(user) {
@@ -2264,6 +2271,86 @@
             }
         }
 
+        function resetAdminGraduationSection() {
+            window.GraduationAdmin?.resetGraduationAdminPortal?.();
+        }
+
+        function resetMyTasksSection() {
+            lastMyTasksUserId = null;
+            const list = document.getElementById('my-tasks-list');
+            if (list) list.innerHTML = '<div class="hub-empty-state">Loading your tasks...</div>';
+        }
+
+        function resetMyDocumentsSection() {
+            const container = document.getElementById('my-documents');
+            if (container) container.innerHTML = '<div class="hub-empty-state">Loading your documents...</div>';
+
+            const idPanel = document.getElementById('my-id-panel');
+            if (idPanel) idPanel.removeAttribute('open');
+        }
+
+        function resetFamilyRecordsSection() {
+            const select = document.getElementById('viewer-family-select');
+            if (select) select.value = '';
+
+            const content = document.getElementById('viewer-records-content');
+            if (content) content.classList.add('hidden');
+
+            const docs = document.getElementById('viewer-records-docs');
+            if (docs) docs.innerHTML = '<div class="text-slate-500 text-sm">Select a family above.</div>';
+
+            const idContainer = document.getElementById('viewer-records-id');
+            if (idContainer) idContainer.innerHTML = '<div class="text-slate-500 text-sm">Select a family above.</div>';
+
+            const panel = document.getElementById('viewer-records-id-panel');
+            if (panel) panel.removeAttribute('open');
+
+            const hint = document.getElementById('viewer-records-id-hint');
+            if (hint) hint.textContent = 'Click to expand';
+        }
+
+        async function refreshMyDocumentsTab() {
+            if (!supabaseClient) return;
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                if (typeof loadMyDocuments === 'function') loadMyDocuments(user.id);
+            } else if (typeof loadMyDocumentsDemo === 'function') {
+                loadMyDocumentsDemo();
+            }
+        }
+
+        function resetDashboardTabState(tab) {
+            if (!tab) return;
+            switch (tab) {
+                case 'my-tasks':
+                    resetMyTasksSection();
+                    break;
+                case 'my-documents':
+                    resetMyDocumentsSection();
+                    break;
+                case 'academic-records':
+                    window.AcademicRecords?.resetAcademicRecordsTab?.();
+                    break;
+                case 'family-records':
+                    resetFamilyRecordsSection();
+                    break;
+                case 'admin':
+                    if (currentAdminSection) resetAdminSectionState(currentAdminSection);
+                    currentAdminSection = null;
+                    lastAdminSection = 'members';
+                    break;
+            }
+        }
+
+        function resetAuthTabState(tab) {
+            if (tab === 'signup') {
+                document.getElementById('signup-form')?.reset();
+                if (typeof clearSignupStatus === 'function') clearSignupStatus();
+            } else if (tab === 'login') {
+                document.getElementById('login-form')?.reset();
+            }
+        }
+
         function resetAdminSectionState(section) {
             if (!section) return;
             switch (section) {
@@ -2272,6 +2359,9 @@
                     break;
                 case 'academic':
                     resetAdminAcademicSection();
+                    break;
+                case 'graduation':
+                    resetAdminGraduationSection();
                     break;
                 case 'records':
                     resetAdminRecordsSection();
@@ -2374,14 +2464,8 @@
 
         // Tab switching for the logged-in dashboard (My Documents / My Tasks / Resources / Family Records / Admin)
         function showDashboardTab(tab) {
-            if (lastDashboardTab === 'academic-records' && tab !== 'academic-records') {
-                window.AcademicRecords?.collapseStudentPanels?.();
-            }
-
-            if (lastDashboardTab === 'admin' && tab !== 'admin') {
-                if (currentAdminSection) resetAdminSectionState(currentAdminSection);
-                currentAdminSection = null;
-                lastAdminSection = 'members';
+            if (tab !== lastDashboardTab) {
+                resetDashboardTabState(lastDashboardTab);
             }
 
             const myDocsContent = document.getElementById('dashboard-my-documents');
@@ -2413,6 +2497,7 @@
             if (tab === 'my-documents') {
                 myDocsContent.classList.remove('hidden');
                 activeTab = tabMy;
+                void refreshMyDocumentsTab();
             } else if (tab === 'my-tasks') {
                 myTasksContent.classList.remove('hidden');
                 activeTab = tabTasks;
@@ -2433,7 +2518,6 @@
                 activeTab = tabAdmin;
 
                 applyStaffAdminNavVisibility();
-                if (currentAdminSection) resetAdminSectionState(currentAdminSection);
                 currentAdminSection = null;
                 showAdminSection(getFirstAllowedAdminSection());
             }
