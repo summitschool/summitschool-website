@@ -1513,13 +1513,37 @@
         return isSeniorGrade(gradeLevel) ? `May 15, ${end}` : `May 31, ${end}`;
     }
 
+    function todayIsoDate() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     function defaultProgressDueDates(schoolYear, gradeLevel = '') {
         const start = parseInt(String(schoolYear).split('-')[0], 10);
         const end = start + 1;
         return {
             due_date_1: `${start}-12-31`,
             due_date_2: `${end}-05-${isSeniorGrade(gradeLevel) ? '15' : '31'}`,
+            visible_from_1: `${start}-12-01`,
+            visible_from_2: `${end}-05-01`,
         };
+    }
+
+    function getProgressReportActivePhase(yearRecord, task, referenceDate = todayIsoDate()) {
+        const vis1 = task?.visible_from_1;
+        const vis2 = task?.visible_from_2;
+
+        if (!yearRecord?.semester_1_locked && vis1 && referenceDate >= vis1) {
+            return '1';
+        }
+        if (yearRecord?.semester_1_locked && !yearRecord?.semester_2_locked && vis2 && referenceDate >= vis2) {
+            return '2';
+        }
+        return null;
+    }
+
+    function isProgressReportTaskVisible(task, yearRecord, referenceDate = todayIsoDate()) {
+        return getProgressReportActivePhase(yearRecord, task, referenceDate) !== null;
     }
 
     function studentDisplayName(student) {
@@ -2117,14 +2141,15 @@
         if (existing?.id) {
             const { data: existingTask } = await client
                 .from('family_documents')
-                .select('due_date_2')
+                .select('due_date_2, visible_from_1, visible_from_2')
                 .eq('id', existing.id)
                 .maybeSingle();
-            if (!existingTask?.due_date_2) {
-                await client
-                    .from('family_documents')
-                    .update({ due_date_2: dues.due_date_2 })
-                    .eq('id', existing.id);
+            const patch = {};
+            if (!existingTask?.due_date_2) patch.due_date_2 = dues.due_date_2;
+            if (!existingTask?.visible_from_1) patch.visible_from_1 = dues.visible_from_1;
+            if (!existingTask?.visible_from_2) patch.visible_from_2 = dues.visible_from_2;
+            if (Object.keys(patch).length) {
+                await client.from('family_documents').update(patch).eq('id', existing.id);
             }
             return;
         }
@@ -2132,12 +2157,14 @@
         const { error } = await client.from('family_documents').insert({
             user_id: user.id,
             title,
-            description: `Enter ${schoolYear} semester grades and attendance for ${studentDisplayName(student)}. Semester 1 is due Dec 31; Semester 2 is due ${semester2DueDate(schoolYear, student.current_grade_level)}.`,
+            description: `Enter ${schoolYear} semester grades and attendance for ${studentDisplayName(student)}. Tasks appear Dec 1 and May 1. Semester 1 is due Dec 31; Semester 2 is due ${semester2DueDate(schoolYear, student.current_grade_level)}.`,
             url,
             category: PROGRESS_TASK_CATEGORY,
             school_year: schoolYear,
             due_date_1: dues.due_date_1,
             due_date_2: dues.due_date_2,
+            visible_from_1: dues.visible_from_1,
+            visible_from_2: dues.visible_from_2,
             due_date_1_cleared: false,
         });
         if (error) console.warn('[Academic Records] Could not create progress task:', error.message);
@@ -2557,6 +2584,9 @@
                 .maybeSingle();
             if (gradStudent?.current_grade_level === '12' && window.GraduationTasks?.ensureGraduationTask) {
                 await window.GraduationTasks.ensureGraduationTask(gradStudent, data.school_year);
+            }
+            if (gradStudent?.current_grade_level === 'K' && window.KindergartenGraduationTasks?.ensureKindergartenGraduationTask) {
+                await window.KindergartenGraduationTasks.ensureKindergartenGraduationTask(gradStudent, data.school_year);
             }
         }
 
@@ -3207,24 +3237,30 @@
         return dueDay < today;
     }
 
-    function renderProgressReportDueDatesHtml(student, years, schoolYear = currentSchoolYear()) {
+    function renderProgressReportDueDatesHtml(student, years, schoolYear = currentSchoolYear(), task = null) {
         const dues = defaultProgressDueDates(schoolYear, student?.current_grade_level);
         const current = (years || []).find((year) => (
             year.school_year === schoolYear && year.entry_type === 'current'
         ));
+        const activePhase = task
+            ? getProgressReportActivePhase(current, {
+                visible_from_1: task.visible_from_1 || dues.visible_from_1,
+                visible_from_2: task.visible_from_2 || dues.visible_from_2,
+            })
+            : (!current?.semester_1_locked ? '1' : (!current?.semester_2_locked ? '2' : null));
 
         const dueEntries = [
             {
                 label: 'First Semester Due',
-                date: dues.due_date_1,
+                date: task?.due_date_1 || dues.due_date_1,
                 colorClass: 'text-sky-700',
-                relevant: !current?.semester_1_locked,
+                relevant: activePhase === '1',
             },
             {
                 label: 'Second Semester Due',
-                date: dues.due_date_2,
+                date: task?.due_date_2 || dues.due_date_2,
                 colorClass: 'text-violet-700',
-                relevant: !current?.semester_2_locked,
+                relevant: activePhase === '2',
             },
         ];
 
@@ -3259,7 +3295,7 @@
         const current = years.find((y) => y.school_year === currentYear && y.entry_type === 'current');
         const statusLabel = getProgressStatusLabel(current, student?.current_grade_level);
         const closed = current && isSchoolYearClosed(current.school_year) && !current.admin_reopened_at;
-        const dueDates = renderProgressReportDueDatesHtml(student, years, currentYear);
+        const dueDates = renderProgressReportDueDatesHtml(student, years, currentYear, task);
         const overdueIcon = dueDates.overdue
             ? '<span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-red-100 text-red-600" title="Overdue"><i class="fas fa-exclamation text-sm"></i></span>'
             : (options.overdueIcon || '');
@@ -4182,6 +4218,9 @@
         adminDeleteStudent,
         renderAdminFamilyAcademicRecords,
         defaultProgressDueDates,
+        todayIsoDate,
+        getProgressReportActivePhase,
+        isProgressReportTaskVisible,
         studentDisplayName,
         exportProgressReportPdf,
         isProgressReportExportable,

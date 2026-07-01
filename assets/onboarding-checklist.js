@@ -53,6 +53,7 @@
         if (isIdUploadTask(task)) return 2;
         if (window.AcademicRecords?.parseProgressReportStudentId?.(task.url)) return 3;
         if (window.GraduationTasks?.parseGraduationStudentId?.(task.url)) return 4;
+        if (window.KindergartenGraduationTasks?.parseKindergartenGraduationStudentId?.(task.url)) return 5;
         return 5;
     }
 
@@ -451,13 +452,15 @@
                         </ul>
                     </section>
                     <section class="ar-grade-help-block ar-grade-help-dates">
-                        <h4 class="ar-grade-help-label">Due dates</h4>
+                        <h4 class="ar-grade-help-label">Tasks &amp; due dates</h4>
                         <dl class="ar-grade-help-dl">
-                            <div><dt>Semester 1</dt><dd>Dec 31</dd></div>
-                            <div><dt>Semester 2</dt><dd>May 31</dd></div>
+                            <div><dt>Semester 1 task</dt><dd>Dec 1</dd></div>
+                            <div><dt>Semester 1 due</dt><dd>Dec 31</dd></div>
+                            <div><dt>Semester 2 task</dt><dd>May 1</dd></div>
+                            <div><dt>Semester 2 due</dt><dd>May 31</dd></div>
                             <div><dt>Seniors</dt><dd>May 15</dd></div>
                         </dl>
-                        <p class="ar-grade-help-note">School year ends May 31. Contact the school office if you need a locked semester reopened.</p>
+                        <p class="ar-grade-help-note">Progress report tasks appear in My Tasks on the 1st of each semester month and email your family when they open. School year ends May 31.</p>
                     </section>
                 </div>
                 ${readButtonHtml}

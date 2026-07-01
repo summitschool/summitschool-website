@@ -1080,9 +1080,10 @@
     <script src="assets/progress-report-pdf.js?v=20260721"></script>
     <script src="assets/graduation-pdf.js?v=20260740"></script>
     <script src="assets/graduation-tasks.js?v=20260738"></script>
+    <script src="assets/kindergarten-graduation-tasks.js?v=20260749"></script>
     <script src="assets/graduation-admin.js?v=20260747"></script>
-    <script src="assets/academic-records.js?v=20260730"></script>
-    <script src="assets/onboarding-checklist.js?v=20260730"></script>
+    <script src="assets/academic-records.js?v=20260749"></script>
+    <script src="assets/onboarding-checklist.js?v=20260749"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -2530,6 +2531,43 @@
             return { html: `<div class="mt-2 space-y-0.5">${lines}</div>`, overdue };
         }
 
+        async function notifyTaskVisibilityIfNeeded(user) {
+            if (!supabaseClient || !user?.id) return;
+            const cacheKey = `task_visibility_notify_${user.id}_${new Date().toISOString().slice(0, 10)}`;
+            if (sessionStorage.getItem(cacheKey) === '1') return;
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session?.access_token) return;
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/notify-task-visibility`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        apikey: SUPABASE_ANON_KEY,
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ action: 'scan_user', user_id: user.id }),
+                });
+                if (response.ok) {
+                    sessionStorage.setItem(cacheKey, '1');
+                }
+            } catch (err) {
+                console.warn('[My Tasks] Visibility notify skipped:', err);
+            }
+        }
+
+        function isProgressReportTaskOverdue(task, yearRecord) {
+            if (!window.AcademicRecords?.getProgressReportActivePhase) {
+                return getTaskDueDateInfo(task).overdue;
+            }
+            const phase = window.AcademicRecords.getProgressReportActivePhase(yearRecord, task);
+            const due = phase === '1' ? task.due_date_1 : phase === '2' ? task.due_date_2 : null;
+            if (!due) return false;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dueDay = new Date(`${String(due).split('T')[0]}T00:00:00`);
+            return dueDay < today;
+        }
+
         // My Tasks loader (now with real ID upload form for the special task).
         // Badge shows pending count; red ! when any task is overdue.
         // ID task renders professional ack form + camera/gallery input + name validation (required).
@@ -2568,12 +2606,47 @@
                 return;
             }
 
-            const tasks = window.OnboardingChecklist?.sortTasksForDisplay
+            const allTasks = window.OnboardingChecklist?.sortTasksForDisplay
                 ? window.OnboardingChecklist.sortTasksForDisplay((taskDocs || []).filter(isTaskDocument))
                 : (taskDocs || []).filter(isTaskDocument);
 
+            const progressStudentIdsForFilter = [...new Set(allTasks
+                .map((task) => window.AcademicRecords?.parseProgressReportStudentId?.(task.url))
+                .filter(Boolean))];
+
+            const progressYearsForFilter = {};
+            if (progressStudentIdsForFilter.length) {
+                const { data: progressYears } = await supabaseClient
+                    .from('student_school_years')
+                    .select('*')
+                    .in('student_id', progressStudentIdsForFilter)
+                    .eq('entry_type', 'current');
+                (progressYears || []).forEach((yearRecord) => {
+                    progressYearsForFilter[yearRecord.student_id] = yearRecord;
+                });
+            }
+
+            const currentSchoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
+            const tasks = allTasks.filter((task) => {
+                const progressStudentId = window.AcademicRecords?.parseProgressReportStudentId?.(task.url);
+                if (!progressStudentId) return true;
+                const yearRecord = progressYearsForFilter[progressStudentId];
+                if (yearRecord && yearRecord.school_year !== (task.school_year || currentSchoolYear)) {
+                    return window.AcademicRecords?.isProgressReportTaskVisible?.(task, yearRecord) ?? true;
+                }
+                return window.AcademicRecords?.isProgressReportTaskVisible?.(task, yearRecord) ?? true;
+            });
+
+            void notifyTaskVisibilityIfNeeded(user);
+
             const pendingCount = tasks.length;
-            const hasOverdue = tasks.some(task => getTaskDueDateInfo(task).overdue);
+            const hasOverdue = tasks.some((task) => {
+                const progressStudentId = window.AcademicRecords?.parseProgressReportStudentId?.(task.url);
+                if (progressStudentId) {
+                    return isProgressReportTaskOverdue(task, progressYearsForFilter[progressStudentId]);
+                }
+                return getTaskDueDateInfo(task).overdue;
+            });
 
             if (overdueBadge) {
                 if (hasOverdue) {
@@ -2609,9 +2682,14 @@
                 .map((task) => window.GraduationTasks?.parseGraduationStudentId?.(task.url))
                 .filter(Boolean))];
 
+            const kindergartenStudentIds = [...new Set(tasks
+                .map((task) => window.KindergartenGraduationTasks?.parseKindergartenGraduationStudentId?.(task.url))
+                .filter(Boolean))];
+
             const progressStudentsById = {};
             const progressYearsByStudent = {};
             const graduationStudentsById = {};
+            const kindergartenStudentsById = {};
             if (graduationStudentIds.length) {
                 const { data: gradStudents } = await supabaseClient
                     .from('students')
@@ -2619,6 +2697,16 @@
                     .in('id', graduationStudentIds);
                 (gradStudents || []).forEach((student) => {
                     graduationStudentsById[student.id] = student;
+                });
+            }
+
+            if (kindergartenStudentIds.length) {
+                const { data: kgStudents } = await supabaseClient
+                    .from('students')
+                    .select('*')
+                    .in('id', kindergartenStudentIds);
+                (kgStudents || []).forEach((student) => {
+                    kindergartenStudentsById[student.id] = student;
                 });
             }
 
@@ -2650,6 +2738,8 @@
                 const isProgressReportTask = Boolean(progressStudentId);
                 const graduationStudentId = window.GraduationTasks?.parseGraduationStudentId?.(task.url);
                 const isGraduationTask = Boolean(graduationStudentId);
+                const kindergartenStudentId = window.KindergartenGraduationTasks?.parseKindergartenGraduationStudentId?.(task.url);
+                const isKindergartenGraduationTask = Boolean(kindergartenStudentId);
                 const isIDTask = window.OnboardingChecklist?.isIdUploadTask?.(task)
                     || (task.title && task.title.toLowerCase().includes('upload government issued id'));
                 const dueDates = renderTaskDueDatesHtml(task);
@@ -2674,6 +2764,13 @@
                     return window.GraduationTasks.renderGraduationTaskCard(task, graduationStudentId, {
                         overdueIcon,
                         student: graduationStudentsById[graduationStudentId],
+                    });
+                }
+
+                if (isKindergartenGraduationTask && window.KindergartenGraduationTasks?.renderKindergartenGraduationTaskCard) {
+                    return window.KindergartenGraduationTasks.renderKindergartenGraduationTaskCard(task, kindergartenStudentId, {
+                        overdueIcon,
+                        student: kindergartenStudentsById[kindergartenStudentId],
                     });
                 }
 
