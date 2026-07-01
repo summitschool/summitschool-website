@@ -6,6 +6,9 @@
     let context = null;
     let settings = null;
     let submission = null;
+    let orderFormReached = false;
+    let mainTotalVisible = false;
+    let floatingTotalObservers = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -161,7 +164,86 @@
         if (paypal) paypal.classList.toggle('pointer-events-none', total <= 0);
         if (cashapp) cashapp.classList.toggle('pointer-events-none', total <= 0);
 
+        updateFloatingTotalDisplay(items, total);
         return { items, total };
+    }
+
+    function syncFloatingTotalVisibility() {
+        const bar = document.getElementById('grad-floating-total');
+        if (!bar) return;
+        bar.classList.toggle('is-visible', orderFormReached && !mainTotalVisible);
+        bar.setAttribute('aria-hidden', orderFormReached && !mainTotalVisible ? 'false' : 'true');
+    }
+
+    function ensureFloatingTotalBar() {
+        if (document.getElementById('grad-floating-total')) return;
+
+        const bar = document.createElement('div');
+        bar.id = 'grad-floating-total';
+        bar.className = 'grad-floating-total';
+        bar.setAttribute('aria-hidden', 'true');
+        bar.innerHTML = `
+            <button type="button" class="grad-floating-total-inner w-full text-left" id="grad-floating-total-btn" aria-label="Scroll to fee breakdown">
+                <span class="grad-floating-total-copy">
+                    <span class="grad-floating-total-label">Estimated total</span>
+                    <span id="grad-floating-total-items" class="grad-floating-total-items">Select options</span>
+                </span>
+                <span id="grad-floating-total-amount" class="grad-floating-total-amount">$0.00</span>
+            </button>
+        `;
+        bar.querySelector('#grad-floating-total-btn')?.addEventListener('click', () => {
+            document.getElementById('grad-fee-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        document.body.appendChild(bar);
+    }
+
+    function updateFloatingTotalDisplay(items, total) {
+        ensureFloatingTotalBar();
+        const amountEl = document.getElementById('grad-floating-total-amount');
+        const itemsEl = document.getElementById('grad-floating-total-items');
+        if (amountEl) amountEl.textContent = `$${total.toFixed(2)}`;
+        if (itemsEl) {
+            if (!items?.length) {
+                itemsEl.textContent = 'Select options';
+            } else if (items.length === 1) {
+                itemsEl.textContent = items[0].label;
+            } else {
+                const preview = items.slice(0, 2).map((item) => item.label).join(', ');
+                const extra = items.length > 2 ? ` +${items.length - 2} more` : '';
+                itemsEl.textContent = `${preview}${extra}`;
+            }
+        }
+        syncFloatingTotalVisibility();
+    }
+
+    function setupFloatingTotalObservers() {
+        ensureFloatingTotalBar();
+        const orderStart = document.getElementById('grad-order-form-start');
+        const totalAnchor = document.getElementById('grad-fee-total-anchor');
+        if (!orderStart || !totalAnchor) return;
+
+        if (floatingTotalObservers) {
+            floatingTotalObservers.order?.disconnect();
+            floatingTotalObservers.total?.disconnect();
+        }
+
+        const orderObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                orderFormReached = entry.isIntersecting || entry.boundingClientRect.top < 0;
+                syncFloatingTotalVisibility();
+            });
+        }, { threshold: 0 });
+
+        const totalObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                mainTotalVisible = entry.isIntersecting;
+                syncFloatingTotalVisibility();
+            });
+        }, { threshold: 0.35, rootMargin: '0px 0px -10% 0px' });
+
+        orderObserver.observe(orderStart);
+        totalObserver.observe(totalAnchor);
+        floatingTotalObservers = { order: orderObserver, total: totalObserver };
     }
 
     function formatEventDetail(date, time, location) {
@@ -602,6 +684,7 @@
                 showChangesRequestedBanner(submission.admin_notes);
             }
             bindEvents();
+            setupFloatingTotalObservers();
             if (loading) loading.classList.add('hidden');
             if (main) main.classList.remove('hidden');
         } catch (err) {

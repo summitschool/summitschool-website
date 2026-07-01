@@ -10,6 +10,69 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
     <link rel="stylesheet" href="assets/styles.css?v=20260730">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .grad-floating-total {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 40;
+            padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(110%);
+            transition: opacity 0.22s ease, transform 0.22s ease;
+        }
+        .grad-floating-total.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .grad-floating-total-inner {
+            max-width: 48rem;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.8rem 1rem;
+            background: linear-gradient(145deg, #fdf9f0 0%, #f5f0e6 42%, #f9f3e3 100%);
+            border: 1px solid rgba(201, 162, 39, 0.42);
+            border-radius: 1.25rem;
+            box-shadow: 0 6px 24px rgba(10, 37, 64, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+            cursor: pointer;
+        }
+        .grad-floating-total-inner:active { transform: scale(0.985); }
+        .grad-floating-total-copy { min-width: 0; }
+        .grad-floating-total-label {
+            display: block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #9a7b1a;
+        }
+        .grad-floating-total-items {
+            display: block;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .grad-floating-total-amount {
+            flex-shrink: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0a2540;
+            letter-spacing: -0.02em;
+        }
+        @media (min-width: 640px) {
+            .grad-floating-total-inner { padding: 0.9rem 1.25rem; }
+            .grad-floating-total-amount { font-size: 1.375rem; }
+        }
+    </style>
 </head>
 <body class="bg-[#F8F6F1] text-slate-800 body-text antialiased min-h-screen flex flex-col">
     <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
@@ -48,7 +111,7 @@
                         </label>
                     </section>
 
-                    <div class="text-center py-2">
+                    <div id="grad-order-form-start" class="text-center py-2">
                         <span class="text-xs font-bold uppercase tracking-widest text-slate-400">Graduation order form</span>
                     </div>
 
@@ -172,10 +235,10 @@
                         </div>
                     </section>
 
-                    <section class="site-card p-6 sm:p-8">
+                    <section id="grad-fee-section" class="site-card p-6 sm:p-8">
                         <h2 class="text-lg font-semibold text-navy mb-2">Fees &amp; payment</h2>
                         <div id="grad-fee-lines" class="border-b border-slate-100 pb-3 mb-3"></div>
-                        <div class="flex justify-between text-base font-bold text-navy mb-4">
+                        <div id="grad-fee-total-anchor" class="flex justify-between text-base font-bold text-navy mb-4">
                             <span>Total</span>
                             <span id="grad-fee-total">$0.00</span>
                         </div>
@@ -235,7 +298,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/graduation-tasks.js?v=20260736"></script>
-    <script src="assets/graduation-hub.js?v=20260736"></script>
+    <script src="assets/graduation-tasks.js?v=20260737"></script>
+    <script src="assets/graduation-hub.js?v=20260737"></script>
 </body>
 </html>
