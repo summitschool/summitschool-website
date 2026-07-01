@@ -66,7 +66,7 @@
             diploma_name: '',
             parent_phone: '',
             parent_email: '',
-            mailing_address: '',
+
             cap_gown_size: '',
             special_notes: '',
             add_pictures: false,
@@ -90,7 +90,7 @@
         form.participation_mode = root.querySelector('[name="participation_mode"]:checked')?.value || 'full';
         form.beta_club_member = root.querySelector('[name="beta_club_member"]:checked')?.value || '';
         form.classical_conversations_student = root.querySelector('[name="classical_conversations_student"]:checked')?.value || '';
-        ['diploma_name', 'parent_phone', 'parent_email', 'mailing_address', 'cap_gown_size',
+        ['diploma_name', 'parent_phone', 'parent_email', 'cap_gown_size',
             'special_notes', 'tshirt_size', 'payment_method', 'payment_amount', 'payment_note'].forEach((key) => {
             const el = root.querySelector(`[name="${key}"]`);
             if (el) form[key] = el.value;

@@ -282,7 +282,7 @@
                     ${reviewField('Diploma name', form.diploma_name)}
                     ${reviewField('Parent phone', form.parent_phone)}
                     ${reviewField('Parent email', form.parent_email)}
-                    ${reviewField('Mailing address', form.mailing_address)}
+
                 </dl>
             </section>
             <section class="grad-review-section">
