@@ -3,15 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Your Summit Church School enrollment application has been received. Choose the next steps for returning or first-time families.">
-    <title>Application Received • Summit Church School</title>
+    <meta name="description" content="Your Summit Church School enrollment application has been received. Tap returning or first-time family to continue.">
+    <title>Application Received — Tap Below • Summit Church School</title>
 
     <link rel="icon" type="image/png" href="images/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260701">
+    <link rel="stylesheet" href="assets/styles.css?v=20260756">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @keyframes enroll-cta-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(6px); }
+        }
+        .enroll-cta-bounce {
+            animation: enroll-cta-bounce 1.4s ease-in-out infinite;
+        }
+        .enroll-choice-btn {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            text-align: left;
+            border-radius: 1.25rem;
+            border: 3px solid transparent;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        .enroll-choice-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(10, 37, 64, 0.14);
+        }
+        .enroll-choice-btn:active {
+            transform: scale(0.985);
+        }
+        .enroll-choice-btn--returning {
+            border-color: #0A2540;
+            background: linear-gradient(180deg, #fdf9f0 0%, #f5f0e6 100%);
+        }
+        .enroll-choice-btn--returning:hover {
+            border-color: #C9A227;
+        }
+        .enroll-choice-btn--new {
+            border-color: #7C8F7E;
+            background: #fff;
+        }
+        .enroll-choice-btn--new:hover {
+            border-color: #0A2540;
+        }
+        .enroll-choice-cta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            margin-top: 1rem;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+        .enroll-choice-btn--returning .enroll-choice-cta {
+            background: #0A2540;
+            color: #fff;
+        }
+        .enroll-choice-btn--new .enroll-choice-cta {
+            background: #7C8F7E;
+            color: #fff;
+        }
+        .enroll-required-banner {
+            background: linear-gradient(135deg, #fff8e6 0%, #fef3c7 100%);
+            border: 2px solid #C9A227;
+            box-shadow: 0 4px 16px rgba(201, 162, 39, 0.2);
+        }
+    </style>
 </head>
 <body class="bg-[#F8F6F1] text-slate-800 body-text antialiased min-h-screen flex flex-col">
     <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
@@ -24,75 +89,92 @@
         </div>
     </nav>
 
-    <main class="flex-1 py-12 sm:py-16">
+    <main class="flex-1 py-10 sm:py-14">
         <div class="max-w-2xl mx-auto px-6">
-            <div class="site-card p-8 sm:p-10 text-navy">
+            <div class="site-card p-6 sm:p-10 text-navy">
                 <div class="text-center">
-                    <img src="images/logo.png?v=20260615"
-                         alt=""
-                         aria-hidden="true"
-                         class="h-16 sm:h-[4.5rem] w-auto mx-auto object-contain rounded-2xl mb-6">
-                    <div class="mx-auto w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6">
-                        <i class="fas fa-check text-3xl" aria-hidden="true"></i>
+                    <div class="mx-auto w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-4">
+                        <i class="fas fa-check text-2xl" aria-hidden="true"></i>
                     </div>
                     <span class="section-eyebrow">Enrollment</span>
-                    <h1 class="heading-serif text-4xl sm:text-[2.75rem] tracking-tighter text-navy mt-3">Application received</h1>
-                    <p class="mt-4 text-[15px] sm:text-base text-slate-600 leading-relaxed max-w-lg mx-auto">
-                        Thank you for completing your enrollment application. Our team has your submission on file.
+                    <h1 class="heading-serif text-3xl sm:text-4xl tracking-tighter text-navy mt-2">Application received</h1>
+                    <p class="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed max-w-md mx-auto">
+                        Your application is on file. <strong class="text-navy">You are not finished yet.</strong>
                     </p>
                 </div>
 
-                <div class="mt-10 pt-8 border-t border-slate-100">
-                    <h2 class="text-lg font-semibold text-navy tracking-tight text-center">What happens next depends on your family</h2>
-                    <p class="mt-2 text-sm text-slate-500 leading-relaxed text-center max-w-md mx-auto">
-                        Choose the option below that best describes your family so we can point you to the right next steps.
+                <div class="enroll-required-banner mt-8 rounded-2xl p-5 sm:p-6 text-center" role="alert">
+                    <p class="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">Required next step</p>
+                    <p class="mt-2 text-lg sm:text-xl font-bold text-navy leading-snug">
+                        Tap one of the two buttons below
                     </p>
-
-                    <div class="mt-8 grid sm:grid-cols-2 gap-4">
-                        <a href="enrollment-returning.html"
-                           class="group flex flex-col rounded-2xl border-2 border-navy/15 bg-cream/40 p-6 hover:border-navy/35 hover:bg-cream/70 transition-all active:scale-[0.99]">
-                            <div class="w-11 h-11 rounded-xl bg-navy text-white flex items-center justify-center mb-4">
-                                <i class="fas fa-rotate-right" aria-hidden="true"></i>
-                            </div>
-                            <h3 class="text-lg font-semibold text-navy">Returning family</h3>
-                            <p class="mt-2 text-sm text-slate-600 leading-relaxed flex-1">
-                                You have enrolled with Summit before. Your next step is <strong>paying annual tuition</strong>. Once tuition is received, your enrollment will be approved.
-                            </p>
-                            <span class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-sage group-hover:text-navy transition-colors">
-                                Tuition &amp; Family Hub
-                                <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
-                            </span>
-                        </a>
-
-                        <a href="enrollment-new-family.html"
-                           class="group flex flex-col rounded-2xl border-2 border-slate-200 bg-white p-6 hover:border-sage/40 hover:bg-cream/30 transition-all active:scale-[0.99]">
-                            <div class="w-11 h-11 rounded-xl bg-sage/15 text-sage flex items-center justify-center mb-4">
-                                <i class="fas fa-seedling" aria-hidden="true"></i>
-                            </div>
-                            <h3 class="text-lg font-semibold text-navy">First-time family</h3>
-                            <p class="mt-2 text-sm text-slate-600 leading-relaxed flex-1">
-                                This is your first enrollment with Summit. After submitting your application, <strong>contact us</strong> by Facebook, text, or email so Ryan can walk you through the next steps.
-                            </p>
-                            <span class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-sage group-hover:text-navy transition-colors">
-                                How to reach us
-                                <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
-                            </span>
-                        </a>
+                    <p class="mt-2 text-sm text-amber-950/80 leading-relaxed">
+                        Do not close this page until you have tapped the button that describes your family.
+                    </p>
+                    <div class="enroll-cta-bounce mt-4 text-gold text-2xl" aria-hidden="true">
+                        <i class="fas fa-arrow-down"></i>
                     </div>
                 </div>
 
-                <p class="mt-8 text-sm text-slate-500 leading-relaxed text-center">
-                    Not sure which applies? Contact Ryan Simon and we will help you sort it out.
+                <div class="mt-6 space-y-4" role="group" aria-label="Choose your family type — tap one button">
+                    <a href="enrollment-returning.html"
+                       class="enroll-choice-btn enroll-choice-btn--returning p-5 sm:p-6 no-underline text-inherit">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-navy text-white flex items-center justify-center shrink-0 text-lg">
+                                <i class="fas fa-rotate-right" aria-hidden="true"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs font-bold uppercase tracking-wide text-navy/70">Option 1</p>
+                                <h2 class="text-xl font-bold text-navy mt-0.5">Returning family</h2>
+                                <p class="mt-2 text-sm text-slate-700 leading-relaxed">
+                                    We have enrolled with Summit Church School before.
+                                </p>
+                                <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+                                    Next step: <strong>pay annual tuition</strong>. Enrollment is approved after tuition is received.
+                                </p>
+                            </div>
+                        </div>
+                        <span class="enroll-choice-cta">
+                            <i class="fas fa-hand-pointer" aria-hidden="true"></i>
+                            Tap here — returning family
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </span>
+                    </a>
+
+                    <a href="enrollment-new-family.html"
+                       class="enroll-choice-btn enroll-choice-btn--new p-5 sm:p-6 no-underline text-inherit">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-sage text-white flex items-center justify-center shrink-0 text-lg">
+                                <i class="fas fa-seedling" aria-hidden="true"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs font-bold uppercase tracking-wide text-sage">Option 2</p>
+                                <h2 class="text-xl font-bold text-navy mt-0.5">First-time family</h2>
+                                <p class="mt-2 text-sm text-slate-700 leading-relaxed">
+                                    This is our first enrollment with Summit Church School.
+                                </p>
+                                <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+                                    Next step: <strong>contact Ryan</strong> by Facebook, text, or email for personalized next steps.
+                                </p>
+                            </div>
+                        </div>
+                        <span class="enroll-choice-cta">
+                            <i class="fas fa-hand-pointer" aria-hidden="true"></i>
+                            Tap here — first-time family
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </span>
+                    </a>
+                </div>
+
+                <p class="mt-6 text-sm text-slate-500 leading-relaxed text-center px-2">
+                    Not sure which button to tap? Choose the closest match, or text Ryan at
+                    <a href="sms:2563283966" class="text-sage hover:text-navy font-semibold underline">256-328-3966</a>.
                 </p>
 
-                <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="index.html"
-                       class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985]">
-                        Return to Website
-                    </a>
-                    <a href="index.html#contact"
-                       class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all">
-                        Contact Us
+                <div class="mt-8 pt-6 border-t border-slate-100 text-center">
+                    <p class="text-xs text-slate-400 mb-3">Only after you tapped a button above:</p>
+                    <a href="index.html" class="text-sm text-slate-500 hover:text-navy underline underline-offset-2">
+                        Return to website
                     </a>
                 </div>
             </div>
