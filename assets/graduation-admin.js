@@ -1158,9 +1158,21 @@
         });
     }
 
+    function collapseGraduationAccordions(programs) {
+        (programs || []).forEach((program) => {
+            const root = document.getElementById(gradProgramRootId(program));
+            if (!root) return;
+            root.querySelectorAll('details[open]').forEach((details) => details.removeAttribute('open'));
+        });
+    }
+
     function showGraduationProgramTab(program) {
         const scrollY = window.scrollY;
+        const leavingProgram = activeGradProgram;
         activeGradProgram = program === 'kindergarten' ? 'kindergarten' : 'senior';
+        if (leavingProgram !== activeGradProgram) {
+            collapseGraduationAccordions([leavingProgram]);
+        }
         const tabBar = document.getElementById('grad-program-tabs');
         if (tabBar) {
             tabBar.querySelectorAll('[data-grad-program-tab]').forEach((btn) => {
@@ -1309,10 +1321,10 @@
         closeReviewModal();
         window.KindergartenGraduationAdmin?.closeReviewModal?.();
 
+        collapseGraduationAccordions(['senior', 'kindergarten']);
         ['senior', 'kindergarten'].forEach((program) => {
             const root = document.getElementById(gradProgramRootId(program));
             if (!root) return;
-            root.querySelectorAll('details[open]').forEach((details) => details.removeAttribute('open'));
             root.querySelectorAll('form').forEach((form) => form.reset());
             const guestResult = root.querySelector('#grad-guest-invite-result');
             if (guestResult) {

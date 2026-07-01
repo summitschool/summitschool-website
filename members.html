@@ -1091,7 +1091,7 @@
     <script src="assets/task-notify.js?v=20260750"></script>
     <script src="assets/graduation-tasks.js?v=20260750"></script>
     <script src="assets/kindergarten-graduation-tasks.js?v=20260750"></script>
-    <script src="assets/graduation-admin.js?v=20260754"></script>
+    <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
     <script src="assets/onboarding-checklist.js?v=20260749"></script>
@@ -1151,6 +1151,8 @@
         const ADMIN_FAMILY_TASKS_PLACEHOLDER = 'Select a family above to view and manage task due dates.';
         const ADMIN_FAMILY_DOCS_PLACEHOLDER = 'Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.';
         const ADMIN_STANDARDS_PLACEHOLDER = 'Select a family above to choose which standard documents to assign (e.g. exclude graduation packets for non-seniors).';
+        const ADMIN_ACADEMIC_RECORDS_PLACEHOLDER = 'Select a family above to view courses, grades, and credits.';
+        const FAMILY_RECORDS_DOCS_PLACEHOLDER = '<div class="text-slate-500 text-sm">Select a family above.</div>';
 
         function initializeSupabase() {
             if (SUPABASE_URL.includes('YOUR_') || SUPABASE_ANON_KEY.includes('YOUR_')) {
@@ -2165,6 +2167,35 @@
             const familySelect = document.getElementById('admin-family-select');
             if (familySelect) familySelect.value = '';
             currentAdminDocsUserId = null;
+
+            const tasksList = document.getElementById('admin-family-tasks-list');
+            if (tasksList) tasksList.innerHTML = ADMIN_FAMILY_TASKS_PLACEHOLDER;
+
+            const docsList = document.getElementById('admin-family-docs-list');
+            if (docsList) docsList.innerHTML = ADMIN_FAMILY_DOCS_PLACEHOLDER;
+
+            const stdCheckboxes = document.getElementById('admin-standard-checkboxes');
+            if (stdCheckboxes) stdCheckboxes.innerHTML = ADMIN_STANDARDS_PLACEHOLDER;
+
+            const familiesAcademicList = document.getElementById('admin-academic-records-list');
+            if (familiesAcademicList) familiesAcademicList.innerHTML = ADMIN_ACADEMIC_RECORDS_PLACEHOLDER;
+        }
+
+        function resetFamilyRecordsPanels() {
+            const content = document.getElementById('viewer-records-content');
+            if (content) content.classList.add('hidden');
+
+            const docs = document.getElementById('viewer-records-docs');
+            if (docs) docs.innerHTML = FAMILY_RECORDS_DOCS_PLACEHOLDER;
+
+            const idContainer = document.getElementById('viewer-records-id');
+            if (idContainer) idContainer.innerHTML = FAMILY_RECORDS_DOCS_PLACEHOLDER;
+
+            const panel = document.getElementById('viewer-records-id-panel');
+            if (panel) panel.removeAttribute('open');
+
+            const hint = document.getElementById('viewer-records-id-hint');
+            if (hint) hint.textContent = 'Click to expand';
         }
 
         function resetAdminUploadFormOnly() {
@@ -2204,6 +2235,18 @@
 
             const content = document.getElementById('admin-records-content');
             if (content) content.classList.add('hidden');
+
+            const docs = document.getElementById('admin-records-docs');
+            if (docs) docs.innerHTML = '';
+
+            const idContainer = document.getElementById('admin-records-id');
+            if (idContainer) idContainer.innerHTML = '';
+
+            const panel = document.getElementById('admin-records-id-panel');
+            if (panel) panel.removeAttribute('open');
+
+            const hint = document.getElementById('admin-records-id-hint');
+            if (hint) hint.textContent = 'Click to expand';
         }
 
         function resetAdminBannerDraft() {
@@ -2284,8 +2327,7 @@
             }
 
             if (tab === 'family-records') {
-                const content = document.getElementById('viewer-records-content');
-                if (content) content.classList.add('hidden');
+                resetFamilyRecordsPanels();
             }
         }
 
@@ -5533,12 +5575,13 @@
             }
         }
 
-        const ADMIN_ACADEMIC_RECORDS_PLACEHOLDER = 'Select a family above to view courses, grades, and credits.';
-
         function resetAdminAcademicSection() {
             const section = document.getElementById('admin-section-academic');
             collapseOpenAccordions(section);
             clearFieldsInContainer(section);
+
+            const listEl = document.getElementById('admin-academic-records-standalone-list');
+            if (listEl) listEl.innerHTML = ADMIN_ACADEMIC_RECORDS_PLACEHOLDER;
         }
 
         async function loadAdminAcademicRecords() {
