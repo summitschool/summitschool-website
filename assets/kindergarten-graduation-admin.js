@@ -642,9 +642,17 @@
         });
     }
 
-    async function loadKindergartenGraduationAdmin() {
+    function restoreGradAdminScroll(scrollY) {
+        requestAnimationFrame(() => {
+            window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' });
+        });
+    }
+
+    async function loadKindergartenGraduationAdmin(scrollY = window.scrollY) {
         const root = document.getElementById('admin-graduation-kindergarten-root');
         if (!root || !getClient()) return;
+        const minHeight = root.offsetHeight;
+        if (minHeight > 0) root.style.minHeight = `${minHeight}px`;
         root.innerHTML = '<div class="hub-empty-state">Loading kindergarten graduation roster…</div>';
 
         const years = await fetchKindergartenGraduationYears();
@@ -668,8 +676,11 @@
                 <div class="ar-year-tab-panels mt-4">${tabPanels}</div>
             </div>
         `;
+        root.dataset.gradProgramLoaded = '1';
+        root.style.minHeight = '';
         bindAdminEvents();
         bindKgGradAdminAccordions(root);
+        restoreGradAdminScroll(scrollY);
     }
 
     function bindAdminEvents() {

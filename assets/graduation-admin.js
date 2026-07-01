@@ -1143,7 +1143,23 @@
 
     let activeGradProgram = 'senior';
 
+    function gradProgramRootId(program) {
+        return program === 'kindergarten' ? 'admin-graduation-kindergarten-root' : 'admin-graduation-senior-root';
+    }
+
+    function isGradProgramLoaded(program) {
+        const root = document.getElementById(gradProgramRootId(program));
+        return root?.dataset.gradProgramLoaded === '1';
+    }
+
+    function restoreGradAdminScroll(scrollY) {
+        requestAnimationFrame(() => {
+            window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' });
+        });
+    }
+
     function showGraduationProgramTab(program) {
+        const scrollY = window.scrollY;
         activeGradProgram = program === 'kindergarten' ? 'kindergarten' : 'senior';
         const tabBar = document.getElementById('grad-program-tabs');
         if (tabBar) {
@@ -1156,10 +1172,12 @@
         document.querySelectorAll('[data-grad-program-panel]').forEach((panel) => {
             panel.classList.toggle('hidden', panel.dataset.gradProgramPanel !== activeGradProgram);
         });
+        restoreGradAdminScroll(scrollY);
+        if (isGradProgramLoaded(activeGradProgram)) return;
         if (activeGradProgram === 'kindergarten') {
-            window.KindergartenGraduationAdmin?.loadKindergartenGraduationAdmin?.();
+            window.KindergartenGraduationAdmin?.loadKindergartenGraduationAdmin?.(scrollY);
         } else {
-            loadSeniorGraduationAdmin();
+            loadSeniorGraduationAdmin(scrollY);
         }
     }
 
@@ -1167,9 +1185,11 @@
         showGraduationProgramTab(activeGradProgram);
     }
 
-    async function loadSeniorGraduationAdmin() {
+    async function loadSeniorGraduationAdmin(scrollY = window.scrollY) {
         const root = document.getElementById('admin-graduation-senior-root');
         if (!root || !getClient()) return;
+        const minHeight = root.offsetHeight;
+        if (minHeight > 0) root.style.minHeight = `${minHeight}px`;
         root.innerHTML = '<div class="hub-empty-state">Loading graduation roster…</div>';
 
         const years = await fetchGraduationYears();
@@ -1193,8 +1213,11 @@
                 <div class="ar-year-tab-panels mt-4">${tabPanels}</div>
             </div>
         `;
+        root.dataset.gradProgramLoaded = '1';
+        root.style.minHeight = '';
         bindAdminEvents();
         bindGradAdminAccordions(root);
+        restoreGradAdminScroll(scrollY);
     }
 
     function bindAdminEvents() {
