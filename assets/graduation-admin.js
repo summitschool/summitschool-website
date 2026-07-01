@@ -9,12 +9,87 @@
         return window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
     }
 
+    const GRAD_ACCORDION_CHEVRON = '<svg class="ar-accordion-chevron-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
     function escapeHtml(value) {
         return String(value ?? '')
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function buildGradAccordionSummary(label, hint = 'Tap to open') {
+        return `
+            <summary class="ar-accordion-trigger grad-admin-accordion-trigger list-none">
+                <span class="ar-accordion-leading">
+                    <span class="ar-accordion-chevron">${GRAD_ACCORDION_CHEVRON}</span>
+                    <span class="ar-accordion-label font-semibold text-navy">${escapeHtml(label)}</span>
+                </span>
+                <span class="grad-admin-accordion-hint">${escapeHtml(hint)}</span>
+            </summary>
+        `;
+    }
+
+    function buildGradAccordionCloseBar() {
+        return `
+            <div class="ar-accordion-closebar ar-accordion-closebar--bottom">
+                <button type="button" class="ar-accordion-close-btn ar-back-to-top-btn" data-grad-admin-collapse>
+                    <span class="ar-accordion-close-icon" aria-hidden="true">↑</span>
+                    Back to top
+                </button>
+            </div>
+        `;
+    }
+
+    function scrollToGradAccordion(details) {
+        if (!details?.open) return;
+        requestAnimationFrame(() => {
+            const summary = details.querySelector('summary');
+            if (!summary) return;
+            const top = summary.getBoundingClientRect().top + window.scrollY - 12;
+            window.scrollTo({ top, behavior: 'smooth' });
+        });
+    }
+
+    function attachGradAccordionScroll(details) {
+        const handler = () => {
+            details.removeEventListener('toggle', handler);
+            scrollToGradAccordion(details);
+        };
+        details.addEventListener('toggle', handler);
+    }
+
+    function bindGradAdminAccordions(root) {
+        if (!root) return;
+        root.querySelectorAll('[data-grad-year-panel]').forEach((yearPanel) => {
+            const accordions = yearPanel.querySelectorAll('[data-grad-admin-accordion]');
+            accordions.forEach((details) => {
+                const summary = details.querySelector('summary');
+                if (!summary || summary.dataset.gradAccordionBound === '1') return;
+                summary.dataset.gradAccordionBound = '1';
+                summary.addEventListener('click', () => {
+                    if (details.hasAttribute('open')) return;
+                    accordions.forEach((other) => {
+                        if (other !== details) other.removeAttribute('open');
+                    });
+                    attachGradAccordionScroll(details);
+                });
+            });
+        });
+
+        root.querySelectorAll('[data-grad-admin-collapse]').forEach((button) => {
+            if (button.dataset.gradCollapseBound === '1') return;
+            button.dataset.gradCollapseBound = '1';
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const details = button.closest('[data-grad-admin-accordion]');
+                if (!details) return;
+                details.removeAttribute('open');
+                details.querySelector('summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
     }
 
     function formatYearTabLabel(schoolYear) {
@@ -723,20 +798,6 @@
             ['tshirt_adult_fee', 'T-shirt adult ($)'],
             ['honor_cord_fee', 'Honor cord each ($)'],
         ];
-        const dateFields = [
-            ['dues_due_date', 'Dues due date'],
-            ['ceremony_date', 'Ceremony date'],
-            ['practice_date', 'Practice date'],
-            ['pictures_date', 'Pictures date (optional)'],
-        ];
-        const eventDetailFields = [
-            ['ceremony_time', 'Ceremony time'],
-            ['ceremony_location', 'Ceremony location'],
-            ['practice_time', 'Practice time'],
-            ['practice_location', 'Practice location'],
-            ['pictures_time', 'Pictures time'],
-            ['pictures_location', 'Pictures location'],
-        ];
         const paymentFields = [
             ['paypal_username', 'PayPal username'],
             ['cashapp_cashtag', 'Cash App $tag'],
@@ -749,8 +810,6 @@
         }
 
         const feeInputs = feeFields.map(([key, label]) => renderInput(key, label, 'number', 'step="0.01"')).join('');
-        const dateInputs = dateFields.map(([key, label]) => renderInput(key, label, 'date')).join('');
-        const eventInputs = eventDetailFields.map(([key, label]) => renderInput(key, label)).join('');
         const paymentInputs = paymentFields.map(([key, label]) => renderInput(key, label)).join('');
 
         return `
@@ -758,14 +817,6 @@
                 <div>
                     <h4 class="text-sm font-semibold text-navy mb-3">Fees</h4>
                     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">${feeInputs}</div>
-                </div>
-                <div>
-                    <h4 class="text-sm font-semibold text-navy mb-3">Important dates</h4>
-                    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">${dateInputs}</div>
-                </div>
-                <div>
-                    <h4 class="text-sm font-semibold text-navy mb-3">Event times &amp; locations</h4>
-                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">${eventInputs}</div>
                 </div>
                 <div>
                     <h4 class="text-sm font-semibold text-navy mb-3">Payment links</h4>
@@ -791,46 +842,119 @@
         `;
     }
 
-    function renderRosterTable(rows, schoolYear) {
-        if (!rows.length) {
-            return '<div class="hub-empty-state">No graduation participants for this school year yet.</div>';
+    function renderRosterActionNote(row) {
+        const subId = row.submission?.id;
+        if (!subId) return '';
+        if (row.formStatus === 'changes_requested') {
+            return '<span class="text-[10px] font-semibold text-amber-700">Awaiting family</span>';
         }
-        const body = rows.map((row) => {
-            const subId = row.submission?.id;
-            const reviewBtn = subId
-                ? `<button type="button" class="text-xs px-3 py-1.5 bg-navy text-white rounded-lg font-semibold" data-grad-review="${subId}">Review</button>`
-                : '—';
-            const actions = subId && row.formStatus === 'changes_requested'
-                ? '<span class="text-[10px] text-amber-700">Awaiting family</span>'
-                : (subId && row.formStatus === 'approved' ? '<span class="text-[10px] text-emerald-700">Complete</span>' : '');
+        if (row.formStatus === 'approved') {
+            return '<span class="text-[10px] font-semibold text-emerald-700">Complete</span>';
+        }
+        return '';
+    }
 
-            return `<tr class="border-t border-slate-100">
-                <td class="py-3 pr-3 font-medium text-navy">${escapeHtml(row.studentName)}</td>
-                <td class="py-3 pr-3"><span class="text-[10px] font-bold uppercase ${row.type === 'Summit' ? 'text-sky-700' : 'text-violet-700'}">${row.type}</span></td>
+    function renderRosterReviewButton(row) {
+        const subId = row.submission?.id;
+        if (!subId) return '<span class="text-xs text-slate-400">—</span>';
+        return `<button type="button" class="text-xs px-3 py-1.5 bg-navy text-white rounded-lg font-semibold" data-grad-review="${subId}">Review</button>`;
+    }
+
+    function renderRosterGuestTag(row) {
+        if (row.type !== 'Guest') return '';
+        return '<span class="text-[10px] font-bold uppercase tracking-wide text-violet-700">Guest</span>';
+    }
+
+    function renderRosterTable(rows) {
+        const body = rows.map((row) => `
+            <tr class="border-t border-slate-100">
+                <td class="py-3 pr-3">
+                    <div class="font-medium text-navy">${escapeHtml(row.studentName)}</div>
+                    ${renderRosterGuestTag(row)}
+                </td>
                 <td class="py-3 pr-3 text-sm">${escapeHtml(row.participation)}</td>
                 <td class="py-3 pr-3 text-sm">${statusBadge(row.formStatus)}</td>
                 <td class="py-3 pr-3">${paymentBadge(row.paymentStatus)}</td>
-                <td class="py-3 pr-3">${reviewBtn}</td>
-                <td class="py-3">${actions}</td>
-            </tr>`;
-        }).join('');
+                <td class="py-3 pr-3">${renderRosterReviewButton(row)}</td>
+                <td class="py-3">${renderRosterActionNote(row)}</td>
+            </tr>
+        `).join('');
 
         return `
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm min-w-[720px]">
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-left text-sm">
                     <thead>
                         <tr class="text-xs uppercase tracking-wide text-slate-500">
                             <th class="pb-2 pr-3">Student</th>
-                            <th class="pb-2 pr-3">Type</th>
                             <th class="pb-2 pr-3">Participation</th>
                             <th class="pb-2 pr-3">Form</th>
                             <th class="pb-2 pr-3">Payment</th>
                             <th class="pb-2 pr-3">Review</th>
-                            <th class="pb-2">Actions</th>
+                            <th class="pb-2">Status</th>
                         </tr>
                     </thead>
                     <tbody>${body}</tbody>
                 </table>
+            </div>
+        `;
+    }
+
+    function renderRosterCards(rows) {
+        return rows.map((row) => `
+            <article class="grad-roster-card hub-surface-card p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h4 class="font-semibold text-navy leading-snug">${escapeHtml(row.studentName)}</h4>
+                        ${renderRosterGuestTag(row) ? `<div class="mt-1">${renderRosterGuestTag(row)}</div>` : ''}
+                    </div>
+                    ${paymentBadge(row.paymentStatus)}
+                </div>
+                <dl class="grad-roster-card-meta mt-3">
+                    <div><dt>Participation</dt><dd>${escapeHtml(row.participation)}</dd></div>
+                    <div><dt>Form</dt><dd>${statusBadge(row.formStatus)}</dd></div>
+                </dl>
+                <div class="mt-4 flex items-center justify-between gap-3">
+                    ${renderRosterReviewButton(row)}
+                    ${renderRosterActionNote(row)}
+                </div>
+            </article>
+        `).join('');
+    }
+
+    function renderRoster(rows) {
+        if (!rows.length) {
+            return '<div class="hub-empty-state">No graduation participants for this school year yet.</div>';
+        }
+        return `
+            <section class="mb-6">
+                <h3 class="text-sm font-semibold text-navy mb-3">Graduation roster</h3>
+                ${renderRosterTable(rows)}
+                <div class="md:hidden space-y-3">${renderRosterCards(rows)}</div>
+            </section>
+        `;
+    }
+
+    function renderSummaryBox(summary) {
+        const stats = [
+            { label: 'Total', value: summary.total, tone: '' },
+            { label: 'Paid', value: summary.paid, tone: 'grad-admin-summary-value--paid' },
+            { label: 'Pending', value: summary.pending, tone: 'grad-admin-summary-value--pending' },
+            { label: 'Walking', value: summary.walking, tone: '' },
+            { label: 'Diploma only', value: summary.diplomaOnly, tone: 'grad-admin-summary-value--muted' },
+        ];
+        return `
+            <div class="ar-grade-help grad-admin-summary mb-6">
+                <div class="ar-grade-help-header">
+                    <h3 class="ar-grade-help-title">Roster overview</h3>
+                </div>
+                <div class="grad-admin-summary-grid">
+                    ${stats.map((stat) => `
+                        <div class="grad-admin-summary-item">
+                            <span class="grad-admin-summary-label">${escapeHtml(stat.label)}</span>
+                            <span class="grad-admin-summary-value ${stat.tone}">${stat.value}</span>
+                        </div>
+                    `).join('')}
+                </div>
             </div>
         `;
     }
@@ -843,29 +967,29 @@
 
         return `
             <div data-grad-year-panel="${escapeHtml(schoolYear)}">
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-                    <div class="hub-panel hub-panel-padded text-center"><div class="text-2xl font-bold text-navy">${summary.total}</div><div class="text-[10px] uppercase text-slate-500">Total</div></div>
-                    <div class="hub-panel hub-panel-padded text-center"><div class="text-2xl font-bold text-emerald-700">${summary.paid}</div><div class="text-[10px] uppercase text-slate-500">Paid</div></div>
-                    <div class="hub-panel hub-panel-padded text-center"><div class="text-2xl font-bold text-amber-700">${summary.pending}</div><div class="text-[10px] uppercase text-slate-500">Pending</div></div>
-                    <div class="hub-panel hub-panel-padded text-center"><div class="text-2xl font-bold text-navy">${summary.walking}</div><div class="text-[10px] uppercase text-slate-500">Walking</div></div>
-                    <div class="hub-panel hub-panel-padded text-center"><div class="text-2xl font-bold text-slate-600">${summary.diplomaOnly}</div><div class="text-[10px] uppercase text-slate-500">Diploma only</div></div>
-                </div>
-                <details class="mb-6 hub-panel hub-panel-padded">
-                    <summary class="font-semibold text-navy cursor-pointer">Year settings (${escapeHtml(schoolYear)})</summary>
-                    <div class="mt-4">${renderSettingsForm(settings, schoolYear)}</div>
+                ${renderSummaryBox(summary)}
+                ${renderRoster(rows)}
+                <details class="ar-accordion grad-admin-accordion hub-panel hub-panel-padded mb-4" data-grad-admin-accordion>
+                    ${buildGradAccordionSummary('Yearly Settings', 'Fees, payment links, cords & requirements')}
+                    <div class="ar-accordion-body">
+                        <div class="mt-4">${renderSettingsForm(settings, schoolYear)}</div>
+                        ${buildGradAccordionCloseBar()}
+                    </div>
                 </details>
-                <details class="mb-6 hub-panel hub-panel-padded">
-                    <summary class="font-semibold text-navy cursor-pointer">Add guest participant</summary>
-                    <form id="grad-add-guest-form" class="mt-4 grid sm:grid-cols-2 gap-3" data-school-year="${escapeHtml(schoolYear)}">
-                        <input name="student_name" required placeholder="Student name" class="form-input px-3 py-2 border rounded-xl text-sm">
-                        <input name="parent_name" placeholder="Parent name" class="form-input px-3 py-2 border rounded-xl text-sm">
-                        <input name="parent_email" type="email" placeholder="Parent email" class="form-input px-3 py-2 border rounded-xl text-sm">
-                        <input name="cover_notes" placeholder="Cover notes (CHE, none, etc.)" class="form-input px-3 py-2 border rounded-xl text-sm">
-                        <button type="submit" class="sm:col-span-2 px-5 py-2.5 bg-navy text-white rounded-xl text-sm font-semibold w-fit">Create invite link</button>
-                    </form>
-                    <div id="grad-guest-invite-result" class="mt-3 text-sm hidden"></div>
+                <details class="ar-accordion grad-admin-accordion hub-panel hub-panel-padded mb-4" data-grad-admin-accordion>
+                    ${buildGradAccordionSummary('Add guest participant', 'Create an invite link for a non-Summit graduate')}
+                    <div class="ar-accordion-body">
+                        <form id="grad-add-guest-form" class="mt-4 grid sm:grid-cols-2 gap-3" data-school-year="${escapeHtml(schoolYear)}">
+                            <input name="student_name" required placeholder="Student name" class="form-input px-3 py-2 border rounded-xl text-sm">
+                            <input name="parent_name" placeholder="Parent name" class="form-input px-3 py-2 border rounded-xl text-sm">
+                            <input name="parent_email" type="email" placeholder="Parent email" class="form-input px-3 py-2 border rounded-xl text-sm">
+                            <input name="cover_notes" placeholder="Cover notes (CHE, none, etc.)" class="form-input px-3 py-2 border rounded-xl text-sm">
+                            <button type="submit" class="sm:col-span-2 px-5 py-2.5 bg-navy text-white rounded-xl text-sm font-semibold w-fit">Create invite link</button>
+                        </form>
+                        <div id="grad-guest-invite-result" class="mt-3 text-sm hidden"></div>
+                        ${buildGradAccordionCloseBar()}
+                    </div>
                 </details>
-                ${renderRosterTable(rows, schoolYear)}
             </div>
         `;
     }
@@ -911,6 +1035,7 @@
             </div>
         `;
         bindAdminEvents();
+        bindGradAdminAccordions(root);
     }
 
     function bindAdminEvents() {
