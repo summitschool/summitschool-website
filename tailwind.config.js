@@ -1,6 +1,14 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./index.html', './members.html', './confirm-email.html', './enrollment-complete.html', './assets/app-dialog.js'],
+  content: [
+    './index.html',
+    './members.html',
+    './confirm-email.html',
+    './enrollment-complete.html',
+    './enrollment-returning.html',
+    './enrollment-new-family.html',
+    './assets/app-dialog.js',
+  ],
   theme: {
     extend: {
       colors: {
