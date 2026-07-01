@@ -145,9 +145,9 @@
 
         if (formState.add_tshirt && formState.tshirt_size) {
             const size = String(formState.tshirt_size);
-            const isAdult = size.toLowerCase().includes('adult')
-                || ['L', 'XL', 'XXL', '2XL'].includes(size);
-            const fee = isAdult
+            const isLarge = /2xl|3xl|4xl/i.test(size)
+                || size.toLowerCase().includes('adult');
+            const fee = isLarge
                 ? Number(settings?.tshirt_adult_fee || 18)
                 : Number(settings?.tshirt_youth_fee || 15);
             items.push({

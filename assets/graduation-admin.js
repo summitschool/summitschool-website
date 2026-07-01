@@ -140,6 +140,12 @@
         return mode === 'diploma_only' ? 'Diploma only (no ceremony)' : 'Full graduation';
     }
 
+    function formatYesNo(value) {
+        if (value === 'yes') return 'Yes';
+        if (value === 'no') return 'No';
+        return value || '—';
+    }
+
     function formatPaymentMethod(method) {
         const labels = {
             paypal: 'PayPal',
@@ -277,6 +283,13 @@
                     ${reviewField('Parent phone', form.parent_phone)}
                     ${reviewField('Parent email', form.parent_email)}
                     ${reviewField('Mailing address', form.mailing_address)}
+                </dl>
+            </section>
+            <section class="grad-review-section">
+                <h4 class="grad-review-heading">Student details</h4>
+                <dl class="grad-review-dl">
+                    ${reviewField('BETA or other club member', formatYesNo(form.beta_club_member))}
+                    ${reviewField('Classical Conversations student', formatYesNo(form.classical_conversations_student))}
                 </dl>
             </section>
             ${capGownSection}

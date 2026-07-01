@@ -114,11 +114,19 @@
             margin: [0, 0, 0, 12],
         });
 
+        function yesNoLabel(value) {
+            if (value === 'yes') return 'Yes';
+            if (value === 'no') return 'No';
+            return value || '—';
+        }
+
         const detailRows = [
             fieldRow('Diploma name', form.diploma_name),
             fieldRow('Parent phone', form.parent_phone),
             fieldRow('Parent email', form.parent_email),
             fieldRow('Mailing address', form.mailing_address),
+            fieldRow('BETA or other club member', yesNoLabel(form.beta_club_member)),
+            fieldRow('Classical Conversations student', yesNoLabel(form.classical_conversations_student)),
         ];
 
         if (form.participation_mode !== 'diploma_only') {

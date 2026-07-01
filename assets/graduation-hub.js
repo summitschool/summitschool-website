@@ -69,6 +69,8 @@
             add_tshirt: false,
             tshirt_size: '',
             honor_cords_selected: [],
+            beta_club_member: '',
+            classical_conversations_student: '',
             requirements_ack: false,
             payment_method: '',
             payment_amount: '',
@@ -82,6 +84,8 @@
         if (!root) return form;
 
         form.participation_mode = root.querySelector('[name="participation_mode"]:checked')?.value || 'full';
+        form.beta_club_member = root.querySelector('[name="beta_club_member"]:checked')?.value || '';
+        form.classical_conversations_student = root.querySelector('[name="classical_conversations_student"]:checked')?.value || '';
         ['diploma_name', 'parent_phone', 'parent_email', 'mailing_address', 'cap_gown_size',
             'special_notes', 'tshirt_size', 'payment_method', 'payment_amount', 'payment_note'].forEach((key) => {
             const el = root.querySelector(`[name="${key}"]`);
@@ -103,8 +107,13 @@
         root.querySelectorAll('[name="participation_mode"]').forEach((radio) => {
             radio.checked = radio.value === mode;
         });
+        ['beta_club_member', 'classical_conversations_student'].forEach((key) => {
+            root.querySelectorAll(`[name="${key}"]`).forEach((radio) => {
+                radio.checked = radio.value === (form[key] || '');
+            });
+        });
         Object.entries(form).forEach(([key, value]) => {
-            if (key === 'honor_cords_selected') return;
+            if (key === 'honor_cords_selected' || key === 'beta_club_member' || key === 'classical_conversations_student') return;
             const el = root.querySelector(`[name="${key}"]`);
             if (!el) return;
             if (el.type === 'checkbox') el.checked = Boolean(value);
@@ -192,11 +201,11 @@
         const picturesEl = document.getElementById('grad-pictures-price');
         const tshirtEl = document.getElementById('grad-tshirt-prices');
         const cordEl = document.getElementById('grad-honor-cord-price');
-        if (picturesEl) picturesEl.textContent = fmt(settings.pictures_fee || 20);
+        if (picturesEl) picturesEl.textContent = `${fmt(settings.pictures_fee || 20)} per student`;
         if (tshirtEl) {
-            tshirtEl.textContent = `Youth ${fmt(settings.tshirt_youth_fee || 15)} · Adult ${fmt(settings.tshirt_adult_fee || 18)}`;
+            tshirtEl.textContent = `${fmt(settings.tshirt_youth_fee || 15)} for XS–XL · ${fmt(settings.tshirt_adult_fee || 18)} for 2XL+`;
         }
-        if (cordEl) cordEl.textContent = `${fmt(settings.honor_cord_fee || 8)} each — select any that apply`;
+        if (cordEl) cordEl.textContent = `${fmt(settings.honor_cord_fee || 8)} per honor cord — check all that apply`;
     }
 
     function renderHonorCords() {
