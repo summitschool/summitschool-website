@@ -8,6 +8,7 @@
     let submission = null;
     let orderFormReached = false;
     let mainTotalVisible = false;
+    let passedMainTotal = false;
     let floatingTotalObservers = null;
 
     function escapeHtml(value) {
@@ -191,8 +192,9 @@
     function syncFloatingTotalVisibility() {
         const bar = document.getElementById('grad-floating-total');
         if (!bar) return;
-        bar.classList.toggle('is-visible', orderFormReached && !mainTotalVisible);
-        bar.setAttribute('aria-hidden', orderFormReached && !mainTotalVisible ? 'false' : 'true');
+        const show = orderFormReached && !mainTotalVisible && !passedMainTotal;
+        bar.classList.toggle('is-visible', show);
+        bar.setAttribute('aria-hidden', show ? 'false' : 'true');
     }
 
     function ensureFloatingTotalBar() {
@@ -257,9 +259,12 @@
         const totalObserver = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
                 mainTotalVisible = entry.isIntersecting;
+                if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
+                    passedMainTotal = true;
+                }
                 syncFloatingTotalVisibility();
             });
-        }, { threshold: 0.35, rootMargin: '0px 0px -10% 0px' });
+        }, { threshold: 0, rootMargin: '0px 0px -10% 0px' });
 
         orderObserver.observe(orderStart);
         totalObserver.observe(totalAnchor);
