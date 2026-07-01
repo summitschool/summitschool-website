@@ -1132,6 +1132,8 @@
         let currentAdminSection = null;
         let lastMyTasksUserId = null;
         let oauthCallbackInProgress = false;
+        let hubSessionRestoreInProgress = false;
+        let authTransitionFailsafeTimer = null;
 
         const ADMIN_FAMILY_TASKS_PLACEHOLDER = 'Select a family above to view and manage task due dates.';
         const ADMIN_FAMILY_DOCS_PLACEHOLDER = 'Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.';
@@ -1315,11 +1317,21 @@
             document.documentElement.classList.remove('auth-transition-pending');
         }
 
-        function isAuthTransitionPending() {
+        function isOAuthHandoffActive() {
             return oauthCallbackInProgress
+                || hasPkceAuthCode()
+                || (hasPendingOAuthAttempt() && (
+                    hasPkceAuthCode()
+                    || window.location.search.indexOf('auth=oauth') !== -1
+                    || window.location.search.indexOf('code=') !== -1
+                ));
+        }
+
+        function isAuthTransitionPending() {
+            return hubSessionRestoreInProgress
+                || oauthCallbackInProgress
                 || document.documentElement.classList.contains('auth-transition-pending')
                 || document.documentElement.classList.contains('auth-transition-active')
-                || hasPendingOAuthAttempt()
                 || hasPkceAuthCode();
         }
 
@@ -1357,19 +1369,60 @@
                 loginView.classList.add('hidden');
             }
 
+            hubSessionRestoreInProgress = false;
             oauthCallbackInProgress = false;
             clearPendingOAuthAttempt();
             document.documentElement.classList.remove('auth-login-locked');
             hideAuthTransition();
         }
 
-        function releaseAuthTransitionHandoff() {
-            const transitionActive = oauthCallbackInProgress
+        function forceResolveAuthTransition() {
+            completeSignInTransition();
+
+            const dashboardView = document.getElementById('dashboard-view');
+            const pendingView = document.getElementById('pending-view');
+            const loginView = document.getElementById('login-view');
+            const authResolved = (dashboardView && !dashboardView.classList.contains('hidden'))
+                || (pendingView && !pendingView.classList.contains('hidden'));
+
+            if (!authResolved && loginView) {
+                loginView.classList.remove('hidden');
+            }
+        }
+
+        function scheduleAuthTransitionFailsafe() {
+            if (authTransitionFailsafeTimer) {
+                clearTimeout(authTransitionFailsafeTimer);
+            }
+            authTransitionFailsafeTimer = setTimeout(() => {
+                if (!isAuthTransitionPending()) return;
+                console.warn('[Family Hub] Auth transition failsafe triggered');
+                void (async () => {
+                    try {
+                        await checkLoginState({ skipAuthTransition: true });
+                    } catch (err) {
+                        console.error('[Family Hub] Failsafe checkLoginState failed:', err);
+                    }
+                    forceResolveAuthTransition();
+                })();
+            }, 12000);
+        }
+
+        function clearAuthTransitionFailsafe() {
+            if (!authTransitionFailsafeTimer) return;
+            clearTimeout(authTransitionFailsafeTimer);
+            authTransitionFailsafeTimer = null;
+        }
+
+        function releaseAuthTransitionHandoff(options = {}) {
+            const force = options.force === true;
+            const transitionActive = hubSessionRestoreInProgress
+                || oauthCallbackInProgress
                 || document.documentElement.classList.contains('auth-transition-pending')
                 || document.documentElement.classList.contains('auth-transition-active')
                 || document.documentElement.classList.contains('auth-login-locked');
 
-            if (!transitionActive) return;
+            if (!transitionActive && !force) return;
 
             const dashboardView = document.getElementById('dashboard-view');
             const pendingView = document.getElementById('pending-view');
@@ -1377,16 +1430,24 @@
             const pendingReady = pendingView && !pendingView.classList.contains('hidden');
             const authResolved = dashboardReady || pendingReady;
 
-            if (oauthCallbackInProgress && !authResolved) {
+            if (oauthCallbackInProgress && !authResolved && !force) {
                 requestAnimationFrame(() => releaseAuthTransitionHandoff());
+                return;
+            }
+
+            const finalize = () => {
+                hubSessionRestoreInProgress = false;
+                completeSignInTransition();
+            };
+
+            if (force) {
+                finalize();
                 return;
             }
 
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        completeSignInTransition();
-                    }, 32);
+                    setTimeout(finalize, 32);
                 });
             });
         }
@@ -2878,11 +2939,12 @@
 
         // Check current auth state and approval
         async function checkLoginState(options = {}) {
+            const skipAuthTransition = options.skipAuthTransition === true;
             const loginView = document.getElementById('login-view');
             const dashboardView = document.getElementById('dashboard-view');
             const pendingView = document.getElementById('pending-view');
             const headerLogoutBtn = document.getElementById('header-logout-btn');
-            const completingSignIn = isCompletingSignIn();
+            const completingSignIn = isCompletingSignIn() && !skipAuthTransition;
 
             function setLogoutButtonsVisible(visible) {
                 if (!headerLogoutBtn) return;
@@ -2928,6 +2990,10 @@
                     .select('*')
                     .eq('id', user.id)
                     .maybeSingle();
+
+                if (error) {
+                    console.warn('[Family Hub] Profile lookup failed:', error.message);
+                }
 
                 hideLoginView();
 
@@ -2976,8 +3042,12 @@
                     // Load My ID section (under My Documents)
                     if (typeof loadMyIDSection === 'function') loadMyIDSection();
 
-                    await loadUserAccess(user);
-                    await applyMemberAccessUI();
+                    try {
+                        await loadUserAccess(user);
+                        await applyMemberAccessUI();
+                    } catch (accessErr) {
+                        console.error('[Family Hub] Access UI load failed:', accessErr);
+                    }
 
                     // Note: do NOT default the sub-tab here.
                     // Default happens only on initial load (see below) so that
@@ -2998,11 +3068,14 @@
                     setLogoutButtonsVisible(true);
                 }
             } else {
-                if (oauthCallbackInProgress || hasPendingOAuthAttempt() || hasPkceAuthCode()) {
-                    showAuthTransition('Completing sign-in…');
+                if (isOAuthHandoffActive()) {
+                    if (!skipAuthTransition) {
+                        showAuthTransition('Completing sign-in…');
+                    }
                     return;
                 }
 
+                hubSessionRestoreInProgress = false;
                 hideAuthTransition();
                 finishOAuthHandoff();
 
@@ -6441,6 +6514,9 @@
 
         // Initialize everything
         async function init() {
+            const restoringHubSession = Boolean(window.__hubSessionRestore);
+            hubSessionRestoreInProgress = restoringHubSession;
+
             if (
                 window.__oauthReturnPending
                 || hasPkceAuthCode()
@@ -6450,12 +6526,13 @@
                 delete window.__oauthReturnPending;
                 document.documentElement.classList.add('auth-login-locked');
                 showAuthTransition('Completing Google sign-in…');
-            } else if (window.__hubSessionRestore) {
+            } else if (restoringHubSession) {
                 delete window.__hubSessionRestore;
                 const transitionTitle = document.querySelector('#auth-transition-overlay .auth-transition-title');
                 const transitionMessage = document.getElementById('auth-transition-message');
                 if (transitionTitle) transitionTitle.textContent = 'Welcome back';
                 if (transitionMessage) transitionMessage.textContent = 'Loading your Family Hub…';
+                scheduleAuthTransitionFailsafe();
             }
 
             initSupabaseClient();
@@ -6467,44 +6544,66 @@
                 });
             }
 
-            updateOpeningNotice();
-            handleAuthRedirect();
-            setupForms();
-            setupAuthTabs();
-            setupMobileMenu();
-            setupMobileReturnTop();
-            setupAdminUpload();       // personal uploads (now supports URL for DocuSeal + file)
-            setupAdminSharedForm();   // shared resources management
-            setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
-            setupAdminBannerForm();   // banner management
-            setupStaffAccessPanel();
-            setupPendingApprovalsPanel();
-            setupPendingIdsPanel();
+            try {
+                updateOpeningNotice();
+                handleAuthRedirect();
+                setupForms();
+                setupAuthTabs();
+                setupMobileMenu();
+                setupMobileReturnTop();
+                setupAdminUpload();       // personal uploads (now supports URL for DocuSeal + file)
+                setupAdminSharedForm();   // shared resources management
+                setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
+                setupAdminBannerForm();   // banner management
+                setupStaffAccessPanel();
+                setupPendingApprovalsPanel();
+                setupPendingIdsPanel();
 
-            // Set initial tab state (support links from enrollment page)
-            const authTabHash = window.location.hash.toLowerCase();
-            if (!oauthCallbackInProgress) {
-                if (authTabHash === '#signup' || authTabHash === '#create-account') {
-                    showAuthTab('signup');
-                } else {
-                    showAuthTab('login');
+                // Set initial tab state (support links from enrollment page)
+                const authTabHash = window.location.hash.toLowerCase();
+                if (!oauthCallbackInProgress) {
+                    if (authTabHash === '#signup' || authTabHash === '#create-account') {
+                        showAuthTab('signup');
+                    } else {
+                        showAuthTab('login');
+                    }
                 }
+
+                setupMemberSessionGuards();
+
+                if (restoringHubSession) {
+                    clearPendingOAuthAttempt();
+                }
+
+                await enforceMemberSessionIfExpired();
+                await processOAuthCallback();
+
+                if (restoringHubSession && supabaseClient) {
+                    await waitForAuthSession(30, 100);
+                }
+
+                // Check current state on load
+                await checkLoginState({ skipAuthTransition: restoringHubSession });
+                showSessionLogoutNotice();
+
+                // Default to My Tasks tab on initial load only (per requirement: tasks first).
+                // This is deliberately outside checkLoginState() so that
+                // visibility/focus events (e.g. switching browser tabs and back)
+                // do not force-reset the active sub-tab.
+                showDashboardTab('my-tasks');
+            } catch (initErr) {
+                console.error('[Family Hub] init failed:', initErr);
+                forceResolveAuthTransition();
+                try {
+                    await checkLoginState({ skipAuthTransition: true });
+                } catch (recoverErr) {
+                    console.error('[Family Hub] init recovery failed:', recoverErr);
+                }
+            } finally {
+                clearAuthTransitionFailsafe();
+                hubSessionRestoreInProgress = false;
+                releaseAuthTransitionHandoff({ force: true });
             }
-
-            setupMemberSessionGuards();
-            await enforceMemberSessionIfExpired();
-            await processOAuthCallback();
-
-            // Check current state on load
-            await checkLoginState();
-            showSessionLogoutNotice();
-
-            // Default to My Tasks tab on initial load only (per requirement: tasks first).
-            // This is deliberately outside checkLoginState() so that
-            // visibility/focus events (e.g. switching browser tabs and back)
-            // do not force-reset the active sub-tab.
-            showDashboardTab('my-tasks');
-            releaseAuthTransitionHandoff();
         }
 
         window.onload = init;
