@@ -495,7 +495,7 @@
                     changesBtn.disabled = true;
                     await requestChanges(changesBtn.dataset.gradReviewChanges, note);
                     closeReviewModal();
-                    await loadGraduationAdmin();
+                    await loadSeniorGraduationAdmin();
                     await window.showAppAlert?.('Feedback sent. The family can update and resubmit their order.', { tone: 'success' });
                 } catch (err) {
                     await window.showAppAlert?.(err.message || String(err));
@@ -513,7 +513,7 @@
                     paidBtn.disabled = true;
                     await markSubmissionPaid(paidBtn.dataset.gradReviewPaid, method, amount, note);
                     await openReviewModal(paidBtn.dataset.gradReviewPaid);
-                    await loadGraduationAdmin();
+                    await loadSeniorGraduationAdmin();
                     await window.showAppAlert?.('Payment recorded.', { tone: 'success' });
                 } catch (err) {
                     await window.showAppAlert?.(err.message || String(err));
@@ -532,7 +532,7 @@
                     revisePaidBtn.disabled = true;
                     await reviseSubmissionPayment(revisePaidBtn.dataset.gradReviewRevisePaid, method, amount, note);
                     await openReviewModal(revisePaidBtn.dataset.gradReviewRevisePaid);
-                    await loadGraduationAdmin();
+                    await loadSeniorGraduationAdmin();
                     await window.showAppAlert?.('Payment record updated.', { tone: 'success' });
                 } catch (err) {
                     await window.showAppAlert?.(err.message || String(err));
@@ -554,7 +554,7 @@
                     resetPaidBtn.disabled = true;
                     await resetSubmissionPayment(resetPaidBtn.dataset.gradReviewResetPaid);
                     await openReviewModal(resetPaidBtn.dataset.gradReviewResetPaid);
-                    await loadGraduationAdmin();
+                    await loadSeniorGraduationAdmin();
                     await window.showAppAlert?.('Payment reset to unpaid.', { tone: 'success' });
                 } catch (err) {
                     await window.showAppAlert?.(err.message || String(err));
@@ -585,7 +585,7 @@
                     approveBtn.disabled = true;
                     await approveSubmission(approveBtn.dataset.gradReviewApprove, ack);
                     closeReviewModal();
-                    await loadGraduationAdmin();
+                    await loadSeniorGraduationAdmin();
                     await window.showAppAlert?.('Graduation order approved and archived.', { tone: 'success' });
                 } catch (err) {
                     await window.showAppAlert?.(err.message || String(err));
@@ -1141,8 +1141,34 @@
         });
     }
 
+    let activeGradProgram = 'senior';
+
+    function showGraduationProgramTab(program) {
+        activeGradProgram = program === 'kindergarten' ? 'kindergarten' : 'senior';
+        const tabBar = document.getElementById('grad-program-tabs');
+        if (tabBar) {
+            tabBar.querySelectorAll('[data-grad-program-tab]').forEach((btn) => {
+                const active = btn.dataset.gradProgramTab === activeGradProgram;
+                btn.classList.toggle('is-active', active);
+                btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+        document.querySelectorAll('[data-grad-program-panel]').forEach((panel) => {
+            panel.classList.toggle('hidden', panel.dataset.gradProgramPanel !== activeGradProgram);
+        });
+        if (activeGradProgram === 'kindergarten') {
+            window.KindergartenGraduationAdmin?.loadKindergartenGraduationAdmin?.();
+        } else {
+            loadSeniorGraduationAdmin();
+        }
+    }
+
     async function loadGraduationAdmin() {
-        const root = document.getElementById('admin-graduation-root');
+        showGraduationProgramTab(activeGradProgram);
+    }
+
+    async function loadSeniorGraduationAdmin() {
+        const root = document.getElementById('admin-graduation-senior-root');
         if (!root || !getClient()) return;
         root.innerHTML = '<div class="hub-empty-state">Loading graduation roster…</div>';
 
@@ -1172,7 +1198,7 @@
     }
 
     function bindAdminEvents() {
-        const root = document.getElementById('admin-graduation-root');
+        const root = document.getElementById('admin-graduation-senior-root');
         if (!root) return;
 
         root.addEventListener('submit', async (event) => {
@@ -1207,7 +1233,7 @@
                         result.innerHTML = `Invite link: <a href="${escapeHtml(link)}" class="text-navy font-semibold underline break-all" target="_blank">${escapeHtml(link)}</a>`;
                     }
                     guestForm.reset();
-                    await loadGraduationAdmin();
+                    await loadSeniorGraduationAdmin();
                 } catch (err) {
                     await window.showAppAlert?.(err.message || String(err));
                 }
@@ -1244,7 +1270,7 @@
                     requirements_text: prevSettings.requirements_text,
                     honor_cord_options: prevSettings.honor_cord_options,
                 });
-                await loadGraduationAdmin();
+                await loadSeniorGraduationAdmin();
                 return;
             }
 
@@ -1257,6 +1283,8 @@
 
     window.GraduationAdmin = {
         loadGraduationAdmin,
+        loadSeniorGraduationAdmin,
+        showProgramTab: showGraduationProgramTab,
         showYearTab: showGraduationYearTab,
         ensureGraduationSettingsYear,
         approveSubmission,

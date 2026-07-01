@@ -649,13 +649,22 @@
                     </div>
                 </div>
 
-                <!-- Graduation: roster, settings, guests -->
+                <!-- Graduation: senior + kindergarten rosters -->
                 <div id="admin-section-graduation" class="hidden">
                     <div class="hub-admin-block">
-                        <h3 class="hub-admin-block-title mb-1">Graduation Roster</h3>
-                        <p class="hub-section-subtitle mb-4">Track every senior and guest participant by school year — form status, payment, and approval in one place.</p>
-                        <div id="admin-graduation-root">
-                            <div class="hub-empty-state">Open this tab to load the graduation roster.</div>
+                        <h3 class="hub-admin-block-title mb-1">Graduation</h3>
+                        <p class="hub-section-subtitle mb-4">Track senior and kindergarten participants by school year — form status, payment, and approval in one place.</p>
+                        <div id="grad-program-tabs" class="hub-tab-group mb-6" role="tablist" aria-label="Graduation programs">
+                            <button type="button" class="hub-tab-btn is-active" role="tab" data-grad-program-tab="senior" aria-selected="true"
+                                onclick="window.GraduationAdmin.showProgramTab('senior')">Senior</button>
+                            <button type="button" class="hub-tab-btn" role="tab" data-grad-program-tab="kindergarten" aria-selected="false"
+                                onclick="window.GraduationAdmin.showProgramTab('kindergarten')">Kindergarten</button>
+                        </div>
+                        <div id="admin-graduation-senior-root" data-grad-program-panel="senior">
+                            <div class="hub-empty-state">Open this tab to load the senior graduation roster.</div>
+                        </div>
+                        <div id="admin-graduation-kindergarten-root" class="hidden" data-grad-program-panel="kindergarten">
+                            <div class="hub-empty-state">Open this tab to load the kindergarten graduation roster.</div>
                         </div>
                     </div>
                 </div>
@@ -1082,7 +1091,8 @@
     <script src="assets/task-notify.js?v=20260750"></script>
     <script src="assets/graduation-tasks.js?v=20260750"></script>
     <script src="assets/kindergarten-graduation-tasks.js?v=20260750"></script>
-    <script src="assets/graduation-admin.js?v=20260747"></script>
+    <script src="assets/graduation-admin.js?v=20260751"></script>
+    <script src="assets/kindergarten-graduation-admin.js?v=20260751"></script>
     <script src="assets/academic-records.js?v=20260749"></script>
     <script src="assets/onboarding-checklist.js?v=20260749"></script>
     <script>
