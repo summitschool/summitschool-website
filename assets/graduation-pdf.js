@@ -122,12 +122,12 @@
         ];
 
         if (form.participation_mode !== 'diploma_only') {
-            detailRows.push(
-                fieldRow('Cap & gown size', form.cap_gown_size),
-                fieldRow('Height', form.height),
-                fieldRow('Weight', form.weight),
-                fieldRow('Guest tickets', form.num_guest_tickets)
-            );
+            detailRows.push(fieldRow('Cap & gown size', form.cap_gown_size));
+        }
+
+        const cords = window.GraduationTasks?.getHonorCordsSelected?.(form) || [];
+        if (cords.length) {
+            detailRows.push(fieldRow('Honor cords', cords.join(', ')));
         }
 
         detailRows.push(fieldRow('Special notes', form.special_notes));
@@ -179,6 +179,16 @@
             layout: 'noBorders',
             margin: [0, 0, 0, 12],
         });
+
+        if (form.requirements_ack) {
+            content.push({ text: 'Requirements', style: 'sectionTitle' });
+            content.push({
+                text: 'Parent/guardian acknowledged the graduation requirements.',
+                fontSize: 9,
+                color: MUTED,
+                margin: [0, 0, 0, 12],
+            });
+        }
 
         content.push({ text: 'Signatures', style: 'sectionTitle' });
         content.push({

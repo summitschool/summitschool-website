@@ -60,8 +60,16 @@
             ceremony_opt_out_fee: prev.ceremony_opt_out_fee,
             dues_due_date: `${endYear}-03-01`,
             ceremony_date: `${endYear}-05-22`,
+            ceremony_time: prev.ceremony_time,
+            ceremony_location: prev.ceremony_location,
             practice_date: `${endYear}-05-21`,
+            practice_time: prev.practice_time,
+            practice_location: prev.practice_location,
             pictures_date: null,
+            pictures_time: prev.pictures_time,
+            pictures_location: prev.pictures_location,
+            requirements_text: prev.requirements_text,
+            honor_cord_options: prev.honor_cord_options,
             paypal_username: prev.paypal_username,
             cashapp_cashtag: prev.cashapp_cashtag,
             payment_note_hint: prev.payment_note_hint,
@@ -153,8 +161,8 @@
         if (form.add_pictures) items.push('Graduation pictures');
         if (form.add_tshirt && form.tshirt_size) items.push(`Graduation t-shirt (${form.tshirt_size})`);
         else if (form.add_tshirt) items.push('Graduation t-shirt');
-        const cords = Number(form.honor_cord_qty) || 0;
-        if (cords > 0) items.push(`Honor cord${cords > 1 ? 's' : ''} (×${cords})`);
+        const cords = window.GraduationTasks.getHonorCordsSelected(form);
+        cords.forEach((cord) => items.push(`Honor cord — ${cord}`));
         if (!items.length) return '<p class="text-sm text-slate-500">None selected</p>';
         return `<ul class="grad-review-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
     }
@@ -195,9 +203,6 @@
                 <h4 class="grad-review-heading">Cap &amp; gown</h4>
                 <dl class="grad-review-dl">
                     ${reviewField('Size', form.cap_gown_size)}
-                    ${reviewField('Height', form.height)}
-                    ${reviewField('Weight', form.weight)}
-                    ${reviewField('Guest tickets', form.num_guest_tickets)}
                 </dl>
             </section>
         ` : '';
@@ -295,8 +300,9 @@
                 </dl>
             </section>
             <section class="grad-review-section">
-                <h4 class="grad-review-heading">Family signature</h4>
+                <h4 class="grad-review-heading">Requirements &amp; signature</h4>
                 <dl class="grad-review-dl">
+                    ${reviewField('Requirements acknowledged', form.requirements_ack ? 'Yes' : 'No')}
                     ${reviewField('Signed by', sub.family_ack_name)}
                     ${reviewField('Submitted', formatSubmittedDate(sub.family_submitted_at))}
                 </dl>
@@ -695,7 +701,7 @@
 
     function renderSettingsForm(settings, schoolYear) {
         const s = settings || {};
-        const fields = [
+        const feeFields = [
             ['summit_base_fee', 'Summit base fee ($)'],
             ['guest_base_fee', 'Guest base fee ($)'],
             ['ceremony_opt_out_fee', 'Diploma-only fee ($, leave blank for TBD)'],
@@ -703,28 +709,68 @@
             ['tshirt_youth_fee', 'T-shirt youth ($)'],
             ['tshirt_adult_fee', 'T-shirt adult ($)'],
             ['honor_cord_fee', 'Honor cord each ($)'],
+        ];
+        const dateFields = [
             ['dues_due_date', 'Dues due date'],
             ['ceremony_date', 'Ceremony date'],
             ['practice_date', 'Practice date'],
             ['pictures_date', 'Pictures date (optional)'],
+        ];
+        const eventDetailFields = [
+            ['ceremony_time', 'Ceremony time'],
+            ['ceremony_location', 'Ceremony location'],
+            ['practice_time', 'Practice time'],
+            ['practice_location', 'Practice location'],
+            ['pictures_time', 'Pictures time'],
+            ['pictures_location', 'Pictures location'],
+        ];
+        const paymentFields = [
             ['paypal_username', 'PayPal username'],
             ['cashapp_cashtag', 'Cash App $tag'],
         ];
-        const inputs = fields.map(([key, label]) => {
+
+        function renderInput(key, label, type = 'text', extra = '') {
             const val = s[key] ?? '';
-            const type = key.includes('date') ? 'date' : (key.includes('fee') ? 'number' : 'text');
-            const step = key.includes('fee') ? 'step="0.01"' : '';
             return `<div><label class="block text-xs font-medium text-slate-600 mb-1">${escapeHtml(label)}</label>
-                <input type="${type}" name="${key}" value="${escapeHtml(val)}" ${step} class="form-input w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"></div>`;
-        }).join('');
+                <input type="${type}" name="${key}" value="${escapeHtml(val)}" ${extra} class="form-input w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"></div>`;
+        }
+
+        const feeInputs = feeFields.map(([key, label]) => renderInput(key, label, 'number', 'step="0.01"')).join('');
+        const dateInputs = dateFields.map(([key, label]) => renderInput(key, label, 'date')).join('');
+        const eventInputs = eventDetailFields.map(([key, label]) => renderInput(key, label)).join('');
+        const paymentInputs = paymentFields.map(([key, label]) => renderInput(key, label)).join('');
+
         return `
-            <form id="grad-admin-settings-form" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-school-year="${escapeHtml(schoolYear)}">
-                ${inputs}
-                <div class="sm:col-span-2 lg:col-span-3">
-                    <label class="block text-xs font-medium text-slate-600 mb-1">Payment note hint</label>
-                    <input type="text" name="payment_note_hint" value="${escapeHtml(s.payment_note_hint || '')}" class="form-input w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+            <form id="grad-admin-settings-form" class="space-y-6" data-school-year="${escapeHtml(schoolYear)}">
+                <div>
+                    <h4 class="text-sm font-semibold text-navy mb-3">Fees</h4>
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">${feeInputs}</div>
                 </div>
-                <div class="sm:col-span-2 lg:col-span-3 flex gap-3">
+                <div>
+                    <h4 class="text-sm font-semibold text-navy mb-3">Important dates</h4>
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">${dateInputs}</div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-navy mb-3">Event times &amp; locations</h4>
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">${eventInputs}</div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-navy mb-3">Payment links</h4>
+                    <div class="grid sm:grid-cols-2 gap-4">${paymentInputs}</div>
+                    <div class="mt-4">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Payment note hint</label>
+                        <input type="text" name="payment_note_hint" value="${escapeHtml(s.payment_note_hint || '')}" class="form-input w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Honor cord options (one per line)</label>
+                    <textarea name="honor_cord_options" rows="6" class="form-input w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-mono">${escapeHtml(s.honor_cord_options || '')}</textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Graduation requirements (shown to families)</label>
+                    <textarea name="requirements_text" rows="10" class="form-input w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">${escapeHtml(s.requirements_text || '')}</textarea>
+                </div>
+                <div class="flex gap-3">
                     <button type="submit" class="px-5 py-2.5 bg-navy text-white rounded-xl text-sm font-semibold">Save settings</button>
                     <button type="button" id="grad-copy-settings-btn" class="px-5 py-2.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700">Copy from previous year</button>
                 </div>
@@ -918,6 +964,14 @@
                     ceremony_date: `${endYear}-05-22`,
                     practice_date: `${endYear}-05-21`,
                     pictures_date: null,
+                    ceremony_time: prevSettings.ceremony_time,
+                    ceremony_location: prevSettings.ceremony_location,
+                    practice_time: prevSettings.practice_time,
+                    practice_location: prevSettings.practice_location,
+                    pictures_time: prevSettings.pictures_time,
+                    pictures_location: prevSettings.pictures_location,
+                    requirements_text: prevSettings.requirements_text,
+                    honor_cord_options: prevSettings.honor_cord_options,
                 });
                 await loadGraduationAdmin();
                 return;

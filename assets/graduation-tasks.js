@@ -46,6 +46,28 @@
         }
     }
 
+    function formatMoney(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return '$0.00';
+        return `$${num.toFixed(2)}`;
+    }
+
+    function parseHonorCordOptions(text) {
+        return String(text || '')
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+    }
+
+    function getHonorCordsSelected(formState) {
+        if (Array.isArray(formState?.honor_cords_selected)) {
+            return formState.honor_cords_selected.filter(Boolean);
+        }
+        const legacyQty = Math.max(0, Number(formState?.honor_cord_qty) || 0);
+        if (legacyQty > 0) return Array(legacyQty).fill('Honor cord');
+        return [];
+    }
+
     function isTaskOverdue(dueDate) {
         if (!dueDate) return false;
         const today = new Date();
@@ -135,13 +157,15 @@
             });
         }
 
-        const cordQty = Math.max(0, Number(formState.honor_cord_qty) || 0);
-        if (cordQty > 0) {
+        const cords = getHonorCordsSelected(formState);
+        if (cords.length) {
             const unit = Number(settings?.honor_cord_fee || 8);
-            items.push({
-                key: 'honor_cords',
-                label: `Honor cord${cordQty > 1 ? 's' : ''} (×${cordQty})`,
-                amount: unit * cordQty,
+            cords.forEach((cord, index) => {
+                items.push({
+                    key: `honor_cord_${index}`,
+                    label: `Honor cord — ${cord}`,
+                    amount: unit,
+                });
             });
         }
 
@@ -271,6 +295,9 @@
         fetchSubmissionForStudent,
         computeLineItems,
         formatDateLabel,
+        formatMoney,
+        parseHonorCordOptions,
+        getHonorCordsSelected,
         submissionStatusLabel,
     };
 })();

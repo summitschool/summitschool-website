@@ -64,14 +64,12 @@
             parent_email: '',
             mailing_address: '',
             cap_gown_size: '',
-            height: '',
-            weight: '',
-            num_guest_tickets: '2',
             special_notes: '',
             add_pictures: false,
             add_tshirt: false,
             tshirt_size: '',
-            honor_cord_qty: 0,
+            honor_cords_selected: [],
+            requirements_ack: false,
             payment_method: '',
             payment_amount: '',
             payment_note: '',
@@ -85,14 +83,16 @@
 
         form.participation_mode = root.querySelector('[name="participation_mode"]:checked')?.value || 'full';
         ['diploma_name', 'parent_phone', 'parent_email', 'mailing_address', 'cap_gown_size',
-            'height', 'weight', 'num_guest_tickets', 'special_notes', 'tshirt_size',
-            'payment_method', 'payment_amount', 'payment_note'].forEach((key) => {
+            'special_notes', 'tshirt_size', 'payment_method', 'payment_amount', 'payment_note'].forEach((key) => {
             const el = root.querySelector(`[name="${key}"]`);
             if (el) form[key] = el.value;
         });
         form.add_pictures = Boolean(root.querySelector('[name="add_pictures"]')?.checked);
         form.add_tshirt = Boolean(root.querySelector('[name="add_tshirt"]')?.checked);
-        form.honor_cord_qty = Number(root.querySelector('[name="honor_cord_qty"]')?.value) || 0;
+        form.requirements_ack = Boolean(root.querySelector('[name="requirements_ack"]')?.checked);
+        form.honor_cords_selected = [...root.querySelectorAll('[name="honor_cord_option"]:checked')]
+            .map((el) => el.value)
+            .filter(Boolean);
         return form;
     }
 
@@ -104,10 +104,15 @@
             radio.checked = radio.value === mode;
         });
         Object.entries(form).forEach(([key, value]) => {
+            if (key === 'honor_cords_selected') return;
             const el = root.querySelector(`[name="${key}"]`);
             if (!el) return;
             if (el.type === 'checkbox') el.checked = Boolean(value);
             else el.value = value ?? '';
+        });
+        const selectedCords = window.GraduationTasks.getHonorCordsSelected(form);
+        root.querySelectorAll('[name="honor_cord_option"]').forEach((el) => {
+            el.checked = selectedCords.includes(el.value);
         });
         toggleParticipationSections(mode);
         updateTotals();
@@ -150,18 +155,71 @@
         return { items, total };
     }
 
+    function formatEventDetail(date, time, location) {
+        const fmt = window.GraduationTasks.formatDateLabel;
+        const parts = [fmt(date)];
+        if (time) parts.push(time);
+        if (location) parts.push(location);
+        return parts.join(' · ');
+    }
+
     function renderEventInfo() {
         const el = document.getElementById('grad-event-info');
         if (!el || !settings) return;
         const fmt = window.GraduationTasks.formatDateLabel;
         el.innerHTML = `
-            <dl class="grid sm:grid-cols-2 gap-3 text-sm">
+            <dl class="grid sm:grid-cols-2 gap-4 text-sm">
                 <div><dt class="text-slate-500 font-medium">Dues due</dt><dd class="text-navy font-semibold">${escapeHtml(fmt(settings.dues_due_date))}</dd></div>
-                <div><dt class="text-slate-500 font-medium">Ceremony</dt><dd class="text-navy font-semibold">${escapeHtml(fmt(settings.ceremony_date))}</dd></div>
-                <div><dt class="text-slate-500 font-medium">Practice</dt><dd class="text-navy font-semibold">${escapeHtml(fmt(settings.practice_date))} (night before)</dd></div>
-                <div><dt class="text-slate-500 font-medium">Pictures</dt><dd class="text-navy font-semibold">${escapeHtml(fmt(settings.pictures_date))}</dd></div>
+                <div>
+                    <dt class="text-slate-500 font-medium">Ceremony</dt>
+                    <dd class="text-navy font-semibold">${escapeHtml(formatEventDetail(settings.ceremony_date, settings.ceremony_time, settings.ceremony_location))}</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-500 font-medium">Practice</dt>
+                    <dd class="text-navy font-semibold">${escapeHtml(formatEventDetail(settings.practice_date, settings.practice_time, settings.practice_location))} <span class="text-slate-500 font-normal">(night before)</span></dd>
+                </div>
+                <div>
+                    <dt class="text-slate-500 font-medium">Pictures</dt>
+                    <dd class="text-navy font-semibold">${escapeHtml(formatEventDetail(settings.pictures_date, settings.pictures_time, settings.pictures_location))}</dd>
+                </div>
             </dl>
         `;
+    }
+
+    function renderAddonPrices() {
+        if (!settings) return;
+        const fmt = window.GraduationTasks.formatMoney;
+        const picturesEl = document.getElementById('grad-pictures-price');
+        const tshirtEl = document.getElementById('grad-tshirt-prices');
+        const cordEl = document.getElementById('grad-honor-cord-price');
+        if (picturesEl) picturesEl.textContent = fmt(settings.pictures_fee || 20);
+        if (tshirtEl) {
+            tshirtEl.textContent = `Youth ${fmt(settings.tshirt_youth_fee || 15)} · Adult ${fmt(settings.tshirt_adult_fee || 18)}`;
+        }
+        if (cordEl) cordEl.textContent = `${fmt(settings.honor_cord_fee || 8)} each — select any that apply`;
+    }
+
+    function renderHonorCords() {
+        const container = document.getElementById('grad-honor-cords');
+        if (!container || !settings) return;
+        const options = window.GraduationTasks.parseHonorCordOptions(settings.honor_cord_options);
+        if (!options.length) {
+            container.innerHTML = '<p class="text-sm text-slate-500">Honor cord options will be posted by the school office.</p>';
+            return;
+        }
+        container.innerHTML = options.map((option) => `
+            <label class="flex items-start gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-navy/30">
+                <input type="checkbox" name="honor_cord_option" value="${escapeHtml(option)}" class="mt-0.5 rounded border-slate-300">
+                <span class="text-sm text-slate-700">${escapeHtml(option)}</span>
+            </label>
+        `).join('');
+    }
+
+    function renderRequirements() {
+        const el = document.getElementById('grad-requirements-text');
+        if (!el || !settings) return;
+        const text = settings.requirements_text?.trim();
+        el.textContent = text || 'Graduation requirements will be posted by the school office.';
     }
 
     async function loadContext() {
@@ -357,6 +415,11 @@
     async function submitForm(event) {
         event.preventDefault();
         const form = readFormFromDom();
+        if (!form.requirements_ack) {
+            await window.showAppAlert?.('Please acknowledge the graduation requirements before submitting.');
+            return;
+        }
+
         const ack = document.getElementById('grad-ack-name')?.value?.trim();
         if (!ack) {
             await window.showAppAlert?.('Type your full legal name to submit.');
@@ -460,6 +523,9 @@
                 return;
             }
             renderEventInfo();
+            renderAddonPrices();
+            renderHonorCords();
+            renderRequirements();
             prefillFromContext();
             if (submission?.status === 'changes_requested' && submission.admin_notes) {
                 showChangesRequestedBanner(submission.admin_notes);

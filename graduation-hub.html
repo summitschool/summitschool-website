@@ -86,40 +86,32 @@
 
                     <section class="site-card p-6 sm:p-8" data-full-only>
                         <h2 class="text-lg font-semibold text-navy mb-4">Cap &amp; gown</h2>
-                        <div class="grid sm:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-600 mb-1">Size</label>
-                                <select name="cap_gown_size" class="form-input w-full px-4 py-3 border border-slate-300 rounded-2xl text-sm">
-                                    <option value="">Select…</option>
-                                    <option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-600 mb-1">Height</label>
-                                <input type="text" name="height" placeholder="e.g. 5'8&quot;" class="form-input w-full px-4 py-3 border border-slate-300 rounded-2xl text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-600 mb-1">Weight</label>
-                                <input type="text" name="weight" placeholder="e.g. 140 lbs" class="form-input w-full px-4 py-3 border border-slate-300 rounded-2xl text-sm">
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <label class="block text-xs font-medium text-slate-600 mb-1">Number of ceremony guest tickets needed</label>
-                            <input type="number" name="num_guest_tickets" min="0" max="20" class="form-input w-32 px-4 py-3 border border-slate-300 rounded-2xl text-sm">
+                        <div class="max-w-xs">
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Size</label>
+                            <select name="cap_gown_size" class="form-input w-full px-4 py-3 border border-slate-300 rounded-2xl text-sm">
+                                <option value="">Select…</option>
+                                <option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option>
+                            </select>
                         </div>
                     </section>
 
                     <section class="site-card p-6 sm:p-8">
                         <h2 class="text-lg font-semibold text-navy mb-4">Optional add-ons</h2>
                         <div class="space-y-4">
-                            <label class="flex items-center gap-3">
-                                <input type="checkbox" name="add_pictures" class="rounded border-slate-300">
-                                <span class="text-sm">Graduation pictures</span>
+                            <label class="flex items-start gap-3 p-4 border border-slate-200 rounded-2xl cursor-pointer hover:border-navy/30">
+                                <input type="checkbox" name="add_pictures" class="mt-1 rounded border-slate-300">
+                                <span>
+                                    <span class="text-sm font-medium text-navy block">Graduation pictures</span>
+                                    <span id="grad-pictures-price" class="text-xs text-slate-500">$20.00</span>
+                                </span>
                             </label>
-                            <div class="flex flex-wrap items-center gap-3">
-                                <label class="flex items-center gap-3">
-                                    <input type="checkbox" name="add_tshirt" class="rounded border-slate-300">
-                                    <span class="text-sm">Graduation t-shirt</span>
+                            <div class="p-4 border border-slate-200 rounded-2xl space-y-3">
+                                <label class="flex items-start gap-3 cursor-pointer">
+                                    <input type="checkbox" name="add_tshirt" class="mt-1 rounded border-slate-300">
+                                    <span>
+                                        <span class="text-sm font-medium text-navy block">Graduation t-shirt</span>
+                                        <span id="grad-tshirt-prices" class="text-xs text-slate-500">Youth $15.00 · Adult $18.00</span>
+                                    </span>
                                 </label>
                                 <select name="tshirt_size" class="form-input px-3 py-2 border border-slate-300 rounded-xl text-sm">
                                     <option value="">Size…</option>
@@ -128,8 +120,9 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-600 mb-1">Honor cords (quantity)</label>
-                                <input type="number" name="honor_cord_qty" min="0" max="10" value="0" class="form-input w-24 px-4 py-3 border border-slate-300 rounded-2xl text-sm">
+                                <p class="text-sm font-medium text-navy mb-1">Honor cords</p>
+                                <p id="grad-honor-cord-price" class="text-xs text-slate-500 mb-3">$8.00 each — select any that apply</p>
+                                <div id="grad-honor-cords" class="space-y-2"></div>
                             </div>
                         </div>
                     </section>
@@ -181,6 +174,15 @@
                     </section>
 
                     <section class="site-card p-6 sm:p-8">
+                        <h2 class="text-lg font-semibold text-navy mb-4">Graduation requirements</h2>
+                        <div id="grad-requirements-text" class="text-sm text-slate-700 whitespace-pre-wrap mb-4 p-4 bg-cream border border-slate-200 rounded-2xl"></div>
+                        <label class="flex items-start gap-3 p-4 border border-slate-200 rounded-2xl cursor-pointer hover:border-navy/30">
+                            <input type="checkbox" name="requirements_ack" id="grad-requirements-ack" class="mt-1 rounded border-slate-300" required>
+                            <span class="text-sm text-slate-700">I have read and acknowledge the graduation requirements above.</span>
+                        </label>
+                    </section>
+
+                    <section class="site-card p-6 sm:p-8">
                         <h2 class="text-lg font-semibold text-navy mb-4">Sign &amp; submit</h2>
                         <p class="text-sm text-slate-600 mb-4">By submitting, you confirm the information above is accurate and authorize Summit Church School to process your graduation order.</p>
                         <label class="block text-xs font-medium text-slate-600 mb-1">Type your full legal name</label>
@@ -197,7 +199,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/app-dialog.js?v=20260707"></script>
-    <script src="assets/graduation-tasks.js?v=20260731"></script>
-    <script src="assets/graduation-hub.js?v=20260731"></script>
+    <script src="assets/graduation-tasks.js?v=20260732"></script>
+    <script src="assets/graduation-hub.js?v=20260732"></script>
 </body>
 </html>
