@@ -396,6 +396,9 @@ verify_jwt = false
 [functions.docuseal-hub-archive-webhook]
 verify_jwt = false
 
+[functions.graduation-workflow]
+verify_jwt = false
+
 [functions.deliver-pending-enrollment-documents]
 verify_jwt = false
 

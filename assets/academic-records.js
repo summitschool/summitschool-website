@@ -2542,12 +2542,22 @@
         if (error) throw error;
 
         if (data.entry_type === 'current' && semesterKey === '1') {
+            const currentUser = await getCurrentUser();
             await client
                 .from('family_documents')
                 .update({ due_date_1_cleared: true })
-                .eq('user_id', (await getCurrentUser())?.id)
+                .eq('user_id', currentUser?.id)
                 .eq('url', `${PROGRESS_TASK_URL_PREFIX}${yearRecord.student_id}`)
                 .ilike('category', '%task%');
+
+            const { data: gradStudent } = await client
+                .from('students')
+                .select('*')
+                .eq('id', yearRecord.student_id)
+                .maybeSingle();
+            if (gradStudent?.current_grade_level === '12' && window.GraduationTasks?.ensureGraduationTask) {
+                await window.GraduationTasks.ensureGraduationTask(gradStudent, data.school_year);
+            }
         }
 
         if (data.entry_type === 'current' && semesterKey === '2') {

@@ -2935,6 +2935,175 @@ html.auth-transition-active #pending-view {
   }
 }
 
+/* Graduation admin review modal */
+.grad-review-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 1rem 2rem;
+  overflow-y: auto;
+}
+
+.grad-review-modal.hidden {
+  display: none;
+}
+
+body.grad-review-open {
+  overflow: hidden;
+}
+
+.grad-review-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgb(10 37 64 / 0.45);
+  cursor: pointer;
+}
+
+.grad-review-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 42rem;
+  margin-top: 0.5rem;
+  padding: 1.5rem 1.25rem 1.25rem;
+}
+
+.grad-review-close-x {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 9999px;
+  background: rgb(248 250 252);
+  color: #64748b;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.grad-review-body {
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.grad-review-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgb(226 232 240);
+}
+
+.grad-review-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.grad-review-status-pill {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #0a2540;
+  background: rgb(241 245 249);
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+}
+
+.grad-review-section {
+  margin-bottom: 1.25rem;
+}
+
+.grad-review-heading {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7c8f7e;
+  margin-bottom: 0.625rem;
+}
+
+.grad-review-dl {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.grad-review-field {
+  display: grid;
+  gap: 0.15rem;
+}
+
+@media (min-width: 480px) {
+  .grad-review-field {
+    grid-template-columns: 9.5rem 1fr;
+    gap: 0.75rem;
+  }
+}
+
+.grad-review-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.grad-review-value {
+  font-size: 0.875rem;
+  color: #0a2540;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.grad-review-list {
+  list-style: disc;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  color: #0a2540;
+}
+
+.grad-review-prior-note {
+  margin-bottom: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(253 230 138);
+  background: rgb(255 251 235);
+}
+
+.grad-review-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid rgb(226 232 240);
+}
+
+.grad-review-btn {
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.grad-review-btn-primary { background: #0a2540; color: #fff; }
+.grad-review-btn-secondary { background: #fff; color: #334155; border-color: #cbd5e1; }
+.grad-review-btn-success { background: #059669; color: #fff; }
+.grad-review-btn-warning { background: #fff; color: #b45309; border-color: #fcd34d; }
+
 @media print {
   .no-print { display: none !important; }
   .hero { min-height: auto !important; }

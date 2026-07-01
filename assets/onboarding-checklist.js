@@ -52,7 +52,8 @@
         if (isCodeOfConductTask(task)) return 1;
         if (isIdUploadTask(task)) return 2;
         if (window.AcademicRecords?.parseProgressReportStudentId?.(task.url)) return 3;
-        return 4;
+        if (window.GraduationTasks?.parseGraduationStudentId?.(task.url)) return 4;
+        return 5;
     }
 
     function sortTasksForDisplay(tasks) {
