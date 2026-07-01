@@ -172,26 +172,38 @@
         return parts.join(' · ');
     }
 
+    function renderEventRow(label, date, time, location) {
+        const fmt = window.GraduationTasks.formatDateLabel;
+        const detail = formatEventDetail(date, time, location);
+        return `
+            <div>
+                <dt class="ar-grade-help-label mb-1">${escapeHtml(label)}</dt>
+                <dd class="text-sm font-bold text-navy m-0 leading-snug">${escapeHtml(detail)}</dd>
+            </div>
+        `;
+    }
+
     function renderEventInfo() {
         const el = document.getElementById('grad-event-info');
         if (!el || !settings) return;
         const fmt = window.GraduationTasks.formatDateLabel;
         el.innerHTML = `
-            <dl class="grid sm:grid-cols-2 gap-4 text-sm">
-                <div><dt class="text-slate-500 font-medium">Dues due</dt><dd class="text-navy font-semibold">${escapeHtml(fmt(settings.dues_due_date))}</dd></div>
-                <div>
-                    <dt class="text-slate-500 font-medium">Ceremony</dt>
-                    <dd class="text-navy font-semibold">${escapeHtml(formatEventDetail(settings.ceremony_date, settings.ceremony_time, settings.ceremony_location))}</dd>
+            <div class="ar-grade-help">
+                <div class="ar-grade-help-header">
+                    <h3 class="ar-grade-help-title">Important dates</h3>
                 </div>
-                <div>
-                    <dt class="text-slate-500 font-medium">Practice</dt>
-                    <dd class="text-navy font-semibold">${escapeHtml(formatEventDetail(settings.practice_date, settings.practice_time, settings.practice_location))}</dd>
-                </div>
-                <div>
-                    <dt class="text-slate-500 font-medium">Pictures</dt>
-                    <dd class="text-navy font-semibold">${escapeHtml(formatEventDetail(settings.pictures_date, settings.pictures_time, settings.pictures_location))}</dd>
-                </div>
-            </dl>
+                <section class="ar-grade-help-block ar-grade-help-dates">
+                    <dl class="grid sm:grid-cols-2 gap-4 m-0">
+                        <div>
+                            <dt class="ar-grade-help-label mb-1">Dues due</dt>
+                            <dd class="text-sm font-bold text-navy m-0">${escapeHtml(fmt(settings.dues_due_date))}</dd>
+                        </div>
+                        ${renderEventRow('Ceremony', settings.ceremony_date, settings.ceremony_time, settings.ceremony_location)}
+                        ${renderEventRow('Practice', settings.practice_date, settings.practice_time, settings.practice_location)}
+                        ${renderEventRow('Pictures', settings.pictures_date, settings.pictures_time, settings.pictures_location)}
+                    </dl>
+                </section>
+            </div>
         `;
     }
 
