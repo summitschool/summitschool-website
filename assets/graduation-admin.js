@@ -1304,25 +1304,26 @@
         });
     }
 
-    function resetGraduationAdminPortal() {
+    function collapseGraduationAdminUI() {
         activeGradProgram = 'senior';
         closeReviewModal();
         window.KindergartenGraduationAdmin?.closeReviewModal?.();
 
-        const placeholders = {
-            senior: 'Open this tab to load the senior graduation roster.',
-            kindergarten: 'Open this tab to load the kindergarten graduation roster.',
-        };
         ['senior', 'kindergarten'].forEach((program) => {
             const root = document.getElementById(gradProgramRootId(program));
             if (!root) return;
-            root.innerHTML = `<div class="hub-empty-state">${placeholders[program]}</div>`;
-            delete root.dataset.gradProgramLoaded;
-            if (program === 'kindergarten') delete root.dataset.kgGradAdminBound;
-            root.style.minHeight = '';
-            root.classList.toggle('hidden', program !== 'senior');
+            root.querySelectorAll('details[open]').forEach((details) => details.removeAttribute('open'));
+            root.querySelectorAll('form').forEach((form) => form.reset());
+            const guestResult = root.querySelector('#grad-guest-invite-result');
+            if (guestResult) {
+                guestResult.classList.add('hidden');
+                guestResult.innerHTML = '';
+            }
         });
 
+        document.querySelectorAll('[data-grad-program-panel]').forEach((panel) => {
+            panel.classList.toggle('hidden', panel.dataset.gradProgramPanel !== 'senior');
+        });
         const tabBar = document.getElementById('grad-program-tabs');
         if (tabBar) {
             tabBar.querySelectorAll('[data-grad-program-tab]').forEach((btn) => {
@@ -1342,6 +1343,6 @@
         approveSubmission,
         markSubmissionPaid,
         openReviewModal,
-        resetGraduationAdminPortal,
+        collapseGraduationAdminUI,
     };
 })();

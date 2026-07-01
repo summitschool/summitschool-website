@@ -743,23 +743,11 @@
         });
     }
 
-    function resetKindergartenGraduationAdmin() {
-        closeReviewModal();
-        const root = document.getElementById('admin-graduation-kindergarten-root');
-        if (!root) return;
-        delete root.dataset.kgGradAdminBound;
-        delete root.dataset.gradProgramLoaded;
-        root.style.minHeight = '';
-        root.innerHTML = '<div class="hub-empty-state">Open this tab to load the kindergarten graduation roster.</div>';
-        root.classList.add('hidden');
-    }
-
     window.KindergartenGraduationAdmin = {
         loadKindergartenGraduationAdmin,
         showYearTab: showKindergartenYearTab,
         ensureKindergartenGraduationSettingsYear,
         openReviewModal,
-        resetKindergartenGraduationAdmin,
         closeReviewModal,
     };
 })();

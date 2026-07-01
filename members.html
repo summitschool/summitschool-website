@@ -1091,9 +1091,9 @@
     <script src="assets/task-notify.js?v=20260750"></script>
     <script src="assets/graduation-tasks.js?v=20260750"></script>
     <script src="assets/kindergarten-graduation-tasks.js?v=20260750"></script>
-    <script src="assets/graduation-admin.js?v=20260753"></script>
-    <script src="assets/kindergarten-graduation-admin.js?v=20260753"></script>
-    <script src="assets/academic-records.js?v=20260753"></script>
+    <script src="assets/graduation-admin.js?v=20260754"></script>
+    <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
+    <script src="assets/academic-records.js?v=20260754"></script>
     <script src="assets/onboarding-checklist.js?v=20260749"></script>
     <script>
         // =============================================
@@ -2143,19 +2143,27 @@
             await applyMemberAccessUI();
         }
 
+        function collapseOpenAccordions(root) {
+            if (!root) return;
+            root.querySelectorAll('details[open]').forEach((details) => details.removeAttribute('open'));
+        }
+
+        function clearFieldsInContainer(root) {
+            if (!root) return;
+            root.querySelectorAll('form').forEach((form) => {
+                try { form.reset(); } catch (err) { /* ignore */ }
+            });
+            root.querySelectorAll('select').forEach((select) => { select.value = ''; });
+            root.querySelectorAll('input[type="file"]').forEach((input) => { input.value = ''; });
+            root.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea').forEach((input) => {
+                if (input.type === 'file') return;
+                input.value = '';
+            });
+        }
+
         function resetAdminFamilySelection() {
             const familySelect = document.getElementById('admin-family-select');
             if (familySelect) familySelect.value = '';
-
-            const tasksList = document.getElementById('admin-family-tasks-list');
-            if (tasksList) tasksList.innerHTML = ADMIN_FAMILY_TASKS_PLACEHOLDER;
-
-            const docsList = document.getElementById('admin-family-docs-list');
-            if (docsList) docsList.innerHTML = ADMIN_FAMILY_DOCS_PLACEHOLDER;
-
-            const stdCheckboxes = document.getElementById('admin-standard-checkboxes');
-            if (stdCheckboxes) stdCheckboxes.innerHTML = ADMIN_STANDARDS_PLACEHOLDER;
-
             currentAdminDocsUserId = null;
         }
 
@@ -2183,38 +2191,19 @@
         }
 
         function resetAdminFamiliesSection() {
+            const section = document.getElementById('admin-section-families');
+            collapseOpenAccordions(section);
             resetAdminFamilySelection();
             resetAdminUploadFormOnly();
-
-            const familySelect = document.getElementById('admin-family-select');
-            if (familySelect) {
-                familySelect.innerHTML = '<option value="">Select a family...</option>';
-            }
-
-            const familiesAcademicList = document.getElementById('admin-academic-records-list');
-            if (familiesAcademicList) {
-                familiesAcademicList.innerHTML = 'Select a family above to view courses, grades, and credits.';
-            }
         }
 
         function resetAdminRecordsSection() {
-            const select = document.getElementById('admin-records-family-select');
-            if (select) select.value = '';
+            const section = document.getElementById('admin-section-records');
+            collapseOpenAccordions(section);
+            clearFieldsInContainer(section);
 
             const content = document.getElementById('admin-records-content');
             if (content) content.classList.add('hidden');
-
-            const docs = document.getElementById('admin-records-docs');
-            if (docs) docs.innerHTML = '';
-
-            const idContainer = document.getElementById('admin-records-id');
-            if (idContainer) idContainer.innerHTML = '';
-
-            const panel = document.getElementById('admin-records-id-panel');
-            if (panel) panel.removeAttribute('open');
-
-            const hint = document.getElementById('admin-records-id-hint');
-            if (hint) hint.textContent = 'Click to expand';
         }
 
         function resetAdminBannerDraft() {
@@ -2223,20 +2212,17 @@
         }
 
         function resetAdminSiteSection() {
+            const section = document.getElementById('admin-section-site');
+            collapseOpenAccordions(section);
             if (typeof cancelSharedEdit === 'function') cancelSharedEdit();
-
             resetAdminBannerDraft();
-
-            const sharedFile = document.getElementById('admin-shared-file');
-            if (sharedFile) sharedFile.value = '';
-
-            const sharedNotify = document.getElementById('admin-shared-notify');
-            if (sharedNotify) sharedNotify.checked = false;
+            clearFieldsInContainer(section);
         }
 
         function resetAdminAccessSection() {
-            const addSelect = document.getElementById('staff-add-select');
-            if (addSelect) addSelect.value = '';
+            const section = document.getElementById('admin-section-access');
+            collapseOpenAccordions(section);
+            clearFieldsInContainer(section);
 
             const addSections = document.getElementById('staff-add-sections');
             if (addSections) {
@@ -2251,94 +2237,55 @@
         }
 
         function resetAdminLibrarySection() {
+            const section = document.getElementById('admin-section-library');
+            collapseOpenAccordions(section);
             if (typeof cancelStandardEdit === 'function') cancelStandardEdit();
-
-            const fileInput = document.getElementById('admin-standard-file');
-            if (fileInput) fileInput.value = '';
+            clearFieldsInContainer(section);
         }
 
         function resetAdminMembersSection() {
-            const idsStatus = document.getElementById('admin-pending-ids-status');
-            if (idsStatus) {
-                idsStatus.textContent = '';
-                idsStatus.classList.add('hidden');
-            }
-
-            const approvalsStatus = document.getElementById('admin-pending-approvals-status');
-            if (approvalsStatus) {
-                approvalsStatus.textContent = '';
-                approvalsStatus.classList.add('hidden');
-            }
+            const section = document.getElementById('admin-section-members');
+            collapseOpenAccordions(section);
         }
 
         function resetAdminGraduationSection() {
-            window.GraduationAdmin?.resetGraduationAdminPortal?.();
-        }
-
-        function resetMyTasksSection() {
-            lastMyTasksUserId = null;
-            const list = document.getElementById('my-tasks-list');
-            if (list) list.innerHTML = '<div class="hub-empty-state">Loading your tasks...</div>';
-        }
-
-        function resetMyDocumentsSection() {
-            const container = document.getElementById('my-documents');
-            if (container) container.innerHTML = '<div class="hub-empty-state">Loading your documents...</div>';
-
-            const idPanel = document.getElementById('my-id-panel');
-            if (idPanel) idPanel.removeAttribute('open');
-        }
-
-        function resetFamilyRecordsSection() {
-            const select = document.getElementById('viewer-family-select');
-            if (select) select.value = '';
-
-            const content = document.getElementById('viewer-records-content');
-            if (content) content.classList.add('hidden');
-
-            const docs = document.getElementById('viewer-records-docs');
-            if (docs) docs.innerHTML = '<div class="text-slate-500 text-sm">Select a family above.</div>';
-
-            const idContainer = document.getElementById('viewer-records-id');
-            if (idContainer) idContainer.innerHTML = '<div class="text-slate-500 text-sm">Select a family above.</div>';
-
-            const panel = document.getElementById('viewer-records-id-panel');
-            if (panel) panel.removeAttribute('open');
-
-            const hint = document.getElementById('viewer-records-id-hint');
-            if (hint) hint.textContent = 'Click to expand';
-        }
-
-        async function refreshMyDocumentsTab() {
-            if (!supabaseClient) return;
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (user) {
-                if (typeof loadMyDocuments === 'function') loadMyDocuments(user.id);
-            } else if (typeof loadMyDocumentsDemo === 'function') {
-                loadMyDocumentsDemo();
-            }
+            window.GraduationAdmin?.collapseGraduationAdminUI?.();
         }
 
         function resetDashboardTabState(tab) {
             if (!tab) return;
-            switch (tab) {
-                case 'my-tasks':
-                    resetMyTasksSection();
-                    break;
-                case 'my-documents':
-                    resetMyDocumentsSection();
-                    break;
-                case 'academic-records':
-                    window.AcademicRecords?.resetAcademicRecordsTab?.();
-                    break;
-                case 'family-records':
-                    resetFamilyRecordsSection();
-                    break;
-                case 'admin':
-                    if (currentAdminSection) resetAdminSectionState(currentAdminSection);
-                    currentAdminSection = null;
-                    lastAdminSection = 'members';
-                    break;
+
+            const tabContainers = {
+                'my-tasks': document.getElementById('dashboard-my-tasks'),
+                'my-documents': document.getElementById('dashboard-my-documents'),
+                'academic-records': document.getElementById('dashboard-academic-records'),
+                'family-records': document.getElementById('dashboard-family-records'),
+                'resources': document.getElementById('dashboard-resources'),
+                'admin': document.getElementById('dashboard-admin'),
+            };
+
+            if (tab === 'academic-records') {
+                window.AcademicRecords?.collapseStudentPanels?.();
+                collapseOpenAccordions(tabContainers[tab]);
+                return;
+            }
+
+            if (tab === 'admin') {
+                if (currentAdminSection) resetAdminSectionState(currentAdminSection);
+                currentAdminSection = null;
+                lastAdminSection = 'members';
+                return;
+            }
+
+            const container = tabContainers[tab];
+            if (container) {
+                collapseOpenAccordions(container);
+                clearFieldsInContainer(container);
+            }
+
+            if (tab === 'family-records') {
+                const content = document.getElementById('viewer-records-content');
+                if (content) content.classList.add('hidden');
             }
         }
 
@@ -2401,7 +2348,6 @@
             if (currentAdminSection && isSwitching) {
                 resetAdminSectionState(currentAdminSection);
             }
-            resetAdminSectionState(section);
 
             const sections = {
                 members: document.getElementById('admin-section-members'),
@@ -2497,7 +2443,6 @@
             if (tab === 'my-documents') {
                 myDocsContent.classList.remove('hidden');
                 activeTab = tabMy;
-                void refreshMyDocumentsTab();
             } else if (tab === 'my-tasks') {
                 myTasksContent.classList.remove('hidden');
                 activeTab = tabTasks;
@@ -5591,14 +5536,9 @@
         const ADMIN_ACADEMIC_RECORDS_PLACEHOLDER = 'Select a family above to view courses, grades, and credits.';
 
         function resetAdminAcademicSection() {
-            const select = document.getElementById('admin-academic-family-select');
-            if (select) {
-                select.value = '';
-                select.innerHTML = '<option value="">Select a family...</option>';
-            }
-
-            const listEl = document.getElementById('admin-academic-records-standalone-list');
-            if (listEl) listEl.innerHTML = ADMIN_ACADEMIC_RECORDS_PLACEHOLDER;
+            const section = document.getElementById('admin-section-academic');
+            collapseOpenAccordions(section);
+            clearFieldsInContainer(section);
         }
 
         async function loadAdminAcademicRecords() {

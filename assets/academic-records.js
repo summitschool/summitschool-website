@@ -695,16 +695,6 @@
         setFocusStudentId(null);
     }
 
-    async function resetAcademicRecordsTab() {
-        collapseStudentPanels();
-        const user = await getCurrentUser();
-        if (user?.id) clearAcademicRecordsCache(user.id, { persistent: true });
-        const root = document.getElementById('academic-records-root');
-        if (root) {
-            root.innerHTML = '<div class="hub-empty-state">Loading academic records...</div>';
-        }
-    }
-
     async function focusStudentPanel(studentId) {
         if (!studentId) return;
 
@@ -4211,7 +4201,6 @@
         toggleAddPanel,
         dismissAddPanel,
         collapseStudentPanels,
-        resetAcademicRecordsTab,
         focusStudentPanel,
         setAddPanelMode,
         loadAcademicRecords,
