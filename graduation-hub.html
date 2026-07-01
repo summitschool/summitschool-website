@@ -296,6 +296,11 @@
                             <span id="grad-fee-total">$0.00</span>
                         </div>
                         <p id="grad-payment-hint" class="text-xs text-slate-500 mb-4 p-3 bg-cream border border-gold/30 rounded-2xl"></p>
+                        <div id="grad-payment-recorded" class="hidden mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                            <p class="text-sm font-semibold text-emerald-800">Payment recorded</p>
+                            <p class="text-sm text-slate-600 mt-1">The school office has recorded your payment. You do not need to re-enter payment details when updating this order. If your total changes, staff will follow up about any balance due.</p>
+                        </div>
+                        <div id="grad-payment-family-fields">
                         <div class="space-y-3 mb-6">
                             <a id="grad-paypal-link" href="#" target="_blank" rel="noopener noreferrer"
                                class="payment-btn flex items-center justify-center gap-x-3 w-full px-6 py-4 bg-[#00457C] hover:bg-[#003366] text-white rounded-2xl font-semibold text-sm">
@@ -326,6 +331,7 @@
                             <label class="block text-xs font-medium text-slate-600 mb-1">Payment note (optional)</label>
                             <input type="text" name="payment_note" class="form-input w-full px-4 py-3 border border-slate-300 rounded-2xl text-sm" placeholder="Name used in PayPal/Cash App note">
                         </div>
+                        </div>
                     </section>
 
                     <section class="site-card p-6 sm:p-8">
@@ -351,6 +357,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/app-dialog.js?v=20260707"></script>
     <script src="assets/graduation-tasks.js?v=20260738"></script>
-    <script src="assets/graduation-hub.js?v=20260746"></script>
+    <script src="assets/graduation-hub.js?v=20260747"></script>
 </body>
 </html>

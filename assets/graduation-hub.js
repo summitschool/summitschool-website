@@ -197,6 +197,19 @@
         bar.setAttribute('aria-hidden', show ? 'false' : 'true');
     }
 
+    function isPaymentLocked() {
+        return submission?.payment_status === 'paid' || Boolean(submission?.admin_marked_paid_at);
+    }
+
+    function applyPaymentLockState() {
+        const locked = isPaymentLocked();
+        document.getElementById('grad-payment-recorded')?.classList.toggle('hidden', !locked);
+        document.getElementById('grad-payment-family-fields')?.classList.toggle('hidden', locked);
+        document.querySelectorAll('#grad-fee-section [name="payment_method"]').forEach((el) => {
+            el.required = !locked;
+        });
+    }
+
     function ensureFloatingTotalBar() {
         if (document.getElementById('grad-floating-total')) return;
 
@@ -259,8 +272,12 @@
         const totalObserver = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
                 mainTotalVisible = entry.isIntersecting;
-                if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
+                if (entry.isIntersecting) {
+                    passedMainTotal = false;
+                } else if (entry.boundingClientRect.top < 0) {
                     passedMainTotal = true;
+                } else {
+                    passedMainTotal = false;
                 }
                 syncFloatingTotalVisibility();
             });
@@ -642,7 +659,7 @@
             return;
         }
 
-        if (!form.payment_method) {
+        if (!isPaymentLocked() && !form.payment_method) {
             await window.showAppAlert?.('Select how you paid or plan to pay.');
             return;
         }
@@ -655,9 +672,12 @@
 
         try {
             const { items, total } = updateTotals();
-            const paymentStatus = ['paypal', 'cashapp'].includes(form.payment_method)
-                ? 'pending_verification'
-                : (form.payment_method === 'cash' || form.payment_method === 'check' ? 'unpaid' : 'unpaid');
+            const paymentLocked = isPaymentLocked();
+            const paymentStatus = paymentLocked
+                ? 'paid'
+                : (['paypal', 'cashapp'].includes(form.payment_method)
+                    ? 'pending_verification'
+                    : 'unpaid');
 
             const payload = {
                 school_year: context.schoolYear,
@@ -669,14 +689,22 @@
                 form_data: form,
                 line_items: items,
                 total_due: total,
-                payment_method: form.payment_method,
-                payment_amount: form.payment_amount ? Number(form.payment_amount) : total,
-                payment_note: form.payment_note || null,
+                payment_method: paymentLocked ? submission.payment_method : form.payment_method,
+                payment_amount: paymentLocked
+                    ? submission.payment_amount
+                    : (form.payment_amount ? Number(form.payment_amount) : total),
+                payment_note: paymentLocked ? submission.payment_note : (form.payment_note || null),
                 payment_status: paymentStatus,
                 family_ack_name: ack,
                 family_submitted_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
+
+            if (paymentLocked) {
+                payload.admin_payment_method = submission.admin_payment_method;
+                payload.admin_payment_note = submission.admin_payment_note;
+                payload.admin_marked_paid_at = submission.admin_marked_paid_at;
+            }
 
             await upsertSubmission(payload);
             await notifyAdminSubmitted();
@@ -717,6 +745,7 @@
         if (!form.diploma_name) form.diploma_name = context.studentName || '';
         if (!form.parent_email && context.guest?.parent_email) form.parent_email = context.guest.parent_email;
         applyFormToDom(form);
+        applyPaymentLockState();
         const title = document.getElementById('grad-student-title');
         if (title) title.textContent = context.studentName || 'Graduate';
         const hint = document.getElementById('grad-payment-hint');

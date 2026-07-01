@@ -3103,6 +3103,11 @@ body.grad-review-open {
 .grad-review-btn-secondary { background: #fff; color: #334155; border-color: #cbd5e1; }
 .grad-review-btn-success { background: #059669; color: #fff; }
 .grad-review-btn-warning { background: #fff; color: #b45309; border-color: #fcd34d; }
+.grad-review-btn-disabled,
+.grad-review-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 /* Graduation admin */
 .grad-admin-summary.ar-grade-help {

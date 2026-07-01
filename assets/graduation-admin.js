@@ -283,10 +283,47 @@
         `;
     }
 
+    function isSubmissionPaid(sub) {
+        return sub?.payment_status === 'paid' || Boolean(sub?.admin_marked_paid_at);
+    }
+
+    function buildPaymentFieldsHtml(sub, prefix) {
+        const methodId = `${prefix}-paid-method`;
+        const amountId = `${prefix}-paid-amount`;
+        const noteId = `${prefix}-paid-note`;
+        return `
+            <div class="grid sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs text-slate-600 mb-1" for="${methodId}">Method</label>
+                    <select id="${methodId}" class="form-input w-full px-3 py-2 border rounded-xl text-sm">
+                        <option value="cash" ${sub.admin_payment_method === 'cash' ? 'selected' : ''}>Cash</option>
+                        <option value="check" ${sub.admin_payment_method === 'check' ? 'selected' : ''}>Check</option>
+                        <option value="paypal" ${sub.admin_payment_method === 'paypal' ? 'selected' : ''}>PayPal</option>
+                        <option value="cashapp" ${sub.admin_payment_method === 'cashapp' ? 'selected' : ''}>Cash App</option>
+                        <option value="other" ${sub.admin_payment_method === 'other' ? 'selected' : ''}>Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-600 mb-1" for="${amountId}">Amount</label>
+                    <input type="number" id="${amountId}" step="0.01" value="${escapeHtml(sub.payment_amount ?? sub.total_due ?? '')}" class="form-input w-full px-3 py-2 border rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-600 mb-1" for="${noteId}">Note</label>
+                    <input type="text" id="${noteId}" value="${escapeHtml(sub.admin_payment_note || '')}" class="form-input w-full px-3 py-2 border rounded-xl text-sm" placeholder="Optional">
+                </div>
+            </div>
+        `;
+    }
+
     function buildReviewModalContent(sub, studentName) {
         const form = sub.form_data || {};
         const isFull = form.participation_mode !== 'diploma_only';
         const canAct = sub.status === 'pending_review';
+        const isPaid = isSubmissionPaid(sub);
+        const paymentMismatch = isPaid
+            && sub.payment_amount != null
+            && Number(sub.payment_amount) !== Number(sub.total_due || 0);
+        const canApprove = isPaid && !paymentMismatch;
         const priorFeedback = sub.admin_notes ? `
             <div class="grad-review-prior-note">
                 <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1">Previous staff feedback</p>
@@ -303,47 +340,52 @@
             </section>
         ` : '';
 
+        const recordPaymentBlock = canAct && !isPaid ? `
+                <div class="grad-review-mark-paid mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Record payment</p>
+                    <p class="text-sm text-slate-600 mb-3">Mark payment received before approving this order.</p>
+                    ${buildPaymentFieldsHtml(sub, 'grad-review')}
+                </div>
+        ` : '';
+
+        const revisePaymentBlock = canAct && isPaid ? `
+                <div class="grad-review-revise-paid mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-800 mb-2">Payment recorded</p>
+                    <p class="text-sm text-slate-600 mb-3">This order is marked paid. Update the record if the total changed or payment details need correction.</p>
+                    ${paymentMismatch ? `
+                        <p class="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3">
+                            Recorded payment ($${Number(sub.payment_amount).toFixed(2)}) does not match the current total ($${Number(sub.total_due || 0).toFixed(2)}). Revise the payment record or reset to unpaid before approving.
+                        </p>
+                    ` : ''}
+                    ${buildPaymentFieldsHtml(sub, 'grad-review-revise')}
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button type="button" class="grad-review-btn grad-review-btn-success" data-grad-review-revise-paid="${sub.id}">Update payment record</button>
+                        <button type="button" class="grad-review-btn grad-review-btn-warning" data-grad-review-reset-paid="${sub.id}">Reset to unpaid</button>
+                    </div>
+                </div>
+        ` : '';
+
         const actionBlock = canAct ? `
             <section class="grad-review-section grad-review-feedback">
                 <h4 class="grad-review-heading">Staff feedback</h4>
                 <p class="text-sm text-slate-600 mb-3">If something needs to be corrected, describe the changes below and send back to the family. They can edit and resubmit from the Graduation Hub.</p>
                 <label class="block text-xs font-medium text-slate-600 mb-1" for="grad-review-feedback">Recommended changes (optional)</label>
                 <textarea id="grad-review-feedback" rows="3" class="form-input w-full px-4 py-3 border border-slate-300 rounded-2xl text-sm" placeholder="e.g. Please update cap &amp; gown size to Large."></textarea>
-                <div class="grad-review-mark-paid mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Record payment (if paying cash/check)</p>
-                    <div class="grid sm:grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-xs text-slate-600 mb-1">Method</label>
-                            <select id="grad-review-paid-method" class="form-input w-full px-3 py-2 border rounded-xl text-sm">
-                                <option value="cash">Cash</option>
-                                <option value="check">Check</option>
-                                <option value="paypal">PayPal</option>
-                                <option value="cashapp">Cash App</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs text-slate-600 mb-1">Amount</label>
-                            <input type="number" id="grad-review-paid-amount" step="0.01" value="${escapeHtml(sub.payment_amount || sub.total_due || '')}" class="form-input w-full px-3 py-2 border rounded-xl text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs text-slate-600 mb-1">Note</label>
-                            <input type="text" id="grad-review-paid-note" class="form-input w-full px-3 py-2 border rounded-xl text-sm" placeholder="Optional">
-                        </div>
-                    </div>
-                </div>
+                ${recordPaymentBlock}
+                ${revisePaymentBlock}
                 <div class="mt-4">
                     <label class="block text-xs font-medium text-slate-600 mb-1" for="grad-review-ack-name">Your name (required to approve)</label>
                     <input type="text" id="grad-review-ack-name" class="form-input w-full px-4 py-3 border border-slate-300 rounded-2xl text-sm" placeholder="Type your full name to sign off">
                 </div>
+                ${!canApprove ? `<p class="mt-3 text-xs text-slate-500">${paymentMismatch ? 'Update the payment record to match the new total before approving.' : 'Approve &amp; sign unlocks after payment is recorded.'}</p>` : ''}
             </section>
         ` : '';
 
         const footerActions = canAct ? `
             <button type="button" class="grad-review-btn grad-review-btn-secondary" data-grad-review-close>Close</button>
             <button type="button" class="grad-review-btn grad-review-btn-warning" data-grad-review-changes="${sub.id}">Request changes</button>
-            <button type="button" class="grad-review-btn grad-review-btn-success" data-grad-review-paid="${sub.id}">Mark paid</button>
-            <button type="button" class="grad-review-btn grad-review-btn-primary" data-grad-review-approve="${sub.id}">Approve &amp; sign</button>
+            ${!isPaid ? `<button type="button" class="grad-review-btn grad-review-btn-success" data-grad-review-paid="${sub.id}">Mark paid</button>` : ''}
+            <button type="button" class="grad-review-btn grad-review-btn-primary${canApprove ? '' : ' grad-review-btn-disabled'}" data-grad-review-approve="${sub.id}"${canApprove ? '' : ' disabled aria-disabled="true" title="Record payment before approving"'}>Approve &amp; sign</button>
         ` : `
             <button type="button" class="grad-review-btn grad-review-btn-secondary" data-grad-review-close>Close</button>
             ${sub.pdf_storage_path ? `<button type="button" class="grad-review-btn grad-review-btn-primary" data-grad-pdf="${escapeHtml(sub.pdf_storage_path)}">Open PDF</button>` : ''}
@@ -481,8 +523,53 @@
                 return;
             }
 
+            const revisePaidBtn = event.target.closest('[data-grad-review-revise-paid]');
+            if (revisePaidBtn) {
+                const method = document.getElementById('grad-review-revise-paid-method')?.value || 'cash';
+                const amount = document.getElementById('grad-review-revise-paid-amount')?.value;
+                const note = document.getElementById('grad-review-revise-paid-note')?.value?.trim() || '';
+                try {
+                    revisePaidBtn.disabled = true;
+                    await reviseSubmissionPayment(revisePaidBtn.dataset.gradReviewRevisePaid, method, amount, note);
+                    await openReviewModal(revisePaidBtn.dataset.gradReviewRevisePaid);
+                    await loadGraduationAdmin();
+                    await window.showAppAlert?.('Payment record updated.', { tone: 'success' });
+                } catch (err) {
+                    await window.showAppAlert?.(err.message || String(err));
+                } finally {
+                    revisePaidBtn.disabled = false;
+                }
+                return;
+            }
+
+            const resetPaidBtn = event.target.closest('[data-grad-review-reset-paid]');
+            if (resetPaidBtn) {
+                const confirmed = await window.showAppConfirm?.({
+                    title: 'Reset payment to unpaid?',
+                    message: 'The family will need to submit payment details again. Use this if the order total changed and more payment is needed.',
+                    confirmLabel: 'Reset to unpaid',
+                });
+                if (!confirmed) return;
+                try {
+                    resetPaidBtn.disabled = true;
+                    await resetSubmissionPayment(resetPaidBtn.dataset.gradReviewResetPaid);
+                    await openReviewModal(resetPaidBtn.dataset.gradReviewResetPaid);
+                    await loadGraduationAdmin();
+                    await window.showAppAlert?.('Payment reset to unpaid.', { tone: 'success' });
+                } catch (err) {
+                    await window.showAppAlert?.(err.message || String(err));
+                } finally {
+                    resetPaidBtn.disabled = false;
+                }
+                return;
+            }
+
             const approveBtn = event.target.closest('[data-grad-review-approve]');
             if (approveBtn) {
+                if (approveBtn.disabled) {
+                    await window.showAppAlert?.('Record payment before approving this order.');
+                    return;
+                }
                 const ack = document.getElementById('grad-review-ack-name')?.value?.trim();
                 if (!ack) {
                     await window.showAppAlert?.('Type your name to approve and sign.');
@@ -667,6 +754,12 @@
             .eq('id', submissionId)
             .single();
         if (!sub) throw new Error('Submission not found.');
+        if (!isSubmissionPaid(sub)) {
+            throw new Error('Record payment before approving this order.');
+        }
+        if (sub.payment_amount != null && Number(sub.payment_amount) !== Number(sub.total_due || 0)) {
+            throw new Error('Update the payment record to match the current total before approving.');
+        }
 
         const studentName = sub.form_data?.diploma_name
             || (sub.student_id ? 'Graduate' : 'Guest graduate');
@@ -746,6 +839,31 @@
             admin_payment_note: note || null,
             payment_amount: amount != null ? Number(amount) : undefined,
             admin_marked_paid_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        }).eq('id', submissionId);
+        if (error) throw error;
+    }
+
+    async function reviseSubmissionPayment(submissionId, method, amount, note) {
+        const client = getClient();
+        const { error } = await client.from('graduation_submissions').update({
+            payment_status: 'paid',
+            admin_payment_method: method,
+            admin_payment_note: note || null,
+            payment_amount: amount != null ? Number(amount) : undefined,
+            admin_marked_paid_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        }).eq('id', submissionId);
+        if (error) throw error;
+    }
+
+    async function resetSubmissionPayment(submissionId) {
+        const client = getClient();
+        const { error } = await client.from('graduation_submissions').update({
+            payment_status: 'unpaid',
+            admin_payment_method: null,
+            admin_payment_note: null,
+            admin_marked_paid_at: null,
             updated_at: new Date().toISOString(),
         }).eq('id', submissionId);
         if (error) throw error;
