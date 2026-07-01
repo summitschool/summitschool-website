@@ -4,7 +4,11 @@ import { buildFamilyHubEmailHtml, escapeHtml, FAMILY_HUB_URL } from '../_shared/
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = Deno.env.get('APPROVAL_FROM_EMAIL') || 'Summit Church School <info@summitchurchschool.org>';
-const ADMIN_EMAIL = (Deno.env.get('FULL_ADMIN_EMAIL') || 'sjesimon@gmail.com').toLowerCase();
+const GRADUATION_ADMIN_EMAIL = (
+  Deno.env.get('GRADUATION_ADMIN_EMAIL')
+  || Deno.env.get('ENROLLMENT_SIGNATURE_EMAIL')
+  || 'info@summitchurchschool.org'
+).toLowerCase();
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -71,7 +75,7 @@ serve(async (req) => {
         ctaUrl: FAMILY_HUB_URL,
         footerNote: 'Summit Church School graduation workflow',
       });
-      await sendEmail(ADMIN_EMAIL, subject, text, html);
+      await sendEmail(GRADUATION_ADMIN_EMAIL, subject, text, html);
       return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
