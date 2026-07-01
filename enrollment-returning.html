@@ -12,6 +12,50 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
     <link rel="stylesheet" href="assets/styles.css?v=20260701">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .enroll-steps-banner {
+            background: linear-gradient(135deg, #fff8e6 0%, #fef3c7 100%);
+            border: 2px solid #C9A227;
+            box-shadow: 0 4px 16px rgba(201, 162, 39, 0.18);
+        }
+        .enroll-step-pill {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            padding: 0.9rem 1rem;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(201, 162, 39, 0.35);
+        }
+        .enroll-step-pill-num {
+            flex-shrink: 0;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 9999px;
+            background: #0A2540;
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .enroll-section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #9a7b1a;
+            margin-bottom: 0.35rem;
+        }
+        .enroll-return-note {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+        }
+    </style>
 </head>
 <body class="bg-[#F8F6F1] text-slate-800 body-text antialiased min-h-screen flex flex-col">
     <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
@@ -29,14 +73,41 @@
             <div class="site-card p-8 sm:p-10 text-navy">
                 <div class="text-center">
                     <span class="section-eyebrow">Returning family</span>
-                    <h1 class="heading-serif text-4xl sm:text-[2.75rem] tracking-tighter text-navy mt-3">Pay tuition to complete enrollment</h1>
+                    <h1 class="heading-serif text-3xl sm:text-[2.75rem] tracking-tighter text-navy mt-3">Two steps left to finish enrollment</h1>
                     <p class="mt-4 text-[15px] sm:text-base text-slate-600 leading-relaxed max-w-lg mx-auto">
-                        Thank you for submitting your application. For returning families, <strong>annual tuition is the next step</strong>. Once your tuition payment is received, your enrollment will be approved.
+                        Thank you for submitting your application. Complete <strong>both steps below</strong>&mdash;tuition first, then Family Hub signup if you are not already signed up.
                     </p>
                 </div>
 
-                <div class="mt-10 pt-8 border-t border-slate-100">
-                    <h2 class="text-lg font-semibold text-navy tracking-tight">Pay tuition online</h2>
+                <div class="enroll-steps-banner mt-8 rounded-2xl p-5 sm:p-6" role="region" aria-label="Two required steps">
+                    <p class="text-xs font-bold uppercase tracking-[0.14em] text-amber-900 text-center">Do not skip a step</p>
+                    <p class="mt-1 text-lg sm:text-xl font-bold text-navy text-center leading-snug">2 steps left on this page</p>
+
+                    <div class="mt-4 space-y-3">
+                        <a href="#step-pay-tuition" class="enroll-step-pill no-underline text-inherit hover:bg-white transition-colors">
+                            <span class="enroll-step-pill-num" aria-hidden="true">1</span>
+                            <span>
+                                <span class="block font-bold text-navy">Pay annual tuition</span>
+                                <span class="block text-sm text-slate-600 mt-0.5">Required. Enrollment is approved after tuition is received.</span>
+                            </span>
+                        </a>
+                        <a href="#step-family-hub" class="enroll-step-pill no-underline text-inherit hover:bg-white transition-colors">
+                            <span class="enroll-step-pill-num" aria-hidden="true">2</span>
+                            <span>
+                                <span class="block font-bold text-navy">Sign up for the Summit Family Hub</span>
+                                <span class="block text-sm text-slate-600 mt-0.5">Required if you do not have an account yet. Grades, resources, and tasks are all in the Hub.</span>
+                            </span>
+                        </a>
+                    </div>
+
+                    <p class="mt-4 text-sm text-amber-950/85 text-center leading-relaxed">
+                        <strong>Paying tuition opens PayPal or Cash App in a new tab.</strong> Come back to this page when you are done and complete Step&nbsp;2 before you leave.
+                    </p>
+                </div>
+
+                <div id="step-pay-tuition" class="mt-10 pt-8 border-t border-slate-100 scroll-mt-28">
+                    <p class="enroll-section-label"><span class="enroll-step-pill-num" style="width:1.5rem;height:1.5rem;font-size:0.75rem;" aria-hidden="true">1</span> Step 1 of 2</p>
+                    <h2 class="text-xl font-bold text-navy tracking-tight">Pay tuition online</h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
                         Submit your family&rsquo;s annual tuition using PayPal or Cash App.
                     </p>
@@ -66,6 +137,12 @@
                     <div class="mt-4 p-4 rounded-2xl bg-cream border border-gold/30 text-center">
                         <p class="text-sm font-bold text-navy leading-relaxed">
                             Include the enrolling parent&rsquo;s full name and email address in the payment note so we can match your payment to your application.
+                        </p>
+                    </div>
+
+                    <div class="enroll-return-note mt-4 p-4 rounded-2xl text-center">
+                        <p class="text-sm font-semibold text-navy leading-relaxed">
+                            After you pay, <a href="#step-family-hub" class="text-sage hover:text-navy underline font-bold">scroll down to Step&nbsp;2</a> and sign up for the Family Hub before you close this page.
                         </p>
                     </div>
                 </div>
@@ -98,19 +175,25 @@
                     </ul>
                 </div>
 
-                <div class="mt-8 pt-8 border-t border-slate-100">
-                    <h2 class="text-lg font-semibold text-navy tracking-tight">Sign up for the Summit Family Hub</h2>
+                <div id="step-family-hub" class="mt-8 pt-8 border-t-2 border-gold/50 scroll-mt-28">
+                    <p class="enroll-section-label"><span class="enroll-step-pill-num" style="width:1.5rem;height:1.5rem;font-size:0.75rem;" aria-hidden="true">2</span> Step 2 of 2</p>
+                    <h2 class="text-xl font-bold text-navy tracking-tight">Sign up for the Summit Family Hub</h2>
                     <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-                        Family Hub registration is <strong>required</strong> for every enrolled family. Grade submissions, school resources, assigned tasks, and accountability all happen in the Hub.
+                        Family Hub registration is <strong>required</strong> for every enrolled family&mdash;even if you already have an account from a prior year, make sure you can still sign in. Grade submissions, school resources, assigned tasks, and accountability all happen in the Hub.
                     </p>
                     <p class="mt-3 text-sm text-slate-600 leading-relaxed">
-                        Create your account now. Staff will approve access once your tuition payment is confirmed and enrollment is approved.
+                        <strong>Already signed up?</strong> You can skip creating a new account, but confirm you can log in at the link below. New families must create an account now. Staff will approve access once your tuition payment is confirmed.
                     </p>
                     <a href="members.html#signup"
-                       class="mt-5 inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 text-sm font-semibold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985]">
-                        Create Family Hub Account
+                       class="mt-5 inline-flex items-center justify-center gap-2 w-full px-8 py-4 text-base font-bold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985] shadow-md">
+                        <i class="fas fa-hand-pointer" aria-hidden="true"></i>
+                        Step 2: Create Family Hub Account
                         <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
                     </a>
+                    <p class="mt-3 text-center text-sm text-slate-500">
+                        Already have an account?
+                        <a href="members.html" class="text-sage hover:text-navy font-semibold underline">Sign in here</a>
+                    </p>
                 </div>
 
                 <div class="auth-signup-flow mt-8" role="list" aria-label="Returning family enrollment steps">
