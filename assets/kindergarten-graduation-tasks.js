@@ -122,7 +122,11 @@
             due_date_1: dueDate,
             due_date_1_cleared: false,
         });
-        if (error) console.warn('[Kindergarten Graduation] Could not create task:', error.message);
+        if (error) {
+            console.warn('[Kindergarten Graduation] Could not create task:', error.message);
+            return;
+        }
+        void window.TaskNotify?.scanUserTasks?.(client, { force: true });
     }
 
     async function removeKindergartenGraduationTask(studentId, familyUserId) {

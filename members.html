@@ -1079,8 +1079,9 @@
     <script src="assets/app-dialog.js?v=20260707"></script>
     <script src="assets/progress-report-pdf.js?v=20260721"></script>
     <script src="assets/graduation-pdf.js?v=20260740"></script>
-    <script src="assets/graduation-tasks.js?v=20260738"></script>
-    <script src="assets/kindergarten-graduation-tasks.js?v=20260749"></script>
+    <script src="assets/task-notify.js?v=20260750"></script>
+    <script src="assets/graduation-tasks.js?v=20260750"></script>
+    <script src="assets/kindergarten-graduation-tasks.js?v=20260750"></script>
     <script src="assets/graduation-admin.js?v=20260747"></script>
     <script src="assets/academic-records.js?v=20260749"></script>
     <script src="assets/onboarding-checklist.js?v=20260749"></script>
@@ -2531,30 +2532,6 @@
             return { html: `<div class="mt-2 space-y-0.5">${lines}</div>`, overdue };
         }
 
-        async function notifyTaskVisibilityIfNeeded(user) {
-            if (!supabaseClient || !user?.id) return;
-            const cacheKey = `task_visibility_notify_${user.id}_${new Date().toISOString().slice(0, 10)}`;
-            if (sessionStorage.getItem(cacheKey) === '1') return;
-            try {
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                if (!session?.access_token) return;
-                const response = await fetch(`${SUPABASE_URL}/functions/v1/notify-task-visibility`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        apikey: SUPABASE_ANON_KEY,
-                        Authorization: `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({ action: 'scan_user', user_id: user.id }),
-                });
-                if (response.ok) {
-                    sessionStorage.setItem(cacheKey, '1');
-                }
-            } catch (err) {
-                console.warn('[My Tasks] Visibility notify skipped:', err);
-            }
-        }
-
         function isProgressReportTaskOverdue(task, yearRecord) {
             if (!window.AcademicRecords?.getProgressReportActivePhase) {
                 return getTaskDueDateInfo(task).overdue;
@@ -2637,7 +2614,7 @@
                 return window.AcademicRecords?.isProgressReportTaskVisible?.(task, yearRecord) ?? true;
             });
 
-            void notifyTaskVisibilityIfNeeded(user);
+            void window.TaskNotify?.scanUserTasks?.(supabaseClient);
 
             const pendingCount = tasks.length;
             const hasOverdue = tasks.some((task) => {
