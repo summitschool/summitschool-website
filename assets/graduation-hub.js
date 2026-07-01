@@ -259,20 +259,20 @@
         flush();
 
         if (!sections.length) {
-            return '<p class="grad-req-fallback">Graduation requirements will be posted by the school office.</p>';
+            return '<p class="text-slate-500">Graduation requirements will be posted by the school office.</p>';
         }
 
-        return `<div class="grad-req-body">${sections.map((block) => {
+        return sections.map((block) => {
             let html = '';
-            if (block.title) html += `<h3 class="grad-req-heading">${escapeHtml(block.title)}</h3>`;
+            if (block.title) html += `<h3 class="font-semibold text-navy mb-2">${escapeHtml(block.title)}</h3>`;
             block.paragraphs.forEach((para) => {
-                html += `<p class="grad-req-para">${escapeHtml(para)}</p>`;
+                html += `<p>${escapeHtml(para)}</p>`;
             });
             if (block.bullets.length) {
-                html += `<ul class="grad-req-list">${block.bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+                html += `<ul class="list-disc pl-5 mt-2 space-y-1.5">${block.bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
             }
-            return `<div class="grad-req-block">${html}</div>`;
-        }).join('')}</div>`;
+            return `<section>${html}</section>`;
+        }).join('');
     }
 
     function renderRequirements() {
