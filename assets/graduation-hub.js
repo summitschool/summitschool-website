@@ -513,50 +513,50 @@
         if (!bar) return;
         bar.classList.remove('is-visible');
         bar.setAttribute('aria-hidden', 'true');
+        bar.remove();
     }
 
     function buildHubReturnCard({ iconWrapClass, iconClass, title, messageHtml }) {
         return `
-            <div class="site-card p-8 sm:p-10 text-navy">
-                <div class="text-center">
+            <div class="site-card grad-hub-return-card p-8 sm:p-10 text-navy">
+                <div class="grad-hub-return-body">
                     <div class="w-14 h-14 mx-auto rounded-2xl ${iconWrapClass} flex items-center justify-center">
                         <i class="${iconClass} text-2xl" aria-hidden="true"></i>
                     </div>
                     <h1 class="heading-serif text-2xl sm:text-3xl mt-5">${escapeHtml(title)}</h1>
-                    <p class="mt-4 text-sm sm:text-[15px] text-slate-600 leading-relaxed max-w-md mx-auto">${messageHtml}</p>
+                    <p class="mt-4 text-sm sm:text-[15px] text-slate-600 leading-relaxed max-w-md">${messageHtml}</p>
                 </div>
-                <div class="mt-8 pt-6 border-t border-slate-100 text-center">
-                    <a href="members.html"
-                       class="inline-flex items-center justify-center w-full sm:w-auto min-w-[12rem] px-6 py-3 bg-navy hover:bg-[#0F3A5F] text-white rounded-2xl text-sm font-semibold transition">
-                        Return to Family Hub
-                    </a>
+                <div class="grad-hub-return-actions">
+                    <a href="members.html" class="grad-hub-return-btn">Return to Family Hub</a>
                 </div>
             </div>
         `;
     }
 
-    function showPendingState() {
+    function showReturnState(cardHtml) {
         const main = document.getElementById('grad-hub-main');
         if (!main) return;
         hideFloatingTotalBar();
-        main.innerHTML = buildHubReturnCard({
+        main.className = 'grad-hub-return-shell';
+        main.innerHTML = cardHtml;
+    }
+
+    function showPendingState() {
+        showReturnState(buildHubReturnCard({
             iconWrapClass: 'bg-amber-100 text-amber-700',
             iconClass: 'fas fa-hourglass-half',
             title: 'Submitted — awaiting review',
             messageHtml: `Your graduation order for <strong>${escapeHtml(context.studentName)}</strong> has been sent to the school office. You will receive an email once it is approved.`,
-        });
+        }));
     }
 
     function showApprovedState() {
-        const main = document.getElementById('grad-hub-main');
-        if (!main) return;
-        hideFloatingTotalBar();
-        main.innerHTML = buildHubReturnCard({
+        showReturnState(buildHubReturnCard({
             iconWrapClass: 'bg-emerald-100 text-emerald-600',
             iconClass: 'fas fa-check',
             title: 'Graduation order approved',
             messageHtml: 'Your signed graduation order is saved in <strong>My Documents</strong> in the Family Hub.',
-        });
+        }));
     }
 
     async function upsertSubmission(row) {
