@@ -31,11 +31,29 @@
 
     async function initClient() {
         if (supabaseClient) return supabaseClient;
+        // Must match members.html — Family Hub session lives in sessionStorage (tab-scoped).
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+            auth: {
+                persistSession: true,
+                storage: window.sessionStorage,
+                autoRefreshToken: true,
+                detectSessionInUrl: true,
+                flowType: 'pkce',
+            },
         });
         window.supabaseClient = supabaseClient;
         return supabaseClient;
+    }
+
+    async function waitForHubSession(client, maxWaitMs = 4000) {
+        const started = Date.now();
+        while (Date.now() - started < maxWaitMs) {
+            const { data: { session } } = await client.auth.getSession();
+            if (session?.user) return session;
+            await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+        const { data: { session } } = await client.auth.getSession();
+        return session;
     }
 
     function defaultFormState() {
@@ -164,15 +182,17 @@
                 studentId: null,
                 guestId: guest.id,
             };
-            return;
+            return true;
         }
 
         if (!studentId) throw new Error('Missing student. Open this page from My Tasks.');
 
-        const { data: { user } } = await client.auth.getUser();
+        const session = await waitForHubSession(client);
+        const user = session?.user;
         if (!user) {
-            window.location.href = `members.html?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-            return;
+            const returnPath = `${window.location.pathname}${window.location.search}`;
+            window.location.replace(`members.html?redirect=${encodeURIComponent(returnPath)}`);
+            return false;
         }
 
         const { data: student, error } = await client
@@ -196,6 +216,7 @@
             studentId: student.id,
             guestId: null,
         };
+        return true;
     }
 
     async function loadSettingsAndSubmission() {
@@ -429,8 +450,9 @@
         const loading = document.getElementById('grad-hub-loading');
         const main = document.getElementById('grad-hub-main');
         try {
-            await initClient();
-            await loadContext();
+            const client = await initClient();
+            const ready = await loadContext();
+            if (!ready || !context) return;
             const editable = await loadSettingsAndSubmission();
             if (!editable) {
                 if (loading) loading.classList.add('hidden');
