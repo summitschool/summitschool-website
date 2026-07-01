@@ -120,20 +120,22 @@
             if (optOut != null && optOut !== '') {
                 items.push({
                     key: 'opt_out',
-                    label: 'Diploma only (no ceremony)',
+                    label: 'Diploma fee',
                     amount: Number(optOut),
                 });
             }
-        } else {
-            const baseFee = participantType === 'guest'
-                ? Number(settings?.guest_base_fee || 85)
-                : Number(settings?.summit_base_fee || 65);
-            items.push({
-                key: 'base',
-                label: participantType === 'guest' ? 'Graduation fee (guest)' : 'Graduation fee (Summit family)',
-                amount: baseFee,
-            });
+            const total = items.reduce((sum, item) => sum + item.amount, 0);
+            return { items, total };
         }
+
+        const baseFee = participantType === 'guest'
+            ? Number(settings?.guest_base_fee || 85)
+            : Number(settings?.summit_base_fee || 65);
+        items.push({
+            key: 'base',
+            label: participantType === 'guest' ? 'Graduation fee (guest)' : 'Graduation fee (Summit family)',
+            amount: baseFee,
+        });
 
         if (formState.add_pictures) {
             items.push({

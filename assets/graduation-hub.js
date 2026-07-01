@@ -130,15 +130,35 @@
         updateTotals();
     }
 
-    function toggleParticipationSections(mode) {
-        document.querySelectorAll('[data-full-only]').forEach((el) => {
-            el.classList.toggle('hidden', mode === 'diploma_only');
+    function clearFullGraduationOptions() {
+        const root = document.getElementById('grad-hub-form');
+        if (!root) return;
+        const capGown = root.querySelector('[name="cap_gown_size"]');
+        if (capGown) capGown.value = '';
+        const pictures = root.querySelector('[name="add_pictures"]');
+        if (pictures) pictures.checked = false;
+        const tshirt = root.querySelector('[name="add_tshirt"]');
+        if (tshirt) tshirt.checked = false;
+        const tshirtSize = root.querySelector('[name="tshirt_size"]');
+        if (tshirtSize) tshirtSize.value = '';
+        root.querySelectorAll('[name="honor_cord_option"]').forEach((el) => { el.checked = false; });
+        root.querySelectorAll('[name="beta_club_member"], [name="classical_conversations_student"]').forEach((el) => {
+            el.checked = false;
         });
+    }
+
+    function toggleParticipationSections(mode) {
+        const isDiplomaOnly = mode === 'diploma_only';
+        document.querySelectorAll('[data-full-only]').forEach((el) => {
+            el.classList.toggle('hidden', isDiplomaOnly);
+        });
+        if (isDiplomaOnly) clearFullGraduationOptions();
         const optOutBlocked = document.getElementById('opt-out-blocked');
         if (optOutBlocked) {
             const fee = settings?.ceremony_opt_out_fee;
-            optOutBlocked.classList.toggle('hidden', mode !== 'diploma_only' || fee != null);
+            optOutBlocked.classList.toggle('hidden', !isDiplomaOnly || fee != null);
         }
+        updateTotals();
     }
 
     function updateTotals() {
@@ -637,7 +657,10 @@
         if (!root) return;
         root.addEventListener('input', updateTotals);
         root.addEventListener('change', (e) => {
-            if (e.target?.name === 'participation_mode') toggleParticipationSections(e.target.value);
+            if (e.target?.name === 'participation_mode') {
+                toggleParticipationSections(e.target.value);
+                return;
+            }
             updateTotals();
         });
         root.addEventListener('submit', submitForm);
