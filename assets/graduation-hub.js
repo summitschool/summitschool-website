@@ -490,14 +490,21 @@
         const main = document.getElementById('grad-hub-main');
         if (!main || !note) return;
         const banner = document.createElement('div');
-        banner.className = 'site-card p-5 border border-amber-300 bg-amber-50/90 text-navy mb-6';
+        banner.className = 'hub-announcement w-full mb-6';
         banner.innerHTML = `
-            <p class="text-xs font-bold uppercase tracking-wide text-amber-800 mb-2">Changes requested</p>
-            <p class="text-sm text-slate-700">The school office asked for updates before approving your order:</p>
-            <p class="mt-2 text-sm font-medium text-navy whitespace-pre-wrap">${escapeHtml(note)}</p>
-            <p class="mt-3 text-xs text-slate-600">Please update the form below and submit again.</p>
+            <div class="min-w-0">
+                <strong class="mb-1 block text-sm">Changes requested</strong>
+                <p class="text-sm leading-relaxed">The school office asked for updates before approving your order:</p>
+                <div class="mt-2 text-sm leading-relaxed font-semibold whitespace-pre-wrap break-words">${escapeHtml(note)}</div>
+                <p class="mt-3 text-sm leading-relaxed">Please update the form below and submit again.</p>
+            </div>
         `;
-        main.insertBefore(banner, main.firstChild?.nextSibling || main.firstChild);
+        const header = main.querySelector('header');
+        if (header?.nextElementSibling) {
+            main.insertBefore(banner, header.nextElementSibling);
+        } else {
+            main.prepend(banner);
+        }
     }
 
     function showPendingState() {
