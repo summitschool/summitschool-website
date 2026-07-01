@@ -1,9 +1,11 @@
-import { escapeHtml, LOGO_URL, SITE_URL } from './family-hub-email.ts';
+import { escapeHtml, FAMILY_HUB_URL, LOGO_URL, SITE_URL } from './family-hub-email.ts';
 
 export const ENROLLMENT_COMPLETE_URL = `${SITE_URL}/enrollment-complete.html`;
 export const ENROLLMENT_ADMIN_SIGNED_URL = `${SITE_URL}/enrollment-admin-signed.html`;
-export const ENROLLMENT_TUITION_URL = `${SITE_URL}/index.html#enrollment`;
+export const ENROLLMENT_RETURNING_URL = `${SITE_URL}/enrollment-returning.html`;
 export const ENROLLMENT_CONTACT_URL = `${SITE_URL}/index.html#contact`;
+export const FAMILY_HUB_SIGNUP_URL = `${FAMILY_HUB_URL}#signup`;
+export const FAMILY_HUB_SIGNIN_URL = FAMILY_HUB_URL;
 
 type EnrollmentEmailOptions = {
   title: string;
@@ -86,60 +88,76 @@ export function buildEnrollmentReceivedFamilyEmail(firstName: string) {
     ? 'Hello,'
     : `Hello ${escapeHtml(firstName)},`;
 
-  const nextStepsHtml = `
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;text-align:left;">
+  const hubRequiredHtml = `
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#F5F0E6;border:2px solid rgba(201,162,39,0.45);border-radius:16px;text-align:left;">
                 <tr>
-                  <td style="padding:18px 20px;font-size:14px;line-height:1.65;color:#64748b;">
-                    <p style="margin:0 0 10px;font-size:14px;font-weight:600;color:#1B365D;text-align:center;">What happens next</p>
-                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">1. Pay tuition</strong><br>Submit annual tuition on our website using PayPal or Cash App.</p>
-                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">2. Create your Family Hub account</strong><br>Register for the Summit Family Hub and staff will approve your access.</p>
-                    <p style="margin:0;"><strong style="color:#1B365D;">3. Enrollment documents</strong><br>Your signed enrollment letter and other school documents will be available in the Hub once access is approved.</p>
-                  </td>
-                </tr>
-              </table>
-              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 16px;max-width:420px;width:100%;">
-                <tr>
-                  <td style="padding:14px 16px;background:#F5F0E6;border:1px solid rgba(201,162,39,0.35);border-radius:14px;text-align:center;">
-                    <p style="margin:0;font-size:13px;line-height:1.55;color:#1B365D;font-weight:600;">
-                      Include the enrolling parent&rsquo;s full name and email address in the tuition payment note so we can match your payment to your application.
+                  <td style="padding:18px 20px;font-size:14px;line-height:1.65;color:#1B365D;">
+                    <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9a7b1a;text-align:center;">Required</p>
+                    <p style="margin:0;font-size:15px;font-weight:700;text-align:center;">Create your Summit Family Hub account if you have not already</p>
+                    <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#475569;text-align:center;">
+                      Every enrolled family uses the Hub for grade submissions, assigned tasks, school resources, and accountability. You cannot complete the school year setup without it.
                     </p>
                   </td>
                 </tr>
               </table>`;
 
+  const hubOverviewHtml = `
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;text-align:left;">
+                <tr>
+                  <td style="padding:18px 20px;font-size:14px;line-height:1.65;color:#64748b;">
+                    <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#1B365D;text-align:center;">Once inside the Family Hub</p>
+                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">Family Hub Setup Checklist</strong> (in <strong>My Tasks</strong>)<br>Start here for the new school year: add each student in Academic Records, read how progress reports work, sign the Code of Conduct, and upload your government-issued ID.</p>
+                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">My Tasks</strong><br>Complete every assigned task by its due date, including forms and seasonal school requirements.</p>
+                    <p style="margin:0 0 10px;"><strong style="color:#1B365D;">Academic Records</strong><br>Enter semester grades and attendance, then submit progress reports when each semester is ready.</p>
+                    <p style="margin:0;"><strong style="color:#1B365D;">My Documents</strong><br>Your signed enrollment letter and other official school documents will appear here once your Hub access is approved.</p>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#64748b;text-align:center;">
+                Already created your account?
+                <a href="${escapeHtml(FAMILY_HUB_SIGNIN_URL)}" style="color:#7C8F7E;font-weight:600;text-decoration:underline;">Sign in to the Family Hub</a>
+                and watch for your access approval email if you have not received one yet.
+              </p>`;
+
   const html = buildEnrollmentEmailHtml({
     title: 'Enrollment approved',
-    preheader: 'Your Summit Church School enrollment application has been reviewed and approved.',
+    preheader: 'Your enrollment is approved. Create or sign in to the Summit Family Hub to get started.',
     greeting,
     paragraphs: [
-      'Great news — your <strong>Summit Church School</strong> enrollment application has been reviewed and approved.',
-      'Your signed enrollment documents will be available in the <strong>Summit Family Hub</strong> once you create your account and access is approved. You do not need to save a copy from this email.',
-      'Your next step is to <strong>pay annual tuition</strong> on our website, then create your Family Hub account.',
+      'Great news — your <strong>Summit Church School</strong> enrollment is now officially <strong>approved</strong> for the upcoming school year.',
+      'Thank you for completing your application and tuition payment. If you have not already created your <strong>Summit Family Hub</strong> account, please do that now — it is required for every enrolled family.',
+      'Your signed enrollment documents will be available in <strong>My Documents</strong> inside the Hub once your account is created and staff have approved your access. You do not need to save a copy from this email.',
     ],
-    extraHtml: nextStepsHtml,
-    ctaLabel: 'Pay Tuition & View Next Steps',
-    ctaUrl: ENROLLMENT_TUITION_URL,
-    footerNote: 'Questions? Contact us through our website and we will be happy to help.',
+    extraHtml: `${hubRequiredHtml}${hubOverviewHtml}`,
+    ctaLabel: 'Create Family Hub Account',
+    ctaUrl: FAMILY_HUB_SIGNUP_URL,
+    footerNote: 'Questions? Reply to this email, text 256-328-3966, or contact us through our website.',
   });
 
   const text = [
     firstName === 'there' ? 'Hello,' : `Hello ${firstName},`,
     '',
-    'Great news — your Summit Church School enrollment application has been reviewed and approved.',
-    'Your signed enrollment documents will be available in the Summit Family Hub once you create your account and access is approved.',
+    'Great news — your Summit Church School enrollment is now officially approved for the upcoming school year.',
     '',
-    'Next steps:',
-    '1. Pay tuition on our website (PayPal or Cash App).',
-    '2. Create your Family Hub account.',
-    '3. Access your enrollment documents once access is approved.',
+    'Thank you for completing your application and tuition payment.',
     '',
-    `Pay tuition and view next steps: ${ENROLLMENT_TUITION_URL}`,
+    'REQUIRED: Create your Summit Family Hub account if you have not already.',
+    'Every enrolled family uses the Hub for grade submissions, assigned tasks, school resources, and accountability.',
+    '',
+    `Create your account: ${FAMILY_HUB_SIGNUP_URL}`,
+    `Already signed up? Sign in: ${FAMILY_HUB_SIGNIN_URL}`,
+    '',
+    'Once inside the Family Hub:',
+    '- Family Hub Setup Checklist (My Tasks): add students, read the progress report guide, sign Code of Conduct, upload ID',
+    '- My Tasks: complete all assigned tasks by their due dates',
+    '- Academic Records: enter grades and submit progress reports each semester',
+    '- My Documents: your signed enrollment letter and official school documents',
     '',
     'Summit Church School',
   ].filter(Boolean).join('\n');
 
   return {
-    subject: 'Summit enrollment approved — next step: pay tuition',
+    subject: 'Summit enrollment approved — create your Family Hub account',
     html,
     text,
   };
@@ -201,7 +219,7 @@ export function buildEnrollmentAdminSignatureRequestEmail(options: {
       'A family has completed their portion of the <strong>Summit Church School</strong> enrollment application.',
       details.htmlLines,
       'Use the button below to open the document and add the school signature. No DocuSeal login is required — this link goes directly to the signing form.',
-      'After you sign, the family will receive their approval email with tuition and Family Hub next steps.',
+      'After you sign, the family will receive their approval email with Family Hub signup instructions and new-year checklist overview.',
     ],
     ctaLabel: 'Review and Sign',
     ctaUrl: signUrl,
