@@ -17,6 +17,26 @@
         (function () {
             var search = window.location.search || '';
             var oauthKey = 'members_oauth_callback_pending';
+
+            function hasStoredHubSession() {
+                try {
+                    if (sessionStorage.getItem('scsmembers_loggedin') === 'true') return true;
+                    for (var i = 0; i < sessionStorage.length; i++) {
+                        var key = sessionStorage.key(i);
+                        if (!key || key.indexOf('sb-') !== 0 || key.slice(-11) !== '-auth-token') continue;
+                        var raw = sessionStorage.getItem(key);
+                        if (!raw) continue;
+                        try {
+                            var parsed = JSON.parse(raw);
+                            if (parsed && (parsed.access_token || (parsed.currentSession && parsed.currentSession.access_token))) {
+                                return true;
+                            }
+                        } catch (parseErr) {}
+                    }
+                } catch (e) {}
+                return false;
+            }
+
             try {
                 var ts = localStorage.getItem(oauthKey);
                 var recent = ts && (Date.now() - parseInt(ts, 10) < 600000);
@@ -26,6 +46,9 @@
                     document.documentElement.classList.add('auth-transition-pending');
                     document.documentElement.classList.add('auth-login-locked');
                     window.__oauthReturnPending = true;
+                } else if (hasStoredHubSession()) {
+                    document.documentElement.classList.add('auth-transition-pending');
+                    window.__hubSessionRestore = true;
                 } else {
                     window.__showLoginImmediately = true;
                 }
@@ -2975,11 +2998,12 @@
                     setLogoutButtonsVisible(true);
                 }
             } else {
-                if (completingSignIn) {
+                if (oauthCallbackInProgress || hasPendingOAuthAttempt() || hasPkceAuthCode()) {
                     showAuthTransition('Completing sign-in…');
                     return;
                 }
 
+                hideAuthTransition();
                 finishOAuthHandoff();
 
                 revealLoginView();
@@ -6419,7 +6443,6 @@
         async function init() {
             if (
                 window.__oauthReturnPending
-                || document.documentElement.classList.contains('auth-transition-pending')
                 || hasPkceAuthCode()
                 || hasPendingOAuthAttempt()
             ) {
@@ -6427,6 +6450,12 @@
                 delete window.__oauthReturnPending;
                 document.documentElement.classList.add('auth-login-locked');
                 showAuthTransition('Completing Google sign-in…');
+            } else if (window.__hubSessionRestore) {
+                delete window.__hubSessionRestore;
+                const transitionTitle = document.querySelector('#auth-transition-overlay .auth-transition-title');
+                const transitionMessage = document.getElementById('auth-transition-message');
+                if (transitionTitle) transitionTitle.textContent = 'Welcome back';
+                if (transitionMessage) transitionMessage.textContent = 'Loading your Family Hub…';
             }
 
             initSupabaseClient();
