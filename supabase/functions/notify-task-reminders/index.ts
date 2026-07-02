@@ -4,8 +4,13 @@ import {
   ADMIN_EMAIL,
   buildAdminReminderEmail,
   buildFamilyReminderEmail,
+  buildOnboardingBundleAdminEmail,
+  buildOnboardingBundleEmail,
   PREVIEW_EMAIL,
   PREVIEW_VARIANTS,
+  SAMPLE_ONBOARDING_BUNDLE_ITEMS,
+  type OnboardingBundleItem,
+  type OnboardingBundleKind,
   type ReminderSlot,
   type TaskKind,
 } from '../_shared/task-reminder-email.ts';
@@ -23,7 +28,7 @@ const PROGRESS_URL_PREFIX = 'hub://progress-report/';
 const GRAD_URL_PREFIX = 'hub://graduation/';
 const KG_URL_PREFIX = 'hub://kindergarten-graduation/';
 
-const ONBOARDING_FAMILY_SLOTS: ReminderSlot[] = ['day3', 'day7', 'due', 'overdue2'];
+const ONBOARDING_BUNDLE_SLOT_PRIORITY: ReminderSlot[] = ['overdue2', 'due', 'day7', 'day3'];
 const PROGRESS_STANDARD_SLOTS: ReminderSlot[] = ['days15', 'days10', 'days3', 'due', 'overdue2'];
 const SENIOR_SCHEDULE_SLOTS: ReminderSlot[] = ['days10', 'days5', 'days3', 'due', 'overdue1'];
 const SENIOR_ADMIN_SLOTS: ReminderSlot[] = ['admin_days3', 'admin_due'];
@@ -59,6 +64,14 @@ type StudentRow = {
   first_name: string | null;
   last_name: string | null;
   current_grade_level: string | null;
+};
+
+type ProfileRow = {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
 };
 
 function todayIso() {
@@ -119,6 +132,19 @@ function reminderKey(audience: 'family' | 'admin', slot: ReminderSlot, semester?
 
 type ClassifiedKind = TaskKind | 'progress';
 
+function isOnboardingKind(kind: ClassifiedKind | null): kind is OnboardingBundleKind {
+  return kind === 'onboarding_checklist' || kind === 'coc' || kind === 'id_upload';
+}
+
+function formatFamilyName(profile: ProfileRow | null | undefined, fallbackEmail = '') {
+  if (profile?.first_name && profile?.last_name) {
+    return `${profile.first_name} ${profile.last_name}`.trim();
+  }
+  if (profile?.full_name) return String(profile.full_name).trim();
+  if (fallbackEmail) return fallbackEmail.split('@')[0] || 'Family';
+  return 'Family';
+}
+
 function classifyTask(task: DocRow): ClassifiedKind | null {
   const category = String(task.category || '').toLowerCase();
   if (!category.includes('task')) return null;
@@ -168,17 +194,15 @@ async function sendEmail(to: string, subject: string, text: string, html: string
   return true;
 }
 
-async function loadEmails(admin: ReturnType<typeof createClient>, userIds: string[]) {
-  const emailsByUser = new Map<string, string>();
-  if (!userIds.length) return emailsByUser;
+async function loadProfiles(admin: ReturnType<typeof createClient>, userIds: string[]) {
+  const profilesByUser = new Map<string, ProfileRow>();
+  if (!userIds.length) return profilesByUser;
   const { data: profiles } = await admin
     .from('profiles')
-    .select('id, email')
+    .select('id, email, first_name, last_name, full_name')
     .in('id', userIds);
-  (profiles || []).forEach((profile) => {
-    if (profile.email) emailsByUser.set(profile.id, profile.email);
-  });
-  return emailsByUser;
+  (profiles || []).forEach((profile) => profilesByUser.set(profile.id, profile));
+  return profilesByUser;
 }
 
 async function loadSentKeys(admin: ReturnType<typeof createClient>, taskIds: string[]) {
@@ -257,6 +281,89 @@ function getProgressContext(
   return null;
 }
 
+function pickOnboardingBundleSlot(tasks: DocRow[]): ReminderSlot | null {
+  for (const slot of ONBOARDING_BUNDLE_SLOT_PRIORITY) {
+    const triggered = tasks.some((task) => slotTriggersToday(slot, {
+      created: createdAtDate(task.created_at),
+      due: task.due_date_1,
+    }));
+    if (triggered) return slot;
+  }
+  return null;
+}
+
+function onboardingAnchorTask(tasks: DocRow[]) {
+  return tasks.find((task) => String(task.url || '') === ONBOARDING_URL) || tasks[0];
+}
+
+function toOnboardingBundleItem(task: DocRow, kind: OnboardingBundleKind): OnboardingBundleItem {
+  return {
+    kind,
+    title: task.title,
+    dueDate: task.due_date_1,
+  };
+}
+
+async function processOnboardingBundles(
+  admin: ReturnType<typeof createClient>,
+  onboardingTasks: Array<{ task: DocRow; kind: OnboardingBundleKind }>,
+  profilesByUser: Map<string, ProfileRow>,
+  sentKeys: Set<string>,
+) {
+  let sent = 0;
+  const tasksByUser = new Map<string, Array<{ task: DocRow; kind: OnboardingBundleKind }>>();
+
+  onboardingTasks.forEach((entry) => {
+    const list = tasksByUser.get(entry.task.user_id) || [];
+    list.push(entry);
+    tasksByUser.set(entry.task.user_id, list);
+  });
+
+  for (const [userId, entries] of tasksByUser) {
+    const tasks = entries.map((entry) => entry.task);
+    const bundleItems = entries.map((entry) => toOnboardingBundleItem(entry.task, entry.kind));
+    const profile = profilesByUser.get(userId);
+    const familyEmail = profile?.email || '';
+    const familyName = formatFamilyName(profile, familyEmail);
+    const anchor = onboardingAnchorTask(tasks);
+    if (!anchor) continue;
+
+    const slot = pickOnboardingBundleSlot(tasks);
+    if (slot) {
+      const key = `family:onboarding_bundle:${slot}`;
+      if (!sentKeys.has(`${anchor.id}:${key}`) && familyEmail) {
+        const mail = buildOnboardingBundleEmail({ slot, items: bundleItems });
+        await sendEmail(familyEmail, mail.subject, mail.text, mail.html);
+        await markSent(admin, anchor.id, key, familyEmail);
+        sentKeys.add(`${anchor.id}:${key}`);
+        sent += 1;
+      }
+    }
+
+    const hasOverdue = tasks.some((task) => slotTriggersToday('admin_overdue', {
+      created: createdAtDate(task.created_at),
+      due: task.due_date_1,
+    }));
+    if (hasOverdue) {
+      const key = 'admin:onboarding_bundle:overdue';
+      if (!sentKeys.has(`${anchor.id}:${key}`)) {
+        const overdueItems = bundleItems.filter((item) => item.dueDate && todayIso() > item.dueDate);
+        const mail = buildOnboardingBundleAdminEmail({
+          familyName,
+          familyEmail: familyEmail || 'unknown',
+          items: overdueItems.length ? overdueItems : bundleItems,
+        });
+        await sendEmail(ADMIN_NOTIFY_EMAIL, mail.subject, mail.text, mail.html);
+        await markSent(admin, anchor.id, key, ADMIN_NOTIFY_EMAIL);
+        sentKeys.add(`${anchor.id}:${key}`);
+        sent += 1;
+      }
+    }
+  }
+
+  return sent;
+}
+
 async function graduationIncomplete(
   admin: ReturnType<typeof createClient>,
   studentId: string,
@@ -328,53 +435,27 @@ async function processTaskReminders(admin: ReturnType<typeof createClient>, toda
     });
   }
 
-  const emailsByUser = await loadEmails(admin, [...new Set(tasks.map((t) => t.user_id))]);
+  const userIds = [...new Set(tasks.map((t) => t.user_id))];
+  const profilesByUser = await loadProfiles(admin, userIds);
   const sentKeys = await loadSentKeys(admin, tasks.map((t) => t.id));
   let sent = 0;
 
+  const onboardingTasks: Array<{ task: DocRow; kind: OnboardingBundleKind }> = [];
   for (const task of tasks as DocRow[]) {
     const kind = classifyTask(task);
-    if (!kind) continue;
-
-    const familyEmail = emailsByUser.get(task.user_id);
-    const created = createdAtDate(task.created_at);
-
-    if (kind === 'onboarding_checklist' || kind === 'coc' || kind === 'id_upload') {
-      const dueDate = task.due_date_1;
-      const anchors = { created, due: dueDate };
-
-      for (const slot of ONBOARDING_FAMILY_SLOTS) {
-        if (!slotTriggersToday(slot, anchors)) continue;
-        const key = reminderKey('family', slot);
-        if (sentKeys.has(`${task.id}:${key}`)) continue;
-        if (!familyEmail) continue;
-
-        const mail = buildFamilyReminderEmail({ kind, slot, dueDate });
-        await sendEmail(familyEmail, mail.subject, mail.text, mail.html);
-        await markSent(admin, task.id, key, familyEmail);
-        sentKeys.add(`${task.id}:${key}`);
-        sent += 1;
-      }
-
-      if (slotTriggersToday('admin_overdue', anchors)) {
-        const key = reminderKey('admin', 'admin_overdue');
-        if (!sentKeys.has(`${task.id}:${key}`)) {
-          const mail = buildAdminReminderEmail({
-            kind,
-            slot: 'admin_overdue',
-            familyEmail: familyEmail || 'unknown',
-            studentLabel: '',
-            taskTitle: task.title,
-            dueDate,
-          });
-          await sendEmail(ADMIN_NOTIFY_EMAIL, mail.subject, mail.text, mail.html);
-          await markSent(admin, task.id, key, ADMIN_NOTIFY_EMAIL);
-          sentKeys.add(`${task.id}:${key}`);
-          sent += 1;
-        }
-      }
-      continue;
+    if (isOnboardingKind(kind)) {
+      onboardingTasks.push({ task, kind });
     }
+  }
+  sent += await processOnboardingBundles(admin, onboardingTasks, profilesByUser, sentKeys);
+
+  for (const task of tasks as DocRow[]) {
+    const kind = classifyTask(task);
+    if (!kind || isOnboardingKind(kind)) continue;
+
+    const profile = profilesByUser.get(task.user_id);
+    const familyEmail = profile?.email || '';
+    const familyName = formatFamilyName(profile, familyEmail);
 
     if (kind === 'progress') {
       const studentId = String(task.url || '').startsWith(PROGRESS_URL_PREFIX)
@@ -419,6 +500,7 @@ async function processTaskReminders(admin: ReturnType<typeof createClient>, toda
           const mail = buildAdminReminderEmail({
             kind: 'progress_s2',
             slot,
+            familyName,
             familyEmail: familyEmail || 'unknown',
             studentLabel: progress.studentLabel,
             taskTitle: task.title,
@@ -435,6 +517,7 @@ async function processTaskReminders(admin: ReturnType<typeof createClient>, toda
           const mail = buildAdminReminderEmail({
             kind: progress.kind,
             slot: 'admin_overdue',
+            familyName,
             familyEmail: familyEmail || 'unknown',
             studentLabel: progress.studentLabel,
             taskTitle: task.title,
@@ -495,6 +578,7 @@ async function processTaskReminders(admin: ReturnType<typeof createClient>, toda
         const mail = buildAdminReminderEmail({
           kind,
           slot,
+          familyName,
           familyEmail: familyEmail || 'unknown',
           studentLabel,
           taskTitle: task.title,
@@ -520,31 +604,57 @@ async function sendPreviewEmails() {
   let sent = 0;
 
   for (const variant of PREVIEW_VARIANTS) {
-    const mail = variant.audience === 'family'
-      ? buildFamilyReminderEmail({
-        kind: variant.kind,
+    const mail = variant.audience === 'family' && variant.kind === 'onboarding_checklist'
+      ? buildOnboardingBundleEmail({
         slot: variant.slot,
-        studentLabel: variant.studentLabel,
-        dueDate: sampleDue,
+        items: SAMPLE_ONBOARDING_BUNDLE_ITEMS,
         preview: true,
       })
-      : buildAdminReminderEmail({
-        kind: variant.kind,
-        slot: variant.slot,
-        familyEmail: 'sample.family@example.com',
-        studentLabel: variant.studentLabel || 'Sample Student',
-        taskTitle: `Sample task — ${variant.label}`,
-        dueDate: sampleDue,
-        preview: true,
-      });
+      : variant.audience === 'family'
+        ? buildFamilyReminderEmail({
+          kind: variant.kind,
+          slot: variant.slot,
+          studentLabel: variant.studentLabel,
+          dueDate: sampleDue,
+          preview: true,
+        })
+        : variant.kind === 'coc' && variant.slot === 'admin_overdue'
+          ? buildOnboardingBundleAdminEmail({
+            familyName: 'Johnson family',
+            familyEmail: 'sample.family@example.com',
+            items: SAMPLE_ONBOARDING_BUNDLE_ITEMS,
+            preview: true,
+          })
+          : buildAdminReminderEmail({
+            kind: variant.kind,
+            slot: variant.slot,
+            familyName: 'Johnson family',
+            familyEmail: 'sample.family@example.com',
+            studentLabel: variant.studentLabel || 'Sample Student',
+            taskTitle: `Sample task — ${variant.label}`,
+            dueDate: sampleDue,
+            preview: true,
+          });
 
-    const subject = `[PREVIEW] ${variant.label} — ${mail.subject.replace(/^\[PREVIEW\] /, '')}`;
+    const subject = mail.subject.startsWith('[PREVIEW]')
+      ? mail.subject
+      : `[PREVIEW] ${mail.subject}`;
     await sendEmail(PREVIEW_EMAIL, subject, mail.text, mail.html);
     sent += 1;
     await sleep(150);
   }
 
   return sent;
+}
+
+async function sendOnboardingBundlePreview() {
+  const mail = buildOnboardingBundleEmail({
+    slot: 'due',
+    items: SAMPLE_ONBOARDING_BUNDLE_ITEMS,
+    preview: true,
+  });
+  await sendEmail(PREVIEW_EMAIL, mail.subject, mail.text, mail.html);
+  return 1;
 }
 
 serve(async (req) => {
@@ -560,6 +670,19 @@ serve(async (req) => {
     if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
       return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), {
         status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'preview_onboarding_bundle') {
+      const sent = await sendOnboardingBundlePreview();
+      return new Response(JSON.stringify({
+        ok: true,
+        action: 'preview_onboarding_bundle',
+        sent,
+        preview_recipient: PREVIEW_EMAIL,
+        live: REMINDERS_LIVE,
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
