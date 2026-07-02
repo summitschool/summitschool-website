@@ -529,6 +529,137 @@ export const SAMPLE_ONBOARDING_BUNDLE_ITEMS: OnboardingBundleItem[] = [
   { kind: 'id_upload', title: 'Upload Government Issued ID (required)', dueDate: '2026-07-16' },
 ];
 
+export type ProgressBundleItem = {
+  studentLabel: string;
+  gradeLevel: string;
+  semester: '1' | '2';
+  dueDate: string | null;
+};
+
+export function formatGradeLabel(gradeLevel: string) {
+  const grade = String(gradeLevel || '').trim();
+  if (grade === 'K') return 'Kindergarten';
+  if (/^\d+$/.test(grade)) return `Grade ${grade}`;
+  return grade || 'Student';
+}
+
+function progressBundleSubject(slot: ReminderSlot) {
+  switch (slot) {
+    case 'days15': return 'Progress reports — due in 15 days';
+    case 'days10': return 'Progress reports — due in 10 days';
+    case 'days5': return 'Progress reports — due in 5 days';
+    case 'days3': return 'Progress reports — due in 3 days';
+    case 'due': return 'Progress reports due today';
+    case 'overdue1': return 'Progress reports overdue';
+    case 'overdue2': return 'Progress reports overdue';
+    default: return 'Progress report reminder';
+  }
+}
+
+function progressBundleTitle(slot: ReminderSlot) {
+  switch (slot) {
+    case 'days15': return 'Progress reports due in 15 days';
+    case 'days10': return 'Progress reports due in 10 days';
+    case 'days5': return 'Progress reports due in 5 days';
+    case 'days3': return 'Progress reports due in 3 days';
+    case 'due': return 'Progress reports due today';
+    case 'overdue1': return 'Progress reports overdue';
+    case 'overdue2': return 'Progress reports overdue';
+    default: return 'Progress report reminder';
+  }
+}
+
+function progressBundleIntro(slot: ReminderSlot, count: number) {
+  const noun = count === 1 ? 'student' : 'students';
+  switch (slot) {
+    case 'days15': return `Progress reports for ${count} ${noun} in your family are due in <strong>15 days</strong>:`;
+    case 'days10': return `Progress reports for ${count} ${noun} in your family are due in <strong>10 days</strong>:`;
+    case 'days5': return `Progress reports for ${count} ${noun} in your family are due in <strong>5 days</strong>:`;
+    case 'days3': return `Progress reports for ${count} ${noun} in your family are due in <strong>3 days</strong>:`;
+    case 'due': return `Progress reports for ${count} ${noun} in your family are <strong>due today</strong>:`;
+    case 'overdue1': return `Progress reports for ${count} ${noun} in your family are <strong>1 day past due</strong>:`;
+    case 'overdue2': return `Progress reports for ${count} ${noun} in your family are <strong>2 days past due</strong>:`;
+    default: return `Please submit progress reports for the ${noun} below:`;
+  }
+}
+
+function progressGradeSortValue(gradeLevel: string) {
+  const grade = String(gradeLevel || '').trim();
+  if (grade === 'K') return 0;
+  const num = parseInt(grade, 10);
+  return Number.isFinite(num) ? num : 99;
+}
+
+export function buildProgressReportBundleEmail(options: {
+  slot: ReminderSlot;
+  items: ProgressBundleItem[];
+  preview?: boolean;
+}): ReminderEmail {
+  const sortedItems = [...options.items].sort((a, b) => (
+    progressGradeSortValue(a.gradeLevel) - progressGradeSortValue(b.gradeLevel)
+    || a.studentLabel.localeCompare(b.studentLabel)
+  ));
+  const title = progressBundleTitle(options.slot);
+  const subject = options.preview ? `[PREVIEW] ${progressBundleSubject(options.slot)}` : progressBundleSubject(options.slot);
+  const intro = progressBundleIntro(options.slot, sortedItems.length);
+
+  const studentParagraphs = sortedItems.map((item) => {
+    const grade = formatGradeLabel(item.gradeLevel);
+    const semester = item.semester === '1' ? 'first semester' : 'second semester';
+    const dueText = formatDueLabel(item.dueDate);
+    return `<strong>${escapeHtml(item.studentLabel)}</strong> (${escapeHtml(grade)}) — Due ${escapeHtml(dueText)}. Open <strong>Academic Records</strong> from this student&apos;s task card, enter ${semester} grades and attendance, and submit.`;
+  });
+
+  const paragraphs = [
+    intro,
+    'Each progress report is in <strong>Family Hub → My Tasks</strong>. Open the task card for each student listed below.',
+    ...studentParagraphs,
+  ];
+
+  const textLines = sortedItems.map((item) => {
+    const grade = formatGradeLabel(item.gradeLevel);
+    const semester = item.semester === '1' ? 'first semester' : 'second semester';
+    const dueText = formatDueLabel(item.dueDate);
+    return `• ${item.studentLabel} (${grade}) — due ${dueText}. Enter ${semester} grades and attendance in Academic Records and submit.`;
+  });
+
+  const text = [
+    'Hello,',
+    '',
+    intro.replace(/<[^>]+>/g, ''),
+    '',
+    ...textLines,
+    '',
+    `Open Family Hub: ${FAMILY_HUB_URL}`,
+    '',
+    'Summit Church School',
+  ].join('\n');
+
+  const html = buildFamilyHubEmailHtml({
+    title,
+    preheader: `${sortedItems.length} progress report${sortedItems.length === 1 ? '' : 's'} need your attention.`,
+    paragraphs,
+    ctaLabel: 'Open Family Hub',
+    ctaUrl: FAMILY_HUB_URL,
+    footerNote: 'You received this because progress report tasks in My Tasks need your attention.',
+  });
+
+  return {
+    subject,
+    text,
+    html,
+    reminderKey: `family:progress_bundle:${options.slot}`,
+    audience: 'family',
+  };
+}
+
+export const SAMPLE_PROGRESS_BUNDLE_ITEMS: ProgressBundleItem[] = [
+  { studentLabel: 'Emma Johnson', gradeLevel: 'K', semester: '1', dueDate: '2026-12-31' },
+  { studentLabel: 'Liam Johnson', gradeLevel: '5', semester: '1', dueDate: '2026-12-31' },
+  { studentLabel: 'Sophia Johnson', gradeLevel: '9', semester: '1', dueDate: '2026-12-31' },
+  { studentLabel: 'Noah Johnson', gradeLevel: '12', semester: '1', dueDate: '2026-12-31' },
+];
+
 export function buildFamilyReminderEmail(options: {
   kind: TaskKind;
   slot: ReminderSlot;

@@ -6,11 +6,14 @@ import {
   buildFamilyReminderEmail,
   buildOnboardingBundleAdminEmail,
   buildOnboardingBundleEmail,
+  buildProgressReportBundleEmail,
   PREVIEW_EMAIL,
   PREVIEW_VARIANTS,
   SAMPLE_ONBOARDING_BUNDLE_ITEMS,
+  SAMPLE_PROGRESS_BUNDLE_ITEMS,
   type OnboardingBundleItem,
   type OnboardingBundleKind,
+  type ProgressBundleItem,
   type ReminderSlot,
   type TaskKind,
 } from '../_shared/task-reminder-email.ts';
@@ -32,6 +35,7 @@ const ONBOARDING_BUNDLE_SLOT_PRIORITY: ReminderSlot[] = ['overdue2', 'due', 'day
 const PROGRESS_STANDARD_SLOTS: ReminderSlot[] = ['days15', 'days10', 'days3', 'due', 'overdue2'];
 const SENIOR_SCHEDULE_SLOTS: ReminderSlot[] = ['days10', 'days5', 'days3', 'due', 'overdue1'];
 const SENIOR_ADMIN_SLOTS: ReminderSlot[] = ['admin_days3', 'admin_due'];
+const ALL_PROGRESS_FAMILY_SLOTS: ReminderSlot[] = ['days15', 'days10', 'days5', 'days3', 'due', 'overdue1', 'overdue2'];
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -247,6 +251,21 @@ type ProgressContext = {
   isSenior: boolean;
 };
 
+type ProgressEntry = {
+  task: DocRow;
+  progress: ProgressContext;
+  gradeLevel: string;
+};
+
+function progressSlotsForStudent(isSenior: boolean, semester: '1' | '2') {
+  if (semester === '2' && isSenior) return SENIOR_SCHEDULE_SLOTS;
+  return PROGRESS_STANDARD_SLOTS;
+}
+
+function progressAnchorTask(entries: ProgressEntry[]) {
+  return entries[0]?.task || null;
+}
+
 function getProgressContext(
   task: DocRow,
   year: YearRow | null | undefined,
@@ -364,6 +383,58 @@ async function processOnboardingBundles(
   return sent;
 }
 
+async function processProgressBundles(
+  admin: ReturnType<typeof createClient>,
+  progressEntries: ProgressEntry[],
+  profilesByUser: Map<string, ProfileRow>,
+  sentKeys: Set<string>,
+) {
+  let sent = 0;
+  const entriesByUser = new Map<string, ProgressEntry[]>();
+
+  progressEntries.forEach((entry) => {
+    const list = entriesByUser.get(entry.task.user_id) || [];
+    list.push(entry);
+    entriesByUser.set(entry.task.user_id, list);
+  });
+
+  for (const [userId, entries] of entriesByUser) {
+    const profile = profilesByUser.get(userId);
+    const familyEmail = profile?.email || '';
+    const anchor = progressAnchorTask(entries);
+    if (!anchor || !familyEmail) continue;
+
+    for (const slot of ALL_PROGRESS_FAMILY_SLOTS) {
+      const matching: ProgressBundleItem[] = [];
+
+      for (const entry of entries) {
+        const slots = progressSlotsForStudent(entry.progress.isSenior, entry.progress.semester);
+        if (!slots.includes(slot)) continue;
+        if (!slotTriggersToday(slot, { due: entry.progress.dueDate })) continue;
+        matching.push({
+          studentLabel: entry.progress.studentLabel,
+          gradeLevel: entry.gradeLevel,
+          semester: entry.progress.semester,
+          dueDate: entry.progress.dueDate,
+        });
+      }
+
+      if (!matching.length) continue;
+
+      const key = `family:progress_bundle:${slot}`;
+      if (sentKeys.has(`${anchor.id}:${key}`)) continue;
+
+      const mail = buildProgressReportBundleEmail({ slot, items: matching });
+      await sendEmail(familyEmail, mail.subject, mail.text, mail.html);
+      await markSent(admin, anchor.id, key, familyEmail);
+      sentKeys.add(`${anchor.id}:${key}`);
+      sent += 1;
+    }
+  }
+
+  return sent;
+}
+
 async function graduationIncomplete(
   admin: ReturnType<typeof createClient>,
   studentId: string,
@@ -449,6 +520,29 @@ async function processTaskReminders(admin: ReturnType<typeof createClient>, toda
   }
   sent += await processOnboardingBundles(admin, onboardingTasks, profilesByUser, sentKeys);
 
+  const progressEntries: ProgressEntry[] = [];
+  for (const task of tasks as DocRow[]) {
+    const kind = classifyTask(task);
+    if (kind !== 'progress') continue;
+
+    const studentId = String(task.url || '').startsWith(PROGRESS_URL_PREFIX)
+      ? String(task.url).slice(PROGRESS_URL_PREFIX.length).trim()
+      : null;
+    const year = studentId && task.school_year
+      ? yearsByStudent.get(`${studentId}:${task.school_year}`)
+      : null;
+    const student = studentId ? studentsById.get(studentId) : null;
+    const progress = getProgressContext(task, year, student, today);
+    if (!progress) continue;
+
+    progressEntries.push({
+      task,
+      progress,
+      gradeLevel: String(student?.current_grade_level || ''),
+    });
+  }
+  sent += await processProgressBundles(admin, progressEntries, profilesByUser, sentKeys);
+
   for (const task of tasks as DocRow[]) {
     const kind = classifyTask(task);
     if (!kind || isOnboardingKind(kind)) continue;
@@ -468,28 +562,7 @@ async function processTaskReminders(admin: ReturnType<typeof createClient>, toda
       const progress = getProgressContext(task, year, student, today);
       if (!progress) continue;
 
-      const familySlots = progress.kind === 'progress_s2' && progress.isSenior
-        ? SENIOR_SCHEDULE_SLOTS
-        : PROGRESS_STANDARD_SLOTS;
       const anchors = { due: progress.dueDate };
-
-      for (const slot of familySlots) {
-        if (!slotTriggersToday(slot, anchors)) continue;
-        const key = reminderKey('family', slot, progress.semester);
-        if (sentKeys.has(`${task.id}:${key}`)) continue;
-        if (!familyEmail) continue;
-
-        const mail = buildFamilyReminderEmail({
-          kind: progress.kind,
-          slot,
-          studentLabel: progress.studentLabel,
-          dueDate: progress.dueDate,
-        });
-        await sendEmail(familyEmail, mail.subject, mail.text, mail.html);
-        await markSent(admin, task.id, key, familyEmail);
-        sentKeys.add(`${task.id}:${key}`);
-        sent += 1;
-      }
 
       if (progress.kind === 'progress_s2' && progress.isSenior) {
         for (const slot of SENIOR_ADMIN_SLOTS) {
@@ -610,6 +683,17 @@ async function sendPreviewEmails() {
         items: SAMPLE_ONBOARDING_BUNDLE_ITEMS,
         preview: true,
       })
+      : variant.audience === 'family' && (variant.kind === 'progress_s1' || variant.kind === 'progress_s2')
+        ? buildProgressReportBundleEmail({
+          slot: variant.slot,
+          items: [{
+            studentLabel: variant.studentLabel || 'Sample Student',
+            gradeLevel: variant.studentLabel === 'Taylor Lee' ? '12' : '5',
+            semester: variant.kind === 'progress_s1' ? '1' : '2',
+            dueDate: sampleDue,
+          }],
+          preview: true,
+        })
       : variant.audience === 'family'
         ? buildFamilyReminderEmail({
           kind: variant.kind,
@@ -657,6 +741,16 @@ async function sendOnboardingBundlePreview() {
   return 1;
 }
 
+async function sendProgressBundlePreview() {
+  const mail = buildProgressReportBundleEmail({
+    slot: 'due',
+    items: SAMPLE_PROGRESS_BUNDLE_ITEMS,
+    preview: true,
+  });
+  await sendEmail(PREVIEW_EMAIL, mail.subject, mail.text, mail.html);
+  return 1;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -679,6 +773,19 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         ok: true,
         action: 'preview_onboarding_bundle',
+        sent,
+        preview_recipient: PREVIEW_EMAIL,
+        live: REMINDERS_LIVE,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'preview_progress_bundle') {
+      const sent = await sendProgressBundlePreview();
+      return new Response(JSON.stringify({
+        ok: true,
+        action: 'preview_progress_bundle',
         sent,
         preview_recipient: PREVIEW_EMAIL,
         live: REMINDERS_LIVE,
