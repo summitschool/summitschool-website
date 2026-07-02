@@ -76,6 +76,13 @@
         return 'ABCDEF'.includes(letter) ? letter : null;
     }
 
+    function looksLikeLetterGrade(value) {
+        const raw = String(value ?? '').trim();
+        if (!raw) return false;
+        if (parsePercent(raw) !== null) return false;
+        return parseLetterGrade(raw) !== null;
+    }
+
     function letterToMidPercent(letter) {
         const map = { A: 95, B: 85, C: 75, D: 65, F: 50 };
         return map[letter] ?? null;
@@ -2445,6 +2452,12 @@
                 if (!s2) {
                     throw new Error(`Enter Semester 2 grades for "${name}" before submitting.`);
                 }
+                if (requirePercent && looksLikeLetterGrade(s1)) {
+                    throw new Error(`High school Semester 1 grades must be percentages for "${name}". Use the Letter-to-percentage chart at the top of the page.`);
+                }
+                if (requirePercent && looksLikeLetterGrade(s2)) {
+                    throw new Error(`High school Semester 2 grades must be percentages for "${name}". Use the Letter-to-percentage chart at the top of the page.`);
+                }
                 if (requirePercent && parsePercent(s1) === null) {
                     throw new Error(`High school Semester 1 grades must be percentages for "${name}".`);
                 }
@@ -2482,6 +2495,9 @@
                 if (!s1) {
                     throw new Error(`Enter Semester 1 grades for "${name}" before submitting.`);
                 }
+                if (requirePercent && looksLikeLetterGrade(s1)) {
+                    throw new Error(`High school Semester 1 grades must be percentages for "${name}". Use the Letter-to-percentage chart at the top of the page.`);
+                }
                 if (requirePercent && parsePercent(s1) === null) {
                     throw new Error(`High school Semester 1 grades must be percentages for "${name}".`);
                 }
@@ -2495,6 +2511,9 @@
                 const s1 = String(entry.semester_1_grade || '').trim();
                 if (!s2 && !s1) {
                     throw new Error(`Enter Semester 2 grades for "${name}" before submitting.`);
+                }
+                if (s2 && requirePercent && looksLikeLetterGrade(s2)) {
+                    throw new Error(`High school Semester 2 grades must be percentages for "${name}". Use the Letter-to-percentage chart at the top of the page.`);
                 }
                 if (s2 && requirePercent && parsePercent(s2) === null) {
                     throw new Error(`High school Semester 2 grades must be percentages for "${name}".`);
@@ -3111,10 +3130,101 @@
         }
     }
 
+    function scrollToGradeConversionChart() {
+        const helpBanner = document.querySelector('.ar-grade-help');
+        if (helpBanner) {
+            helpBanner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+        document.getElementById('academic-records-root')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function showHighSchoolPercentOnlyNotice() {
+        let modal = document.getElementById('ar-hs-percent-notice-modal');
+        if (!modal) {
+            document.body.insertAdjacentHTML('beforeend', `
+                <div id="ar-hs-percent-notice-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="ar-hs-percent-notice-title">
+                    <button type="button" class="ar-grade-chart-backdrop" aria-label="Close" data-ar-hs-percent-backdrop></button>
+                    <div class="ar-grade-chart-panel">
+                        <h3 id="ar-hs-percent-notice-title" class="heading-serif text-xl text-navy tracking-tight text-center">Percentages only for high school</h3>
+                        <p class="text-sm text-slate-600 mt-3 text-center leading-relaxed">
+                            For grades 9–12, enter semester grades as <strong>percentages (0–100)</strong>, not letter grades.
+                            If you graded with letters, use the <strong>Letter-to-percentage chart</strong> at the top of this page to find the matching percentage.
+                        </p>
+                        <div class="mt-6 flex flex-col gap-2">
+                            <button type="button" id="ar-hs-percent-chart-btn"
+                                    class="w-full min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold bg-navy hover:bg-[#0F3A5F] text-white border border-navy">
+                                View conversion chart
+                            </button>
+                            <button type="button" id="ar-hs-percent-close"
+                                    class="w-full min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold bg-white hover:bg-slate-50 text-navy border border-slate-200">
+                                Got it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `);
+
+            modal = document.getElementById('ar-hs-percent-notice-modal');
+            const close = () => {
+                modal?.classList.add('hidden');
+                document.documentElement.classList.remove('app-dialog-open');
+                document.body.classList.remove('app-dialog-open');
+            };
+
+            modal?.querySelector('[data-ar-hs-percent-backdrop]')?.addEventListener('click', close);
+            document.getElementById('ar-hs-percent-close')?.addEventListener('click', close);
+            document.getElementById('ar-hs-percent-chart-btn')?.addEventListener('click', () => {
+                close();
+                scrollToGradeConversionChart();
+                showGradeEquivalencyChart();
+            });
+            modal?.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && modal && !modal.classList.contains('hidden')) close();
+            });
+        }
+
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+
+        document.documentElement.classList.add('app-dialog-open');
+        document.body.classList.add('app-dialog-open');
+        modal.classList.remove('hidden');
+        document.getElementById('ar-hs-percent-close')?.focus({ preventScroll: true });
+    }
+
+    function handleHighSchoolGradeBlur(input, row, gradeLevel) {
+        if (!input || !isHighSchoolGrade(gradeLevel)) return;
+
+        const value = String(input.value || '').trim();
+        if (!value) {
+            input.dataset.lastValidGrade = '';
+            updateFinalForRow(row, gradeLevel);
+            return;
+        }
+
+        if (parsePercent(value) !== null) {
+            input.dataset.lastValidGrade = value;
+            updateFinalForRow(row, gradeLevel);
+            return;
+        }
+
+        if (looksLikeLetterGrade(value)) {
+            input.value = input.dataset.lastValidGrade || '';
+            updateFinalForRow(row, gradeLevel);
+            showHighSchoolPercentOnlyNotice();
+        }
+    }
+
     function bindGradeRowEvents(row, gradeLevel) {
         if (!row) return;
         row.querySelectorAll('.ar-grade-s1, .ar-grade-s2').forEach((input) => {
+            input.addEventListener('focus', () => {
+                input.dataset.lastValidGrade = String(input.value || '').trim();
+            });
             input.addEventListener('input', () => updateFinalForRow(row, gradeLevel));
+            input.addEventListener('blur', () => handleHighSchoolGradeBlur(input, row, gradeLevel));
         });
     }
 

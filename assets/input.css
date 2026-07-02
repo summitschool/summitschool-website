@@ -2627,7 +2627,8 @@ html.auth-transition-active #pending-view {
   }
 }
 
-#ar-grade-chart-modal {
+#ar-grade-chart-modal,
+#ar-hs-percent-notice-modal {
   position: fixed;
   top: 0;
   left: 0;
@@ -2641,7 +2642,8 @@ html.auth-transition-active #pending-view {
   box-sizing: border-box;
 }
 
-#ar-grade-chart-modal.hidden {
+#ar-grade-chart-modal.hidden,
+#ar-hs-percent-notice-modal.hidden {
   display: none !important;
 }
 
