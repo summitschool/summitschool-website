@@ -2659,6 +2659,11 @@ html.auth-transition-active #pending-view {
   cursor: pointer;
 }
 
+.ar-grade-letter-invalid {
+  border-color: #f87171 !important;
+  background-color: #fef2f2;
+}
+
 #ar-grade-chart-modal .ar-grade-chart-panel {
   position: relative;
   z-index: 1;

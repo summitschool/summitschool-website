@@ -83,6 +83,25 @@
         return parseLetterGrade(raw) !== null;
     }
 
+    function assertHighSchoolPercentGrades(entries, gradeLevel, contextLabel = 'grades') {
+        if (!isHighSchoolGrade(gradeLevel)) return;
+
+        for (const entry of entries) {
+            const name = String(entry.course_name || '').trim() || 'a course';
+            const checks = [
+                ['semester_1_grade', 'Semester 1'],
+                ['semester_2_grade', 'Semester 2'],
+            ];
+            for (const [field, label] of checks) {
+                const value = String(entry[field] || '').trim();
+                if (!value || !looksLikeLetterGrade(value)) continue;
+                throw new Error(
+                    `High school ${label.toLowerCase()} ${contextLabel} for "${name}" must be percentages, not letters. Use the Letter-to-percentage chart at the top of the page.`
+                );
+            }
+        }
+    }
+
     function letterToMidPercent(letter) {
         const map = { A: 95, B: 85, C: 75, D: 65, F: 50 };
         return map[letter] ?? null;
@@ -580,7 +599,7 @@
     }
 
     function bindYearPanelEvents(panel) {
-        bindGradeTableEvents();
+        bindGradeTableEvents(panel || document);
         const root = panel?.closest('#academic-records-root, .ar-admin-records-root')
             || document.getElementById('academic-records-root');
         if (root) {
@@ -1044,7 +1063,7 @@
             </div>
             <div class="ar-year-cards" data-ar-scroll-anchor="${yearRecord.id}">
                 ${buildAttendanceHtml(yearRecord, { readonly })}
-                ${buildGradeTableHtml(yearRecord, entries, { readonly })}
+                ${buildGradeTableHtml(yearRecord, entries, { readonly, student })}
                 ${hsSupplemental}
                 ${actionsHtml}
                 ${exportHtml}
@@ -1462,6 +1481,14 @@
 
     function isHighSchoolGrade(level) {
         return HIGH_SCHOOL_GRADES.has(String(level || '').trim());
+    }
+
+    function resolveGradeLevel(yearRecord, student) {
+        return String(yearRecord?.grade_level || student?.current_grade_level || '').trim();
+    }
+
+    function isHighSchoolYearRecord(yearRecord, student) {
+        return isHighSchoolGrade(resolveGradeLevel(yearRecord, student));
     }
 
     function schoolYearEndDate(schoolYear) {
@@ -2376,6 +2403,7 @@
     }
 
     async function saveGradeEntries(entries, gradeLevel) {
+        assertHighSchoolPercentGrades(entries, gradeLevel, 'entries');
         const client = await getClient();
         const requirePercent = isHighSchoolGrade(gradeLevel);
         for (const entry of entries) {
@@ -2481,6 +2509,16 @@
             }
 
             if (semesterKey === '2') {
+                const s1 = String(entry.semester_1_grade || '').trim();
+                const s2 = String(entry.semester_2_grade || '').trim();
+                if (requirePercent && looksLikeLetterGrade(s1)) {
+                    throw new Error(
+                        `Semester 1 grade for "${name}" must be a percentage, not a letter. Use the Letter-to-percentage chart at the top of the page.${yearRecord.semester_1_locked ? ' Contact the school office if Semester 1 is already submitted.' : ''}`
+                    );
+                }
+                if (requirePercent && s1 && parsePercent(s1) === null) {
+                    throw new Error(`Semester 1 grade for "${name}" must be a percentage (0–100).`);
+                }
                 const final = getEffectiveFinal(entry, gradeLevel);
                 if (!final) {
                     throw new Error(`Enter grades for "${name}" before submitting.`);
@@ -2995,7 +3033,7 @@
     }
 
     function buildGradeEntryRowHtml(entry, yearRecord, options = {}) {
-        const gradeLevel = yearRecord.grade_level;
+        const gradeLevel = options.gradeLevel || resolveGradeLevel(yearRecord, options.student);
         const isHs = isHighSchoolGrade(gradeLevel);
         const readonly = options.readonly || false;
         const editCourseName = canEditCourseName(yearRecord, readonly);
@@ -3067,16 +3105,17 @@
     }
 
     function buildGradeTableHtml(yearRecord, entries, options = {}) {
-        const gradeLevel = yearRecord.grade_level;
+        const gradeLevel = resolveGradeLevel(yearRecord, options.student);
         const isBackfill = yearRecord.entry_type === 'backfill';
         const isHs = isHighSchoolGrade(gradeLevel);
         const readonly = options.readonly || false;
         const calSem = getCalendarSemester(yearRecord.school_year);
         const canAdd = canAddCourse(yearRecord, readonly);
 
+        const rowOptions = { ...options, gradeLevel };
         let rows = '';
         for (const entry of entries) {
-            rows += buildGradeEntryRowHtml(entry, yearRecord, options);
+            rows += buildGradeEntryRowHtml(entry, yearRecord, rowOptions);
         }
 
         const gradeLabel = isHs ? '%' : '';
@@ -3101,7 +3140,8 @@
                 <div class="overflow-x-auto ar-grade-scroll">
                     <table class="w-full min-w-[640px] text-sm ar-grade-table"
                            data-year-record-id="${yearRecord.id}"
-                           data-grade-level="${escapeHtml(gradeLevel)}">
+                           data-grade-level="${escapeHtml(gradeLevel)}"
+                           data-readonly="${readonly ? '1' : '0'}">
                         <thead><tr>${headers}</tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
@@ -3139,18 +3179,19 @@
         document.getElementById('academic-records-root')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    function showHighSchoolPercentOnlyNotice() {
+    function showHighSchoolPercentOnlyNotice(options = {}) {
         let modal = document.getElementById('ar-hs-percent-notice-modal');
+        const bodyCopy = options.existingRecord
+            ? 'This high school record still has letter grades where <strong>percentages (0–100)</strong> are required. Update each highlighted grade using the <strong>Letter-to-percentage chart</strong> at the top of this page.'
+            : 'For grades 9–12, enter semester grades as <strong>percentages (0–100)</strong>, not letter grades. If you graded with letters, use the <strong>Letter-to-percentage chart</strong> at the top of this page to find the matching percentage.';
+
         if (!modal) {
             document.body.insertAdjacentHTML('beforeend', `
                 <div id="ar-hs-percent-notice-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="ar-hs-percent-notice-title">
                     <button type="button" class="ar-grade-chart-backdrop" aria-label="Close" data-ar-hs-percent-backdrop></button>
                     <div class="ar-grade-chart-panel">
                         <h3 id="ar-hs-percent-notice-title" class="heading-serif text-xl text-navy tracking-tight text-center">Percentages only for high school</h3>
-                        <p class="text-sm text-slate-600 mt-3 text-center leading-relaxed">
-                            For grades 9–12, enter semester grades as <strong>percentages (0–100)</strong>, not letter grades.
-                            If you graded with letters, use the <strong>Letter-to-percentage chart</strong> at the top of this page to find the matching percentage.
-                        </p>
+                        <p id="ar-hs-percent-notice-body" class="text-sm text-slate-600 mt-3 text-center leading-relaxed"></p>
                         <div class="mt-6 flex flex-col gap-2">
                             <button type="button" id="ar-hs-percent-chart-btn"
                                     class="w-full min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold bg-navy hover:bg-[#0F3A5F] text-white border border-navy">
@@ -3188,6 +3229,11 @@
             document.body.appendChild(modal);
         }
 
+        const bodyEl = document.getElementById('ar-hs-percent-notice-body');
+        if (bodyEl) {
+            bodyEl.innerHTML = bodyCopy;
+        }
+
         document.documentElement.classList.add('app-dialog-open');
         document.body.classList.add('app-dialog-open');
         modal.classList.remove('hidden');
@@ -3217,23 +3263,62 @@
         }
     }
 
+    function flagHighSchoolLetterGradeInputs(table, gradeLevel) {
+        if (!table || !isHighSchoolGrade(gradeLevel)) return false;
+
+        let foundLetter = false;
+        table.querySelectorAll('.ar-grade-s1, .ar-grade-s2').forEach((input) => {
+            if (!looksLikeLetterGrade(input.value)) {
+                input.classList.remove('ar-grade-letter-invalid');
+                return;
+            }
+
+            foundLetter = true;
+            input.classList.add('ar-grade-letter-invalid');
+            if (!input.readOnly && !input.disabled) {
+                input.dataset.lastValidGrade = '';
+            }
+        });
+        return foundLetter;
+    }
+
     function bindGradeRowEvents(row, gradeLevel) {
-        if (!row) return;
+        if (!row || row.dataset.arGradeRowBound === '1') return;
+        row.dataset.arGradeRowBound = '1';
+
         row.querySelectorAll('.ar-grade-s1, .ar-grade-s2').forEach((input) => {
             input.addEventListener('focus', () => {
-                input.dataset.lastValidGrade = String(input.value || '').trim();
+                const current = String(input.value || '').trim();
+                input.dataset.lastValidGrade = looksLikeLetterGrade(current) ? '' : current;
             });
-            input.addEventListener('input', () => updateFinalForRow(row, gradeLevel));
+            input.addEventListener('input', () => {
+                updateFinalForRow(row, gradeLevel);
+                if (isHighSchoolGrade(gradeLevel) && looksLikeLetterGrade(input.value)) {
+                    handleHighSchoolGradeBlur(input, row, gradeLevel);
+                }
+            });
             input.addEventListener('blur', () => handleHighSchoolGradeBlur(input, row, gradeLevel));
         });
     }
 
-    function bindGradeTableEvents() {
-        document.querySelectorAll('.ar-grade-table').forEach((table) => {
+    function bindGradeTableEvents(root = document) {
+        const scope = root?.querySelectorAll ? root : document;
+        scope.querySelectorAll('.ar-grade-table').forEach((table) => {
+            if (table.dataset.arGradeBound === '1') return;
+            table.dataset.arGradeBound = '1';
+
             const gradeLevel = table.dataset.gradeLevel || '';
+            const readonly = table.dataset.readonly === '1';
             table.querySelectorAll('tr[data-entry-id]').forEach((row) => {
                 bindGradeRowEvents(row, gradeLevel);
             });
+
+            if (!readonly && flagHighSchoolLetterGradeInputs(table, gradeLevel)) {
+                if (table.dataset.arLetterAuditNotified !== '1') {
+                    table.dataset.arLetterAuditNotified = '1';
+                    showHighSchoolPercentOnlyNotice({ existingRecord: true });
+                }
+            }
         });
     }
 
@@ -4126,10 +4211,11 @@
                 : 0;
             const newEntry = await addCourseRow(yearRecordId, nextOrder, 'elective');
 
-            tbody.insertAdjacentHTML('beforeend', buildGradeEntryRowHtml(newEntry, yearRecord));
+            const gradeLevel = resolveGradeLevel(yearRecord);
+            tbody.insertAdjacentHTML('beforeend', buildGradeEntryRowHtml(newEntry, yearRecord, { gradeLevel }));
 
             const newRow = tbody.querySelector(`tr[data-entry-id="${newEntry.id}"]`);
-            bindGradeRowEvents(newRow, yearRecord.grade_level);
+            bindGradeRowEvents(newRow, gradeLevel);
             newRow?.querySelector('[data-field="course_name"]')?.focus({ preventScroll: true });
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
