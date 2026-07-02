@@ -470,36 +470,68 @@ export function buildOnboardingBundleEmail(options: {
   };
 }
 
-export function buildOnboardingBundleAdminEmail(options: {
+export function onboardingTaskLabel(kind: OnboardingBundleKind) {
+  return ONBOARDING_BUNDLE_LABELS[kind];
+}
+
+export type AdminOverdueTaskItem = {
+  label: string;
+  dueDate: string | null;
+};
+
+export type AdminOverdueFamilyGroup = {
   familyName: string;
   familyEmail: string;
-  items: OnboardingBundleItem[];
-  preview?: boolean;
-}): ReminderEmail {
-  const title = 'New-family tasks overdue';
-  const subject = options.preview
-    ? `[PREVIEW] [Admin] New-family tasks overdue — ${options.familyName}`
-    : `[Admin] New-family tasks overdue — ${options.familyName}`;
+  tasks: AdminOverdueTaskItem[];
+};
 
-  const taskParagraphs = options.items.map((item) => {
-    const label = ONBOARDING_BUNDLE_LABELS[item.kind] || item.title;
-    const dueText = formatDueLabel(item.dueDate);
-    return `<strong>${escapeHtml(label)}</strong> — due ${escapeHtml(dueText)}`;
-  });
+export function buildAdminOverdueDigestEmail(options: {
+  families: AdminOverdueFamilyGroup[];
+  reportDate?: string | null;
+  preview?: boolean;
+}): ReminderEmail | null {
+  const families = options.families.filter((family) => family.tasks.length > 0);
+  if (!families.length) return null;
+
+  const count = families.length;
+  const familyWord = count === 1 ? 'family' : 'families';
+  const title = 'Overdue tasks report';
+  const subject = options.preview
+    ? `[PREVIEW] [Admin] Overdue tasks report — ${count} ${familyWord}`
+    : `[Admin] Overdue tasks report — ${count} ${familyWord}`;
+  const reportText = options.reportDate ? formatDueLabel(options.reportDate) : 'today';
 
   const paragraphs = [
-    `The <strong>${escapeHtml(options.familyName)}</strong> family has required onboarding tasks that are <strong>past due</strong>.`,
-    `Family login: <strong>${escapeHtml(options.familyEmail)}</strong>`,
-    ...taskParagraphs,
-    'Follow up with the family in Family Hub admin tools.',
+    `The following <strong>${count}</strong> ${familyWord} have overdue tasks as of <strong>${escapeHtml(reportText)}</strong>:`,
   ];
 
-  const text = [
+  const textBlocks = [
     'Summit admin alert,',
     '',
-    `${options.familyName} has past-due new-family tasks.`,
-    `Family login: ${options.familyEmail}`,
-    ...options.items.map((item) => `• ${ONBOARDING_BUNDLE_LABELS[item.kind]} (due ${formatDueLabel(item.dueDate)})`),
+    `Overdue tasks report — ${count} ${familyWord} as of ${reportText.replace(/<[^>]+>/g, '')}:`,
+    '',
+  ];
+
+  for (const family of families) {
+    paragraphs.push(
+      `<strong>${escapeHtml(family.familyName)}</strong> (${escapeHtml(family.familyEmail)})`,
+    );
+    textBlocks.push(`${family.familyName} (${family.familyEmail})`);
+
+    for (const task of family.tasks) {
+      const dueText = formatDueLabel(task.dueDate);
+      paragraphs.push(`${escapeHtml(task.label)} — due ${escapeHtml(dueText)}`);
+      textBlocks.push(`  • ${task.label} (due ${dueText})`);
+    }
+
+    textBlocks.push('');
+  }
+
+  paragraphs.push('Follow up with these families in Family Hub admin tools.');
+
+  const text = [
+    ...textBlocks,
+    'Follow up with these families in Family Hub admin tools.',
     '',
     'Summit Church School Family Hub',
   ].join('\n');
@@ -511,17 +543,43 @@ export function buildOnboardingBundleAdminEmail(options: {
     paragraphs,
     ctaLabel: 'Open Family Hub',
     ctaUrl: FAMILY_HUB_URL,
-    footerNote: 'Internal reminder for Summit Church School staff.',
+    footerNote: 'Internal daily overdue report for Summit Church School staff.',
   });
 
   return {
     subject,
     text,
     html,
-    reminderKey: 'admin:onboarding_bundle:overdue',
+    reminderKey: 'admin:overdue_digest',
     audience: 'admin',
   };
 }
+
+export const SAMPLE_ADMIN_OVERDUE_DIGEST: AdminOverdueFamilyGroup[] = [
+  {
+    familyName: 'Johnson family',
+    familyEmail: 'johnson.family@example.com',
+    tasks: [
+      { label: 'Family Hub setup checklist', dueDate: '2026-07-10' },
+      { label: 'Code of Conduct', dueDate: '2026-07-10' },
+    ],
+  },
+  {
+    familyName: 'Smith family',
+    familyEmail: 'smith.family@example.com',
+    tasks: [
+      { label: 'Progress report — Liam Smith (Grade 5, Semester 1)', dueDate: '2026-05-31' },
+      { label: 'Progress report — Ava Smith (Grade 8, Semester 1)', dueDate: '2026-05-31' },
+    ],
+  },
+  {
+    familyName: 'Rivera family',
+    familyEmail: 'rivera.family@example.com',
+    tasks: [
+      { label: 'Graduation order — Taylor Rivera', dueDate: '2026-05-15' },
+    ],
+  },
+];
 
 export const SAMPLE_ONBOARDING_BUNDLE_ITEMS: OnboardingBundleItem[] = [
   { kind: 'onboarding_checklist', title: 'Family Hub Setup Checklist', dueDate: '2026-07-16' },
@@ -765,19 +823,17 @@ export type PreviewVariant = {
 
 export const PREVIEW_VARIANTS: PreviewVariant[] = [
   { label: 'New-family tasks bundle — due today', kind: 'onboarding_checklist', slot: 'due', audience: 'family' },
-  { label: 'Admin — new-family tasks overdue', kind: 'coc', slot: 'admin_overdue', audience: 'admin' },
+  { label: 'Admin — overdue tasks digest', kind: 'onboarding_checklist', slot: 'admin_overdue', audience: 'admin' },
   { label: 'Progress report — 15 days until due', kind: 'progress_s1', slot: 'days15', audience: 'family', studentLabel: 'Alex Johnson' },
   { label: 'Progress report — 10 days until due', kind: 'progress_s1', slot: 'days10', audience: 'family', studentLabel: 'Alex Johnson' },
   { label: 'Progress report — 3 days until due', kind: 'progress_s1', slot: 'days3', audience: 'family', studentLabel: 'Alex Johnson' },
   { label: 'Progress report due today', kind: 'progress_s1', slot: 'due', audience: 'family', studentLabel: 'Alex Johnson' },
   { label: 'Progress report — 2 days overdue', kind: 'progress_s1', slot: 'overdue2', audience: 'family', studentLabel: 'Alex Johnson' },
-  { label: 'Admin — progress report overdue', kind: 'progress_s1', slot: 'admin_overdue', audience: 'admin', studentLabel: 'Alex Johnson' },
   { label: 'Progress report — 15 days until due', kind: 'progress_s2', slot: 'days15', audience: 'family', studentLabel: 'Jamie Smith' },
   { label: 'Progress report — 10 days until due', kind: 'progress_s2', slot: 'days10', audience: 'family', studentLabel: 'Jamie Smith' },
   { label: 'Progress report — 3 days until due', kind: 'progress_s2', slot: 'days3', audience: 'family', studentLabel: 'Jamie Smith' },
   { label: 'Progress report due today', kind: 'progress_s2', slot: 'due', audience: 'family', studentLabel: 'Jamie Smith' },
   { label: 'Progress report — 2 days overdue', kind: 'progress_s2', slot: 'overdue2', audience: 'family', studentLabel: 'Jamie Smith' },
-  { label: 'Admin — progress report overdue', kind: 'progress_s2', slot: 'admin_overdue', audience: 'admin', studentLabel: 'Jamie Smith' },
   { label: 'Progress report — 10 days until due', kind: 'progress_s2', slot: 'days10', audience: 'family', studentLabel: 'Taylor Lee' },
   { label: 'Progress report — 5 days until due', kind: 'progress_s2', slot: 'days5', audience: 'family', studentLabel: 'Taylor Lee' },
   { label: 'Progress report — 3 days until due', kind: 'progress_s2', slot: 'days3', audience: 'family', studentLabel: 'Taylor Lee' },

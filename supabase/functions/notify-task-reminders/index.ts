@@ -4,14 +4,17 @@ import {
   ADMIN_EMAIL,
   buildAdminReminderEmail,
   buildFamilyReminderEmail,
-  buildOnboardingBundleAdminEmail,
+  buildAdminOverdueDigestEmail,
   buildOnboardingBundleEmail,
   buildProgressReportBundleEmail,
+  formatGradeLabel,
+  onboardingTaskLabel,
   PREVIEW_EMAIL,
   PREVIEW_VARIANTS,
+  SAMPLE_ADMIN_OVERDUE_DIGEST,
   SAMPLE_ONBOARDING_BUNDLE_ITEMS,
   SAMPLE_PROGRESS_BUNDLE_ITEMS,
-  type OnboardingBundleItem,
+  type AdminOverdueFamilyGroup,
   type OnboardingBundleKind,
   type ProgressBundleItem,
   type ReminderSlot,
@@ -343,7 +346,6 @@ async function processOnboardingBundles(
     const bundleItems = entries.map((entry) => toOnboardingBundleItem(entry.task, entry.kind));
     const profile = profilesByUser.get(userId);
     const familyEmail = profile?.email || '';
-    const familyName = formatFamilyName(profile, familyEmail);
     const anchor = onboardingAnchorTask(tasks);
     if (!anchor) continue;
 
@@ -359,28 +361,124 @@ async function processOnboardingBundles(
       }
     }
 
-    const hasOverdue = tasks.some((task) => slotTriggersToday('admin_overdue', {
-      created: createdAtDate(task.created_at),
-      due: task.due_date_1,
-    }));
-    if (hasOverdue) {
-      const key = 'admin:onboarding_bundle:overdue';
-      if (!sentKeys.has(`${anchor.id}:${key}`)) {
-        const overdueItems = bundleItems.filter((item) => item.dueDate && todayIso() > item.dueDate);
-        const mail = buildOnboardingBundleAdminEmail({
-          familyName,
-          familyEmail: familyEmail || 'unknown',
-          items: overdueItems.length ? overdueItems : bundleItems,
-        });
-        await sendEmail(ADMIN_NOTIFY_EMAIL, mail.subject, mail.text, mail.html);
-        await markSent(admin, anchor.id, key, ADMIN_NOTIFY_EMAIL);
-        sentKeys.add(`${anchor.id}:${key}`);
-        sent += 1;
-      }
-    }
   }
 
   return sent;
+}
+
+function isPastDue(dueDate: string | null | undefined, today: string) {
+  return Boolean(dueDate && today > dueDate);
+}
+
+async function collectAdminOverdueFamilies(
+  admin: ReturnType<typeof createClient>,
+  onboardingTasks: Array<{ task: DocRow; kind: OnboardingBundleKind }>,
+  progressEntries: ProgressEntry[],
+  tasks: DocRow[],
+  studentsById: Map<string, StudentRow>,
+  profilesByUser: Map<string, ProfileRow>,
+  today: string,
+) {
+  const groups = new Map<string, AdminOverdueFamilyGroup>();
+  let anchorTaskId: string | null = null;
+
+  const noteAnchor = (taskId: string) => {
+    if (!anchorTaskId || taskId < anchorTaskId) anchorTaskId = taskId;
+  };
+
+  const addTask = (userId: string, label: string, dueDate: string | null, taskId: string) => {
+    if (!isPastDue(dueDate, today)) return;
+
+    const profile = profilesByUser.get(userId);
+    const familyEmail = profile?.email || 'unknown';
+    if (!groups.has(userId)) {
+      groups.set(userId, {
+        familyName: formatFamilyName(profile, familyEmail),
+        familyEmail,
+        tasks: [],
+      });
+    }
+
+    groups.get(userId)!.tasks.push({ label, dueDate });
+    noteAnchor(taskId);
+  };
+
+  onboardingTasks.forEach(({ task, kind }) => {
+    addTask(task.user_id, onboardingTaskLabel(kind), task.due_date_1, task.id);
+  });
+
+  progressEntries.forEach((entry) => {
+    const grade = formatGradeLabel(entry.gradeLevel);
+    const semester = entry.progress.semester === '1' ? 'Semester 1' : 'Semester 2';
+    const label = `Progress report — ${entry.progress.studentLabel} (${grade}, ${semester})`;
+    addTask(entry.task.user_id, label, entry.progress.dueDate, entry.task.id);
+  });
+
+  for (const task of tasks) {
+    const kind = classifyTask(task);
+    if (kind !== 'senior_graduation' && kind !== 'kindergarten_graduation') continue;
+
+    const prefix = kind === 'senior_graduation' ? GRAD_URL_PREFIX : KG_URL_PREFIX;
+    const titlePrefix = kind === 'senior_graduation'
+      ? /^Graduation Order —\s*/i
+      : /^Kindergarten Graduation —\s*/i;
+    const studentId = String(task.url || '').startsWith(prefix)
+      ? String(task.url).slice(prefix.length).trim()
+      : null;
+    if (!studentId) continue;
+
+    const incomplete = await graduationIncomplete(admin, studentId, task.school_year, kind);
+    if (!incomplete) continue;
+
+    const student = studentsById.get(studentId);
+    const studentLabel = studentDisplayName(student) !== 'Student'
+      ? studentDisplayName(student)
+      : studentLabelFromTitle(task.title, titlePrefix);
+    const label = kind === 'senior_graduation'
+      ? `Graduation order — ${studentLabel}`
+      : `K graduation — ${studentLabel}`;
+    addTask(task.user_id, label, task.due_date_1, task.id);
+  }
+
+  const families = [...groups.values()]
+    .filter((family) => family.tasks.length > 0)
+    .sort((a, b) => a.familyName.localeCompare(b.familyName));
+
+  return { families, anchorTaskId };
+}
+
+async function processAdminOverdueDigest(
+  admin: ReturnType<typeof createClient>,
+  onboardingTasks: Array<{ task: DocRow; kind: OnboardingBundleKind }>,
+  progressEntries: ProgressEntry[],
+  tasks: DocRow[],
+  studentsById: Map<string, StudentRow>,
+  profilesByUser: Map<string, ProfileRow>,
+  sentKeys: Set<string>,
+  today: string,
+) {
+  const { families, anchorTaskId } = await collectAdminOverdueFamilies(
+    admin,
+    onboardingTasks,
+    progressEntries,
+    tasks,
+    studentsById,
+    profilesByUser,
+    today,
+  );
+
+  if (!families.length || !anchorTaskId) return 0;
+
+  const key = `admin:overdue_digest:${today}`;
+  if (sentKeys.has(`${anchorTaskId}:${key}`)) return 0;
+
+  const mail = buildAdminOverdueDigestEmail({ families, reportDate: today });
+  if (!mail) return 0;
+
+  await sendEmail(ADMIN_NOTIFY_EMAIL, mail.subject, mail.text, mail.html);
+  await markSent(admin, anchorTaskId, key, ADMIN_NOTIFY_EMAIL);
+  sentKeys.add(`${anchorTaskId}:${key}`);
+  return 1;
 }
 
 async function processProgressBundles(
@@ -542,6 +640,16 @@ async function processTaskReminders(admin: ReturnType<typeof createClient>, toda
     });
   }
   sent += await processProgressBundles(admin, progressEntries, profilesByUser, sentKeys);
+  sent += await processAdminOverdueDigest(
+    admin,
+    onboardingTasks,
+    progressEntries,
+    tasks as DocRow[],
+    studentsById,
+    profilesByUser,
+    sentKeys,
+    today,
+  );
 
   for (const task of tasks as DocRow[]) {
     const kind = classifyTask(task);
@@ -573,23 +681,6 @@ async function processTaskReminders(admin: ReturnType<typeof createClient>, toda
           const mail = buildAdminReminderEmail({
             kind: 'progress_s2',
             slot,
-            familyName,
-            familyEmail: familyEmail || 'unknown',
-            studentLabel: progress.studentLabel,
-            taskTitle: task.title,
-            dueDate: progress.dueDate,
-          });
-          await sendEmail(ADMIN_NOTIFY_EMAIL, mail.subject, mail.text, mail.html);
-          await markSent(admin, task.id, key, ADMIN_NOTIFY_EMAIL);
-          sentKeys.add(`${task.id}:${key}`);
-          sent += 1;
-        }
-      } else if (slotTriggersToday('admin_overdue', anchors)) {
-        const key = reminderKey('admin', 'admin_overdue', progress.semester);
-        if (!sentKeys.has(`${task.id}:${key}`)) {
-          const mail = buildAdminReminderEmail({
-            kind: progress.kind,
-            slot: 'admin_overdue',
             familyName,
             familyEmail: familyEmail || 'unknown',
             studentLabel: progress.studentLabel,
@@ -702,13 +793,12 @@ async function sendPreviewEmails() {
           dueDate: sampleDue,
           preview: true,
         })
-        : variant.kind === 'coc' && variant.slot === 'admin_overdue'
-          ? buildOnboardingBundleAdminEmail({
-            familyName: 'Johnson family',
-            familyEmail: 'sample.family@example.com',
-            items: SAMPLE_ONBOARDING_BUNDLE_ITEMS,
+        : variant.audience === 'admin' && variant.slot === 'admin_overdue'
+          ? buildAdminOverdueDigestEmail({
+            families: SAMPLE_ADMIN_OVERDUE_DIGEST,
+            reportDate: '2026-07-02',
             preview: true,
-          })
+          })!
           : buildAdminReminderEmail({
             kind: variant.kind,
             slot: variant.slot,
@@ -751,6 +841,17 @@ async function sendProgressBundlePreview() {
   return 1;
 }
 
+async function sendAdminOverdueDigestPreview() {
+  const mail = buildAdminOverdueDigestEmail({
+    families: SAMPLE_ADMIN_OVERDUE_DIGEST,
+    reportDate: '2026-07-02',
+    preview: true,
+  });
+  if (!mail) return 0;
+  await sendEmail(PREVIEW_EMAIL, mail.subject, mail.text, mail.html);
+  return 1;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -786,6 +887,19 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         ok: true,
         action: 'preview_progress_bundle',
+        sent,
+        preview_recipient: PREVIEW_EMAIL,
+        live: REMINDERS_LIVE,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'preview_admin_overdue_digest') {
+      const sent = await sendAdminOverdueDigestPreview();
+      return new Response(JSON.stringify({
+        ok: true,
+        action: 'preview_admin_overdue_digest',
         sent,
         preview_recipient: PREVIEW_EMAIL,
         live: REMINDERS_LIVE,
