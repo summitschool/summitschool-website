@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260761';
+            var BUILD = '20260762';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -1116,7 +1116,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260761"></script>
+    <script src="assets/onboarding-checklist.js?v=20260762"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -2999,36 +2999,6 @@
                 .order('created_at', { ascending: false })
                 .limit(1);
 
-            if (!error && (!idDocs || idDocs.length === 0)) {
-                const { data: approvedUpload, error: uploadError } = await supabaseClient
-                    .from('id_uploads')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .eq('status', 'approved')
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (!uploadError && approvedUpload) {
-                    const { data: restoredDoc, error: restoreError } = await supabaseClient
-                        .from('family_documents')
-                        .insert({
-                            user_id: user.id,
-                            title: 'Government ID on File',
-                            description: approvedUpload.ack_name ? `Acknowledged by: ${approvedUpload.ack_name}` : 'ID on file',
-                            url: approvedUpload.storage_path,
-                            category: 'ID',
-                            school_year: approvedUpload.school_year || '2026-2027',
-                        })
-                        .select('*')
-                        .single();
-
-                    if (!restoreError && restoredDoc) {
-                        idDocs = [restoredDoc];
-                    }
-                }
-            }
-
             const hint = document.getElementById('my-id-summary-hint');
             const panel = document.getElementById('my-id-panel');
             const visibleSummary = document.getElementById('my-id-visible-summary');
@@ -4784,6 +4754,113 @@
             return `${userId}/ids/pending/${Date.now()}-${sanitizeStorageFileName(fileName)}`;
         }
 
+        function isIdDocumentRecord(doc) {
+            const category = String(doc?.category || '').toLowerCase();
+            const title = String(doc?.title || '').toLowerCase();
+            if (isTaskDocument(doc?.category) && title.includes('upload government issued id')) {
+                return false;
+            }
+            return category.includes('id')
+                || title.includes('government id on file')
+                || title.includes('pending admin review');
+        }
+
+        function isApprovedIdDocumentRecord(doc) {
+            const title = String(doc?.title || '').toLowerCase();
+            return title.includes('government id on file')
+                || (isIdDocumentRecord(doc) && !title.includes('pending'));
+        }
+
+        function isFamilyIdStoragePath(path) {
+            const normalized = normalizeStoragePath(path);
+            if (!normalized || normalized.startsWith('http')) return false;
+            return isPendingIdStoragePath(normalized)
+                || /\/ids\//i.test(normalized)
+                || /^temp-ids\//i.test(normalized);
+        }
+
+        async function removeFamilyIdStoragePaths(paths) {
+            const bucket = supabaseClient.storage.from('Family-Documents');
+            const toRemove = new Set();
+
+            for (const rawPath of paths) {
+                const normalized = normalizeStoragePath(rawPath);
+                if (!normalized || !isFamilyIdStoragePath(normalized)) continue;
+
+                toRemove.add(normalized);
+                getStoragePathCandidates(normalized).forEach((candidate) => {
+                    if (isFamilyIdStoragePath(candidate)) toRemove.add(candidate);
+                });
+
+                const resolved = await resolveStoragePathOptional(normalized);
+                if (resolved && isFamilyIdStoragePath(resolved)) {
+                    toRemove.add(resolved);
+                    getStoragePathCandidates(resolved).forEach((candidate) => {
+                        if (isFamilyIdStoragePath(candidate)) toRemove.add(candidate);
+                    });
+                }
+            }
+
+            const batch = [...toRemove];
+            if (!batch.length) return;
+
+            const { error } = await bucket.remove(batch);
+            if (error) console.warn('[ID Delete] Storage remove failed:', error.message);
+        }
+
+        async function removeFamilyIdRecord(doc, options = {}) {
+            if (!doc?.user_id || !supabaseClient) return;
+
+            const userId = doc.user_id;
+            const storagePath = normalizeStoragePath(doc.url);
+            const reopenTask = options.reopenTask !== false;
+
+            if (storagePath && !storagePath.startsWith('http')) {
+                await removeFamilyIdStoragePaths([storagePath]);
+            }
+
+            let uploadsQuery = supabaseClient
+                .from('id_uploads')
+                .delete()
+                .eq('user_id', userId);
+
+            if (storagePath) {
+                uploadsQuery = uploadsQuery.eq('storage_path', storagePath);
+            } else if (isApprovedIdDocumentRecord(doc)) {
+                uploadsQuery = uploadsQuery.eq('status', 'approved');
+            }
+
+            const { error: uploadsError } = await uploadsQuery;
+            if (uploadsError) {
+                console.warn('[ID Delete] Could not remove id_uploads rows:', uploadsError.message);
+            }
+
+            if (storagePath) {
+                const { error: siblingDocError } = await supabaseClient
+                    .from('family_documents')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('url', storagePath);
+                if (siblingDocError) {
+                    console.warn('[ID Delete] Could not remove related ID document rows:', siblingDocError.message);
+                }
+            }
+
+            await purgePendingIdDocumentRows(userId);
+
+            if (window.OnboardingChecklist?.setManualCheck) {
+                await window.OnboardingChecklist.setManualCheck(userId, 'id', false);
+            }
+
+            if (reopenTask && window.OnboardingChecklist?.reopenIdUploadTaskAfterDenial) {
+                const note = String(options.reopenNote || '').trim()
+                    || 'Your ID on file was removed by admin. Please upload a current government-issued photo ID.';
+                await window.OnboardingChecklist.reopenIdUploadTaskAfterDenial(userId, note);
+            } else if (reopenTask && window.OnboardingChecklist?.assignIdTaskOnApproval) {
+                await window.OnboardingChecklist.assignIdTaskOnApproval(userId);
+            }
+        }
+
         function isPendingIdStoragePath(path) {
             const normalized = normalizeStoragePath(path);
             return normalized?.startsWith('temp-ids/')
@@ -6033,8 +6110,29 @@
         }
 
         async function deleteAdminFamilyDoc(docId, btnEl) {
-            if (!(await showAppConfirm({ title: 'Delete document?', message: 'Delete this document from the family\'s My Documents? This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' }))) return;
             if (!supabaseClient) return;
+
+            const { data: doc, error: fetchError } = await supabaseClient
+                .from('family_documents')
+                .select('*')
+                .eq('id', docId)
+                .maybeSingle();
+
+            if (fetchError || !doc) {
+                await showAppAlert('Could not load this document before delete.');
+                return;
+            }
+
+            const deletingId = isIdDocumentRecord(doc);
+            const confirmed = await showAppConfirm({
+                title: deletingId ? 'Delete ID?' : 'Delete document?',
+                message: deletingId
+                    ? 'Remove this government ID from the family\'s My ID section, delete the stored photo, and re-open the Upload ID task for a new submission?'
+                    : 'Delete this document from the family\'s My Documents? This cannot be undone.',
+                confirmLabel: 'Delete',
+                tone: 'danger',
+            });
+            if (!confirmed) return;
 
             const { error } = await supabaseClient
                 .from('family_documents')
@@ -6046,13 +6144,22 @@
                 return;
             }
 
-            // Refresh the list for current family
-            if (btnEl && btnEl.parentElement && btnEl.parentElement.parentElement) {
-                // quick remove row
-                btnEl.parentElement.remove();
-            } else {
-                loadAdminFamilyDocs();
-                loadAdminFamilyTasks();
+            if (deletingId) {
+                try {
+                    await removeFamilyIdRecord(doc);
+                } catch (cleanupError) {
+                    console.error(cleanupError);
+                    await showAppAlert('The document row was deleted, but cleanup of the family ID file may be incomplete. Please refresh and try again if the photo still appears.');
+                }
+            }
+
+            loadAdminFamilyDocs();
+            loadAdminFamilyTasks();
+            loadPendingIDsForAdmin();
+
+            if (btnEl?.closest) {
+                const row = btnEl.closest('.flex, .border');
+                if (row) row.remove();
             }
         }
 

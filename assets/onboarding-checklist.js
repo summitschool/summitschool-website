@@ -882,5 +882,7 @@
         getChecklistState,
         reopenIdUploadTaskAfterDenial,
         buildIdTaskDescriptionAfterDenial,
+        assignIdTaskOnApproval,
+        setManualCheck,
     };
 })();
