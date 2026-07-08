@@ -3,6 +3,7 @@
     const ONBOARDING_TASK_URL = 'hub://onboarding';
     const ONBOARDING_TASK_CATEGORY = 'Onboarding (Task)';
     const CODE_OF_CONDUCT_TITLE = 'Sign Code of Conduct (required)';
+    const CODE_OF_CONDUCT_SIGNED_TITLE = '2026 - 2027 SCS Code of Conduct';
     const CODE_OF_CONDUCT_URL = 'https://enroll.summitchurchschool.org/d/3oBpb3Knk9GsNB';
     const CODE_OF_CONDUCT_SLUG = '3oBpb3Knk9GsNB';
     const ID_TASK_TITLE = 'Upload Government Issued ID (required)';
@@ -11,7 +12,7 @@
         students: 'Add each enrolled student in Academic Records (name and current grade), then check this box.',
         prior_years: 'Optional for K–8. If your student has previously completed high school years, add those records in Academic Records before checking this off.',
         guide: 'Read how progress reports work below and click "I\'ve read this" to check this off.',
-        conduct: 'Sign the Code of Conduct form in My Tasks before checking this box.',
+        conduct: 'Sign the Code of Conduct in My Tasks, or open your signed copy under My Documents, then check this box.',
         id: 'Upload your government-issued ID in My Tasks before checking this box.',
     };
 
@@ -79,9 +80,167 @@
         return (data || []).filter(isTaskDocument);
     }
 
-    async function isConductSigned(userId) {
+    function isNonTaskCodeOfConductDocument(doc, stdTitle = '') {
+        if (!doc || isTaskDocument(doc.category)) return false;
+
+        const title = String(doc.title || '').trim().toLowerCase();
+        const category = String(doc.category || '').trim().toLowerCase();
+        const description = String(doc.description || '').trim().toLowerCase();
+        const normalizedStdTitle = String(stdTitle || '').trim().toLowerCase();
+        const url = String(doc.url || '').trim();
+        const isStoredPdf = Boolean(url) && !/^https?:\/\//i.test(url);
+
+        const signedTitle = CODE_OF_CONDUCT_SIGNED_TITLE.toLowerCase();
+        if (title === signedTitle || title.includes('scs code of conduct')) return true;
+        if (title.includes('code of conduct')) return true;
+        if (normalizedStdTitle && title === normalizedStdTitle) return true;
+        if (title.includes('conduct') && !title.includes('driver') && !title.includes('dmv')) return true;
+
+        if (category.includes('signed form') && isStoredPdf && description.includes('signed and saved to your family hub')) {
+            if (title.includes('driver') || title.includes('dmv') || title.includes('enrollment')) return false;
+            if (title.includes('conduct') || title.includes('code of conduct')) return true;
+            if (normalizedStdTitle && title.includes(normalizedStdTitle.split(' ')[0])) return true;
+        }
+
+        return false;
+    }
+
+    async function hasSignedCodeOfConductDocument(userId) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return false;
+
+        const std = await fetchCodeOfConductStandard();
+        const stdTitle = std?.title || CODE_OF_CONDUCT_TITLE;
+
+        const { data: docs, error } = await client
+            .from('family_documents')
+            .select('id, title, category, description, url')
+            .eq('user_id', userId);
+
+        if (error) {
+            console.warn('[Onboarding] Could not load signed Code of Conduct documents:', error.message);
+            return false;
+        }
+
+        if ((docs || []).some((doc) => isNonTaskCodeOfConductDocument(doc, stdTitle))) {
+            return true;
+        }
+
+        const hasArchivedSignedForm = (docs || []).some((doc) => {
+            if (isTaskDocument(doc.category)) return false;
+
+            const title = String(doc.title || '').trim().toLowerCase();
+            const category = String(doc.category || '').trim().toLowerCase();
+            const url = String(doc.url || '').trim();
+            const isStoredPdf = Boolean(url) && !/^https?:\/\//i.test(url);
+
+            return category.includes('signed form')
+                && isStoredPdf
+                && !title.includes('driver')
+                && !title.includes('dmv')
+                && !title.includes('enrollment');
+        });
+        if (hasArchivedSignedForm) return true;
+
+        const { data: archives, error: archiveError } = await client
+            .from('hub_form_archive_log')
+            .select('family_document_id, archived_at')
+            .eq('family_user_id', userId)
+            .not('archived_at', 'is', null);
+
+        if (archiveError) {
+            console.warn('[Onboarding] Could not load hub form archive log:', archiveError.message);
+            return false;
+        }
+
+        const archivedDocIds = (archives || [])
+            .map((entry) => entry.family_document_id)
+            .filter(Boolean);
+        if (!archivedDocIds.length) return false;
+
+        const archivedDocs = (docs || []).filter((doc) => archivedDocIds.includes(doc.id));
+        return archivedDocs.some((doc) => {
+            if (isNonTaskCodeOfConductDocument(doc, stdTitle)) return true;
+
+            const title = String(doc.title || '').trim().toLowerCase();
+            const category = String(doc.category || '').trim().toLowerCase();
+            if (!category.includes('signed form')) return false;
+            if (title.includes('driver') || title.includes('dmv') || title.includes('enrollment')) return false;
+
+            // Hub archive webhook stores the signed COC PDF even when the template title omits "conduct".
+            return true;
+        });
+    }
+
+    function hasConductSignedTimestamp(onboarding) {
+        return Boolean(onboarding?.conduct_signed_at);
+    }
+
+    async function isConductMarkedComplete(userId, onboarding = null) {
+        if (hasConductSignedTimestamp(onboarding)) return true;
+        if (await hasSignedCodeOfConductDocument(userId)) return true;
+        const manualChecks = getManualChecks(onboarding);
+        return Boolean(manualChecks.conduct);
+    }
+
+    async function isConductSigned(userId, onboarding = null) {
+        if (await isConductMarkedComplete(userId, onboarding)) return true;
         const tasks = await fetchActiveTasks(userId);
         return !tasks.some(isCodeOfConductTask);
+    }
+
+    async function markConductCompleted(userId, onboarding = null, signedAt = null) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return onboarding;
+
+        const manualChecks = { ...getManualChecks(onboarding), conduct: true };
+        const payload = {
+            family_user_id: userId,
+            manual_checks: manualChecks,
+            conduct_signed_at: signedAt || onboarding?.conduct_signed_at || new Date().toISOString(),
+        };
+
+        const { data, error } = await client
+            .from('family_onboarding')
+            .upsert(payload, { onConflict: 'family_user_id' })
+            .select('*')
+            .single();
+
+        if (error) {
+            console.warn('[Onboarding] Could not mark Code of Conduct complete:', error.message);
+            return onboarding;
+        }
+
+        return data || onboarding;
+    }
+
+    async function ensureConductSignedTimestamp(userId, onboarding = null) {
+        if (hasConductSignedTimestamp(onboarding)) return onboarding;
+        if (!(await hasSignedCodeOfConductDocument(userId))) return onboarding;
+        return markConductCompleted(userId, onboarding);
+    }
+
+    async function removeStaleCodeOfConductTasks(userId, onboarding = null) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return;
+
+        if (!(await isConductMarkedComplete(userId, onboarding))) return;
+
+        const tasks = await fetchActiveTasks(userId);
+        const staleIds = tasks.filter(isCodeOfConductTask).map((task) => task.id);
+        if (!staleIds.length) return;
+
+        const { error } = await client
+            .from('family_documents')
+            .delete()
+            .in('id', staleIds);
+        if (error) console.warn('[Onboarding] Could not remove stale Code of Conduct task:', error.message);
+    }
+
+    async function ensureConductManualCheck(userId, onboarding = null) {
+        if (!(await isConductMarkedComplete(userId, onboarding))) return onboarding;
+        if (hasConductSignedTimestamp(onboarding) && getManualChecks(onboarding).conduct) return onboarding;
+        return markConductCompleted(userId, onboarding);
     }
 
     async function isIdUploaded(userId) {
@@ -206,8 +365,24 @@
         }
     }
 
-    async function assignCodeOfConductTaskOnApproval(userId) {
+    async function assignCodeOfConductTaskOnApproval(userId, onboarding = null) {
         if (!window.supabaseClient || !userId) return;
+
+        const client = window.supabaseClient;
+        let onboardingRow = onboarding;
+        if (!onboardingRow) {
+            const { data } = await client
+                .from('family_onboarding')
+                .select('*')
+                .eq('family_user_id', userId)
+                .maybeSingle();
+            onboardingRow = data;
+        }
+
+        if (await isConductMarkedComplete(userId, onboardingRow)) {
+            await removeStaleCodeOfConductTasks(userId, onboardingRow);
+            return;
+        }
 
         const std = await fetchCodeOfConductStandard();
         const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
@@ -297,20 +472,44 @@
         }
 
         await ensureOnboardingRow(userId);
-        const { data: onboarding } = await client
+        let { data: onboarding } = await client
             .from('family_onboarding')
             .select('*')
             .eq('family_user_id', userId)
             .maybeSingle();
 
+        onboarding = await ensureConductSignedTimestamp(userId, onboarding);
+
         if (!onboarding?.completed_at) {
             const activeTasks = await fetchActiveTasks(userId);
             if (activeTasks.some(isOnboardingTask)) {
-                await assignCodeOfConductTaskOnApproval(userId);
-                await assignIdTaskOnApproval(userId);
-                await syncCodeOfConductTaskUrl(userId);
+                await removeStaleCodeOfConductTasks(userId, onboarding);
+
+                const conductMarkedComplete = await isConductMarkedComplete(userId, onboarding);
+                if (!conductMarkedComplete) {
+                    const refreshedTasks = await fetchActiveTasks(userId);
+                    if (!refreshedTasks.some(isCodeOfConductTask)) {
+                        await assignCodeOfConductTaskOnApproval(userId, onboarding);
+                        await syncCodeOfConductTaskUrl(userId);
+                    }
+                }
+
+                const refreshedTasks = await fetchActiveTasks(userId);
+                const hasIdTask = refreshedTasks.some(isIdUploadTask);
+                if (!await isIdUploaded(userId) && !hasIdTask) {
+                    await assignIdTaskOnApproval(userId);
+                }
             }
         }
+
+        onboarding = await ensureConductManualCheck(userId, onboarding);
+
+        const { data: refreshedOnboarding } = await client
+            .from('family_onboarding')
+            .select('*')
+            .eq('family_user_id', userId)
+            .maybeSingle();
+        onboarding = refreshedOnboarding || onboarding;
 
         const manualChecks = getManualChecks(onboarding);
         const students = await AR.fetchStudents(userId);
@@ -329,7 +528,7 @@
         }
 
         const guideRead = Boolean(onboarding?.guide_read);
-        const conductSigned = await isConductSigned(userId);
+        const conductSigned = await isConductSigned(userId, onboarding);
         const idUploaded = await isIdUploaded(userId);
 
         const items = [
@@ -607,12 +806,18 @@
         ONBOARDING_TASK_TITLE,
         ONBOARDING_TASK_URL,
         CODE_OF_CONDUCT_TITLE,
+        CODE_OF_CONDUCT_SIGNED_TITLE,
         CODE_OF_CONDUCT_URL,
         CODE_OF_CONDUCT_SLUG,
         ID_TASK_TITLE,
         isOnboardingTask,
         isCodeOfConductTask,
         isIdUploadTask,
+        isConductSigned,
+        isConductMarkedComplete,
+        hasSignedCodeOfConductDocument,
+        markConductCompleted,
+        removeStaleCodeOfConductTasks,
         sortTasksForDisplay,
         setupFamilyOnApproval,
         renderOnboardingTaskCard,

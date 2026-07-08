@@ -10,6 +10,7 @@ const STORAGE_BUCKET = 'Family-Documents';
 const DEFAULT_SCHOOL_YEAR = '2026-2027';
 const DEFAULT_CATEGORY = 'Signed Form';
 const PROCESSING_STALE_MS = 5 * 60 * 1000;
+const CODE_OF_CONDUCT_SLUG = '3oBpb3Knk9GsNB';
 
 type HubArchiveLog = {
   submission_id: number;
@@ -321,6 +322,34 @@ export async function archiveDocuSealSubmissionToHub(options: {
       docusealApiUrl: options.docusealApiUrl,
       docusealApiKey: options.docusealApiKey,
     });
+
+    const templateSlug = String(options.templateSlug || '').trim().toLowerCase();
+    if (templateSlug.includes(CODE_OF_CONDUCT_SLUG.toLowerCase())) {
+      const { data: onboarding, error: onboardingError } = await supabase
+        .from('family_onboarding')
+        .select('manual_checks, conduct_signed_at')
+        .eq('family_user_id', userId)
+        .maybeSingle();
+
+      if (onboardingError) {
+        console.error('Failed to load onboarding row for Code of Conduct completion:', onboardingError.message);
+      } else {
+        const manualChecks = onboarding?.manual_checks && typeof onboarding.manual_checks === 'object'
+          ? onboarding.manual_checks as Record<string, unknown>
+          : {};
+        const { error: upsertError } = await supabase
+          .from('family_onboarding')
+          .upsert({
+            family_user_id: userId,
+            manual_checks: { ...manualChecks, conduct: true },
+            conduct_signed_at: onboarding?.conduct_signed_at || new Date().toISOString(),
+          }, { onConflict: 'family_user_id' });
+
+        if (upsertError) {
+          console.error('Failed to mark Code of Conduct complete after archive:', upsertError.message);
+        }
+      }
+    }
 
     await markArchived(options.supabaseUrl, options.supabaseServiceRoleKey, {
       submissionId: options.submissionId,

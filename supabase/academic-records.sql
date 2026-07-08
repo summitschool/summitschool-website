@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS public.family_onboarding (
   family_user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   guide_read boolean NOT NULL DEFAULT false,
   manual_checks jsonb NOT NULL DEFAULT '{}'::jsonb,
+  conduct_signed_at timestamptz,
   completed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );

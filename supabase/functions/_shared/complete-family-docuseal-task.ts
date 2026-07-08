@@ -172,6 +172,39 @@ export async function completeFamilyDocuSealTasks(options: {
     throw new Error(deleteError.message || 'Failed to remove completed DocuSeal tasks');
   }
 
+  const completedCodeOfConduct = matching.some((doc) => (
+    String(doc.title || '').toLowerCase().includes('code of conduct')
+    || (templateSlug && taskUrlMatchesTemplate(String(doc.url || ''), templateSlug))
+  ));
+
+  if (completedCodeOfConduct) {
+    const { data: onboarding, error: onboardingError } = await supabase
+      .from('family_onboarding')
+      .select('manual_checks')
+      .eq('family_user_id', userId)
+      .maybeSingle();
+
+    if (onboardingError) {
+      console.error('Failed to load onboarding row for Code of Conduct auto-check:', onboardingError.message);
+    } else {
+      const manualChecks = onboarding?.manual_checks && typeof onboarding.manual_checks === 'object'
+        ? onboarding.manual_checks as Record<string, unknown>
+        : {};
+
+      const { error: upsertError } = await supabase
+        .from('family_onboarding')
+        .upsert({
+          family_user_id: userId,
+          manual_checks: { ...manualChecks, conduct: true },
+          conduct_signed_at: new Date().toISOString(),
+        }, { onConflict: 'family_user_id' });
+
+      if (upsertError) {
+        console.error('Failed to mark Code of Conduct complete on onboarding:', upsertError.message);
+      }
+    }
+  }
+
   return {
     action: 'hub_tasks_completed' as const,
     template_slug: templateSlug,
