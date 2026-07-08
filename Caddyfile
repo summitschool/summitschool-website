@@ -39,7 +39,7 @@
 		zstd
 	}
 
-	@html path *.html /
+	@html path_regexp \.html$
 	header @html Cache-Control "no-cache, no-store, must-revalidate" Pragma "no-cache"
 
 	try_files {path} {path}.html {path}/index.html
