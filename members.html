@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260760';
+            var BUILD = '20260761';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -662,7 +662,7 @@
 
                     <div class="hub-admin-block">
                         <h3 class="hub-admin-block-title mb-1">Pending ID Uploads</h3>
-                        <p class="hub-section-subtitle mb-4">Review government ID photos submitted in My Tasks. Approve to add to the family's My ID section, or deny to remove.</p>
+                        <p class="hub-section-subtitle mb-4">Review government ID photos submitted in My Tasks. Approve to add to the family's My ID section, or deny with a note to re-open the Upload ID task for the family.</p>
 
                         <div id="admin-pending-ids-list" class="hub-panel hub-panel-padded text-sm text-slate-600 min-h-[5rem]">
                             Loading pending ID uploads...
@@ -1107,7 +1107,7 @@
         <i class="fas fa-chevron-up" aria-hidden="true"></i>
     </button>
 
-    <script src="assets/app-dialog.js?v=20260707"></script>
+    <script src="assets/app-dialog.js?v=20260761"></script>
     <script src="assets/progress-report-pdf.js?v=20260721"></script>
     <script src="assets/graduation-pdf.js?v=20260740"></script>
     <script src="assets/task-notify.js?v=20260750"></script>
@@ -1116,7 +1116,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260758"></script>
+    <script src="assets/onboarding-checklist.js?v=20260761"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -2868,6 +2868,40 @@
                 }
 
                 if (isIDTask) {
+                    let denialBannerHtml = '';
+                    const { data: pendingUpload } = await supabaseClient
+                        .from('id_uploads')
+                        .select('id')
+                        .eq('user_id', user.id)
+                        .eq('status', 'pending')
+                        .limit(1)
+                        .maybeSingle();
+
+                    if (!pendingUpload) {
+                        const { data: deniedUpload } = await supabaseClient
+                            .from('id_uploads')
+                            .select('denial_reason, denied_at')
+                            .eq('user_id', user.id)
+                            .eq('status', 'denied')
+                            .order('denied_at', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+
+                        if (deniedUpload?.denial_reason) {
+                            const deniedDate = deniedUpload.denied_at
+                                ? new Date(deniedUpload.denied_at).toLocaleString()
+                                : '';
+                            denialBannerHtml = `
+                                <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+                                    <div class="font-semibold text-red-800 mb-1">Previous submission not accepted</div>
+                                    <p class="leading-relaxed">${escapeHtml(deniedUpload.denial_reason)}</p>
+                                    ${deniedDate ? `<p class="text-xs text-red-700 mt-2">Reviewed ${escapeHtml(deniedDate)}</p>` : ''}
+                                    <p class="text-xs text-red-800 mt-2">Please upload a new clear photo below.</p>
+                                </div>
+                            `;
+                        }
+                    }
+
                     return `
                         <div class="hub-panel hub-panel-padded border-amber-300 !bg-amber-50/80 relative" id="id-task-card">
                             <div class="flex items-start justify-between gap-3 mb-1">
@@ -2875,6 +2909,7 @@
                                 ${overdueIcon}
                             </div>
                             ${dueDates.html}
+                            ${denialBannerHtml}
                             <p class="text-sm text-slate-700 mb-3 mt-2">${escapeHtml(task.description || 'Upload a clear, current photo of your valid driver\'s license or government-issued photo ID.')}</p>
 
                             <form id="id-upload-form" onsubmit="submitIDUpload(event)" class="space-y-4">
@@ -5215,8 +5250,24 @@
                 });
             }
 
-            results.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            return results;
+            const deniedPaths = new Set();
+            const userIds = [...new Set(results.map((item) => item.user_id).filter(Boolean))];
+            if (userIds.length) {
+                const { data: deniedUploads } = await supabaseClient
+                    .from('id_uploads')
+                    .select('user_id, storage_path')
+                    .in('user_id', userIds)
+                    .eq('status', 'denied');
+
+                (deniedUploads || []).forEach((row) => {
+                    if (row.storage_path) deniedPaths.add(row.storage_path);
+                });
+            }
+
+            const filtered = results.filter((item) => !deniedPaths.has(item.storage_path));
+
+            filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            return filtered;
         }
 
         async function loadPendingIDsForAdmin() {
@@ -5410,62 +5461,135 @@
             }
         }
 
+        async function markIdUploadDenied({ userId, uploadId = null, storagePath = null, reason }) {
+            const deniedAt = new Date().toISOString();
+            const payload = {
+                status: 'denied',
+                denial_reason: reason,
+                denied_at: deniedAt,
+            };
+
+            if (uploadId) {
+                const { error } = await supabaseClient
+                    .from('id_uploads')
+                    .update(payload)
+                    .eq('id', uploadId);
+                if (error) throw error;
+                return;
+            }
+
+            if (!userId) return;
+
+            let query = supabaseClient
+                .from('id_uploads')
+                .update(payload)
+                .eq('user_id', userId)
+                .eq('status', 'pending');
+
+            if (storagePath) {
+                query = query.eq('storage_path', storagePath);
+            }
+
+            const { error } = await query;
+            if (error) throw error;
+        }
+
         async function denyPendingID(button) {
             const docId = button.dataset.docId;
             const source = button.dataset.source;
             const storagePath = button.dataset.storagePath;
+            let deniedUserId = button.dataset.userId || null;
 
             if (!docId || !supabaseClient) return;
-            const confirmed = await showAppConfirm({
-                title: 'Deny ID?',
-                message: 'Deny and permanently remove this ID submission?',
-                confirmLabel: 'Deny',
-                tone: 'danger'
+
+            const denialReason = await showAppPrompt({
+                title: 'Deny ID submission',
+                message: 'Tell the family why this ID was not accepted. The Upload ID task will reopen in My Tasks with your note.',
+                placeholder: 'e.g. Photo was blurry or cropped. Please upload a clear image showing the full ID.',
+                confirmLabel: 'Deny and re-open task',
+                tone: 'danger',
+                required: true,
             });
-            if (!confirmed) return;
+            if (!denialReason) return;
 
             button.disabled = true;
 
             try {
+                let deniedStoragePath = storagePath || null;
+
                 if (source === 'family_documents') {
+                    const { data: doc, error: fetchError } = await supabaseClient
+                        .from('family_documents')
+                        .select('*')
+                        .eq('id', docId)
+                        .single();
+
+                    if (fetchError || !doc) throw fetchError || new Error('Document not found');
+
+                    deniedUserId = doc.user_id;
+                    deniedStoragePath = doc.url || deniedStoragePath;
+
                     const { error } = await supabaseClient
                         .from('family_documents')
                         .delete()
                         .eq('id', docId);
-
                     if (error) throw error;
+
+                    await markIdUploadDenied({
+                        userId: deniedUserId,
+                        storagePath: deniedStoragePath,
+                        reason: denialReason,
+                    });
                 } else if (source === 'id_uploads') {
-                    const { error } = await supabaseClient
+                    const { data: upload, error: fetchError } = await supabaseClient
                         .from('id_uploads')
-                        .update({ status: 'denied' })
-                        .eq('id', docId);
+                        .select('*')
+                        .eq('id', docId)
+                        .single();
 
-                    if (error) throw error;
+                    if (fetchError || !upload) throw fetchError || new Error('Upload not found');
 
-                    if (storagePath) {
-                        await supabaseClient
+                    deniedUserId = upload.user_id;
+                    deniedStoragePath = upload.storage_path || deniedStoragePath;
+
+                    await markIdUploadDenied({
+                        uploadId: docId,
+                        reason: denialReason,
+                    });
+
+                    if (deniedUserId && deniedStoragePath) {
+                        const { error: docDeleteError } = await supabaseClient
                             .from('family_documents')
                             .delete()
-                            .eq('url', storagePath);
+                            .eq('user_id', deniedUserId)
+                            .eq('url', deniedStoragePath);
+                        if (docDeleteError) {
+                            console.warn('[ID Deny] Could not remove pending document row:', docDeleteError.message);
+                        }
                     }
                 }
 
-                const deniedUserId = button.dataset.userId || null;
+                if (!deniedUserId) throw new Error('Could not determine which family to notify.');
 
-                if (deniedUserId) {
-                    await cleanupPendingIdStorageForUser(deniedUserId, [storagePath]);
-                } else if (storagePath && !storagePath.startsWith('http')) {
-                    await removePendingIdStoragePaths([storagePath]);
+                await purgePendingIdDocumentRows(deniedUserId);
+                await cleanupPendingIdStorageForUser(deniedUserId, [deniedStoragePath]);
+
+                if (window.OnboardingChecklist?.reopenIdUploadTaskAfterDenial) {
+                    await window.OnboardingChecklist.reopenIdUploadTaskAfterDenial(deniedUserId, denialReason);
                 }
 
                 const statusDiv = document.getElementById('admin-pending-ids-status');
                 if (statusDiv) {
                     statusDiv.classList.remove('hidden');
                     statusDiv.className = 'mt-4 text-sm text-amber-700';
-                    statusDiv.textContent = 'ID submission denied and removed.';
+                    statusDiv.textContent = 'ID denied. The family can resubmit from My Tasks with your note.';
                     setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.add('hidden'); }, 5000);
                 }
 
+                if (familySelMatches(deniedUserId)) {
+                    loadAdminFamilyDocs();
+                    loadAdminFamilyTasks();
+                }
                 loadPendingIDsForAdmin();
             } catch (err) {
                 console.error(err);

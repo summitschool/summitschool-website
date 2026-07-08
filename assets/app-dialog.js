@@ -5,6 +5,7 @@
     const CANCEL_ID = 'app-dialog-cancel-btn';
     const OK_ID = 'app-dialog-ok-btn';
     const ACTIONS_ID = 'app-dialog-actions';
+    const INPUT_ID = 'app-dialog-input';
 
     const BTN_BASE = 'min-h-[2.75rem] px-4 py-3 rounded-2xl text-sm font-semibold touch-manipulation';
     const BTN_SECONDARY = BTN_BASE + ' flex-1 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50';
@@ -54,6 +55,7 @@
                 <div class="app-dialog-panel">
                     <h3 id="${TITLE_ID}" class="app-dialog-title heading-serif text-xl text-navy tracking-tight"></h3>
                     <p id="${MESSAGE_ID}" class="app-dialog-message text-sm text-slate-600 mt-2 leading-relaxed"></p>
+                    <textarea id="${INPUT_ID}" class="app-dialog-input hidden" rows="4"></textarea>
                     <div id="${ACTIONS_ID}" class="app-dialog-actions">
                         <button type="button" id="${CANCEL_ID}" class="${BTN_SECONDARY}">Cancel</button>
                         <button type="button" id="${OK_ID}" class="${BTN_PRIMARY}">OK</button>
@@ -73,11 +75,13 @@
         const okBtn = document.getElementById(OK_ID);
         const backdrop = dialog?.querySelector('[data-app-dialog-backdrop]');
 
-        const cancel = () => closeAppDialog(false);
+        const cancel = () => {
+            const mode = dialog?.dataset.dialogMode || 'confirm';
+            closeAppDialog(mode === 'prompt' ? null : false);
+        };
 
         cancelBtn?.addEventListener('click', cancel);
         backdrop?.addEventListener('click', cancel);
-        okBtn?.addEventListener('click', () => closeAppDialog(true));
 
         dialog?.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && dialog && !dialog.classList.contains('hidden')) {
@@ -90,7 +94,12 @@
 
     function closeAppDialog(result) {
         const dialog = document.getElementById(DIALOG_ID);
+        const inputEl = document.getElementById(INPUT_ID);
         if (dialog) dialog.classList.add('hidden');
+        if (inputEl) {
+            inputEl.classList.add('hidden');
+            inputEl.value = '';
+        }
         document.documentElement.classList.remove('app-dialog-open');
         document.body.classList.remove('app-dialog-open');
 
@@ -107,16 +116,19 @@
             const dialog = mountDialog();
             const titleEl = document.getElementById(TITLE_ID);
             const messageEl = document.getElementById(MESSAGE_ID);
+            const inputEl = document.getElementById(INPUT_ID);
             const cancelBtn = document.getElementById(CANCEL_ID);
             const okBtn = document.getElementById(OK_ID);
             const actionsEl = document.getElementById(ACTIONS_ID);
 
-            if (!dialog || !titleEl || !messageEl || !cancelBtn || !okBtn || !actionsEl) {
+            if (!dialog || !titleEl || !messageEl || !inputEl || !cancelBtn || !okBtn || !actionsEl) {
                 resolve(false);
                 return;
             }
 
-            const mode = options.mode === 'alert' ? 'alert' : 'confirm';
+            const mode = options.mode === 'alert'
+                ? 'alert'
+                : (options.mode === 'prompt' ? 'prompt' : 'confirm');
             const tone = options.tone || 'primary';
             const title = options.title || (mode === 'alert' ? defaultAlertTitle(tone) : 'Please confirm');
             const message = options.message || '';
@@ -129,21 +141,60 @@
             okBtn.textContent = confirmLabel;
             cancelBtn.textContent = cancelLabel;
 
+            if (mode === 'prompt') {
+                inputEl.value = options.defaultValue || '';
+                inputEl.placeholder = options.placeholder || '';
+                inputEl.classList.remove('hidden');
+                cancelBtn.classList.remove('hidden');
+                actionsEl.classList.remove('is-alert');
+                okBtn.className = buttonClassForTone(tone, mode);
+                cancelBtn.className = BTN_SECONDARY;
+            } else {
+                inputEl.classList.add('hidden');
+                inputEl.value = '';
+            }
+
             if (mode === 'alert') {
                 cancelBtn.classList.add('hidden');
                 actionsEl.classList.add('is-alert');
                 okBtn.className = buttonClassForTone(tone, mode);
-            } else {
+            } else if (mode !== 'prompt') {
                 cancelBtn.classList.remove('hidden');
                 actionsEl.classList.remove('is-alert');
                 okBtn.className = buttonClassForTone(tone, mode);
                 cancelBtn.className = BTN_SECONDARY;
             }
 
+            dialog.dataset.dialogMode = mode;
+
+            const finish = () => {
+                if (mode === 'prompt') {
+                    const value = inputEl.value.trim();
+                    if (options.required && !value) {
+                        inputEl.focus({ preventScroll: true });
+                        inputEl.classList.add('app-dialog-input--invalid');
+                        return;
+                    }
+                    inputEl.classList.remove('app-dialog-input--invalid');
+                    closeAppDialog(value);
+                    return;
+                }
+                closeAppDialog(true);
+            };
+
+            okBtn.onclick = finish;
+            inputEl.oninput = () => inputEl.classList.remove('app-dialog-input--invalid');
+            inputEl.onkeydown = (event) => {
+                if (event.key === 'Enter' && !event.shiftKey && mode === 'prompt') {
+                    event.preventDefault();
+                    finish();
+                }
+            };
+
             document.documentElement.classList.add('app-dialog-open');
             document.body.classList.add('app-dialog-open');
             dialog.classList.remove('hidden');
-            okBtn.focus({ preventScroll: true });
+            (mode === 'prompt' ? inputEl : okBtn).focus({ preventScroll: true });
         });
     }
 
@@ -170,6 +221,24 @@
             message: message || '',
             confirmLabel: opts.confirmLabel || 'OK',
             tone: opts.tone || 'primary'
+        });
+    };
+
+    window.showAppPrompt = function (options) {
+        const normalized = typeof options === 'string'
+            ? { message: options }
+            : (options || {});
+
+        return showAppDialog({
+            mode: 'prompt',
+            title: normalized.title || 'Add a note',
+            message: normalized.message || '',
+            placeholder: normalized.placeholder || '',
+            confirmLabel: normalized.confirmLabel || 'Save',
+            cancelLabel: normalized.cancelLabel || 'Cancel',
+            tone: normalized.tone || 'primary',
+            required: normalized.required !== false,
+            defaultValue: normalized.defaultValue || ''
         });
     };
 })();

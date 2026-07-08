@@ -250,18 +250,72 @@
         const client = window.supabaseClient;
         const { data: uploads } = await client
             .from('id_uploads')
-            .select('id')
+            .select('id, status')
             .eq('user_id', userId)
+            .in('status', ['pending', 'approved'])
             .limit(1);
         if (uploads?.length) return true;
 
         const { data: idDocs } = await client
             .from('family_documents')
-            .select('id')
+            .select('id, title')
             .eq('user_id', userId)
             .ilike('category', '%ID%')
+            .ilike('title', '%Government ID on File%')
             .limit(1);
         return Boolean(idDocs?.length);
+    }
+
+    function buildIdTaskDescriptionAfterDenial(denialReason, stdDescription = '') {
+        const base = String(stdDescription || '').trim()
+            || 'Upload a clear photo of your current valid driver\'s license or government-issued photo ID.';
+        const reason = String(denialReason || '').trim();
+        if (!reason) {
+            return `${base} Your previous submission was not accepted. Please upload a new clear photo.`;
+        }
+        return `${base} Your previous submission was not accepted. Reason: ${reason} Please upload a new clear photo.`;
+    }
+
+    async function reopenIdUploadTaskAfterDenial(userId, denialReason = '') {
+        const client = window.supabaseClient;
+        if (!client || !userId) return;
+
+        const { data: stds } = await client
+            .from('standard_documents')
+            .select('*')
+            .ilike('title', '%Upload Government Issued ID%')
+            .limit(1);
+
+        const std = stds?.[0];
+        const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
+        const description = buildIdTaskDescriptionAfterDenial(denialReason, std?.description);
+        const tasks = await fetchActiveTasks(userId);
+        const existingIdTasks = tasks.filter(isIdUploadTask);
+
+        for (const task of existingIdTasks) {
+            const { error } = await client
+                .from('family_documents')
+                .delete()
+                .eq('id', task.id);
+            if (error) console.warn('[Onboarding] Could not remove old ID task:', error.message);
+        }
+
+        const { error: insertError } = await client.from('family_documents').insert({
+            user_id: userId,
+            title: std?.title || ID_TASK_TITLE,
+            description,
+            url: std?.url || '',
+            category: (std?.category || 'Verification') + ' (Task)',
+            school_year: schoolYear,
+            due_date_1: softDueDate(14),
+            due_date_1_cleared: false,
+        });
+        if (insertError) {
+            console.warn('[Onboarding] Could not reopen ID task:', insertError.message);
+            throw insertError;
+        }
+
+        await setManualCheck(userId, 'id', false);
     }
 
     async function ensureOnboardingRow(userId) {
@@ -826,5 +880,7 @@
         finish,
         refresh,
         getChecklistState,
+        reopenIdUploadTaskAfterDenial,
+        buildIdTaskDescriptionAfterDenial,
     };
 })();
