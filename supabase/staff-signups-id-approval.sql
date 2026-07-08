@@ -10,15 +10,47 @@ USING (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR (
     public.staff_has_admin_section('members')
-    AND coalesce(category, '') ILIKE '%ID%'
+    AND (
+      coalesce(category, '') ILIKE '%ID%'
+      OR (
+        (
+          coalesce(category, '') ILIKE '%task%'
+          OR coalesce(category, '') ILIKE '%(task)%'
+        )
+        AND coalesce(title, '') ILIKE '%upload government issued id%'
+      )
+    )
   )
 )
 WITH CHECK (
   coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
   OR (
     public.staff_has_admin_section('members')
-    AND coalesce(category, '') ILIKE '%ID%'
+    AND (
+      coalesce(category, '') ILIKE '%ID%'
+      OR (
+        (
+          coalesce(category, '') ILIKE '%task%'
+          OR coalesce(category, '') ILIKE '%(task)%'
+        )
+        AND coalesce(title, '') ILIKE '%upload government issued id%'
+      )
+    )
   )
+);
+
+DROP POLICY IF EXISTS "Staff signups section manage family onboarding" ON public.family_onboarding;
+CREATE POLICY "Staff signups section manage family onboarding"
+ON public.family_onboarding
+FOR ALL
+TO authenticated
+USING (
+  coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
+  OR public.staff_has_admin_section('members')
+)
+WITH CHECK (
+  coalesce(auth.jwt() ->> 'email', '') = 'sjesimon@gmail.com'
+  OR public.staff_has_admin_section('members')
 );
 
 DROP POLICY IF EXISTS "Staff signups section write approved family ID storage" ON storage.objects;

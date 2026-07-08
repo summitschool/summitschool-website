@@ -315,7 +315,7 @@
             throw insertError;
         }
 
-        await setManualCheck(userId, 'id', false);
+        await setManualCheck(userId, 'id', false, { soft: true });
     }
 
     async function ensureOnboardingRow(userId) {
@@ -497,7 +497,7 @@
         return raw && typeof raw === 'object' ? raw : {};
     }
 
-    async function setManualCheck(userId, itemId, checked) {
+    async function setManualCheck(userId, itemId, checked, options = {}) {
         const client = window.supabaseClient;
         if (!client || !userId) return;
 
@@ -515,7 +515,13 @@
                 family_user_id: userId,
                 manual_checks: manualChecks,
             }, { onConflict: 'family_user_id' });
-        if (error) throw error;
+        if (error) {
+            if (options.soft) {
+                console.warn('[Onboarding] Could not update manual check:', error.message);
+                return;
+            }
+            throw error;
+        }
     }
 
     async function getChecklistState(userId) {
