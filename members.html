@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260759';
+            var BUILD = '20260760';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -2955,7 +2955,7 @@
                 return;
             }
 
-            const { data: idDocs, error } = await supabaseClient
+            let { data: idDocs, error } = await supabaseClient
                 .from('family_documents')
                 .select('*')
                 .eq('user_id', user.id)
@@ -2963,6 +2963,36 @@
                 .not('title', 'ilike', '%Pending Admin Review%')
                 .order('created_at', { ascending: false })
                 .limit(1);
+
+            if (!error && (!idDocs || idDocs.length === 0)) {
+                const { data: approvedUpload, error: uploadError } = await supabaseClient
+                    .from('id_uploads')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('status', 'approved')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (!uploadError && approvedUpload) {
+                    const { data: restoredDoc, error: restoreError } = await supabaseClient
+                        .from('family_documents')
+                        .insert({
+                            user_id: user.id,
+                            title: 'Government ID on File',
+                            description: approvedUpload.ack_name ? `Acknowledged by: ${approvedUpload.ack_name}` : 'ID on file',
+                            url: approvedUpload.storage_path,
+                            category: 'ID',
+                            school_year: approvedUpload.school_year || '2026-2027',
+                        })
+                        .select('*')
+                        .single();
+
+                    if (!restoreError && restoredDoc) {
+                        idDocs = [restoredDoc];
+                    }
+                }
+            }
 
             const hint = document.getElementById('my-id-summary-hint');
             const panel = document.getElementById('my-id-panel');
@@ -4903,18 +4933,23 @@
             return removePendingIdStoragePaths(paths);
         }
 
-        async function purgePendingIdDocumentRows(userId, keepDocId = null) {
+        async function purgePendingIdDocumentRows(userId, keepDocIds = []) {
             if (!userId || !supabaseClient) return;
+
+            const keepIds = Array.isArray(keepDocIds)
+                ? keepDocIds.filter(Boolean)
+                : (keepDocIds ? [keepDocIds] : []);
 
             let query = supabaseClient
                 .from('family_documents')
                 .delete()
                 .eq('user_id', userId)
+                .not('title', 'ilike', '%Government ID on File%')
                 .or('title.ilike.%Pending Admin Review%,url.ilike.%/ids/pending/%,url.ilike.temp-ids/%');
 
-            if (keepDocId) {
-                query = query.neq('id', keepDocId);
-            }
+            keepIds.forEach((docId) => {
+                query = query.neq('id', docId);
+            });
 
             const { error } = await query;
             if (error) {
@@ -5328,7 +5363,7 @@
                     const finalUrl = await tryMoveIdToPermanentStorage(upload.user_id, originalUrl);
                     const storageMoved = finalUrl !== originalUrl && !isPendingIdStoragePath(finalUrl);
 
-                    const { error: insertError } = await supabaseClient
+                    const { data: approvedDoc, error: insertError } = await supabaseClient
                         .from('family_documents')
                         .insert({
                             user_id: upload.user_id,
@@ -5337,7 +5372,9 @@
                             url: finalUrl,
                             category: 'ID',
                             school_year: upload.school_year || '2026-2027'
-                        });
+                        })
+                        .select('id')
+                        .single();
 
                     if (insertError) throw insertError;
 
@@ -5346,7 +5383,7 @@
                         .update({ status: 'approved' })
                         .eq('id', docId);
 
-                    await purgePendingIdDocumentRows(upload.user_id);
+                    await purgePendingIdDocumentRows(upload.user_id, approvedDoc?.id);
                     await cleanupPendingIdStorageForUser(upload.user_id, [originalUrl, finalUrl]);
                     approveStorageMoved = storageMoved || !isPendingIdStoragePath(finalUrl);
                 }
