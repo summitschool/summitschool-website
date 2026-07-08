@@ -3,6 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script>
+        (function () {
+            var BUILD = '20260758';
+            var key = 'scsmembers_build';
+            try {
+                var prev = localStorage.getItem(key);
+                if (prev && prev !== BUILD) {
+                    localStorage.setItem(key, BUILD);
+                    var url = new URL(window.location.href);
+                    if (url.searchParams.get('_build') !== BUILD) {
+                        url.searchParams.set('_build', BUILD);
+                        window.location.replace(url.toString());
+                    }
+                } else {
+                    localStorage.setItem(key, BUILD);
+                }
+            } catch (e) {}
+        })();
+    </script>
     <title>Summit Family Hub • Summit Church School</title>
 
     <!-- Fonts + styles (blocking — eliminates runtime Tailwind FOUC) -->
@@ -1094,7 +1116,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260752"></script>
+    <script src="assets/onboarding-checklist.js?v=20260758"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
