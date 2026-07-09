@@ -1061,7 +1061,45 @@
         `;
     }
 
-    function buildOnboardingCardBannerHtml(items, canFinish) {
+    function formatOnboardingDueDate(dateValue) {
+        if (!dateValue) return '';
+        const raw = String(dateValue).split('T')[0];
+        const parts = raw.split('-');
+        if (parts.length === 3) {
+            return `${parts[1]}/${parts[2]}/${parts[0]}`;
+        }
+        return new Date(dateValue).toLocaleDateString('en-US');
+    }
+
+    function getOnboardingDueDateInfo(task) {
+        if (!task) return { label: '', formatted: '', overdue: false };
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const hasSecond = Boolean(task.due_date_2);
+        let dueDate = null;
+        let label = 'Due';
+
+        if (task.due_date_1 && !task.due_date_1_cleared) {
+            dueDate = task.due_date_1;
+            label = hasSecond ? 'First semester due' : 'Due';
+        } else if (task.due_date_2) {
+            dueDate = task.due_date_2;
+            label = 'Second semester due';
+        }
+
+        if (!dueDate) return { label: '', formatted: '', overdue: false };
+
+        const dueDay = new Date(`${String(dueDate).split('T')[0]}T00:00:00`);
+        return {
+            label,
+            formatted: formatOnboardingDueDate(dueDate),
+            overdue: dueDay < today,
+        };
+    }
+
+    function buildOnboardingCardBannerHtml(items, canFinish, task) {
         const doneCount = items.filter((item) => item.taskComplete && item.manuallyChecked).length;
         const totalCount = items.length;
         const readyClass = canFinish ? ' is-ready' : '';
@@ -1069,6 +1107,10 @@
         const headline = canFinish
             ? 'You\'re ready to finish!'
             : 'Complete your family setup';
+        const dueInfo = getOnboardingDueDateInfo(task);
+        const dueHtml = dueInfo.formatted
+            ? `<span class="onboarding-task-card__due${dueInfo.overdue ? ' is-overdue' : ''}">${escapeHtml(dueInfo.label)} ${escapeHtml(dueInfo.formatted)}</span>`
+            : '';
         const subtitle = canFinish
             ? 'Every step is done — tap the button below to close out this checklist.'
             : 'Work through each step below, then check it off. This stays in My Tasks until everything is finished.';
@@ -1080,7 +1122,7 @@
                 </div>
                 <div class="onboarding-task-card__banner-copy">
                     <p class="onboarding-task-card__eyebrow">Required setup</p>
-                    <h4 class="onboarding-task-card__title">${escapeHtml(headline)}</h4>
+                    <h4 class="onboarding-task-card__title">${escapeHtml(headline)}${dueHtml}</h4>
                     <p class="onboarding-task-card__subtitle">${escapeHtml(subtitle)}</p>
                     <p class="onboarding-task-card__progress">
                         <i class="fas fa-${canFinish ? 'check-circle' : 'list-check'}" aria-hidden="true"></i>
@@ -1102,7 +1144,7 @@
 
         return `
             <div class="onboarding-task-card${readyClass}" id="onboarding-task-card">
-                ${buildOnboardingCardBannerHtml(items, canFinish)}
+                ${buildOnboardingCardBannerHtml(items, canFinish, task)}
                 <div class="onboarding-task-card__body">
                     <p class="onboarding-task-card__lede">${escapeHtml(task.description || 'Complete every step, check each box, then finish this checklist.')}</p>
                     <div class="onboarding-task-card__items space-y-2">${list}</div>

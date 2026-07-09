@@ -2709,6 +2709,19 @@ html.auth-transition-active #pending-view {
   line-height: 1.25;
 }
 
+.onboarding-task-card__due {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #fde68a;
+}
+
+.onboarding-task-card__due.is-overdue {
+  color: #fecaca;
+}
+
 .onboarding-task-card__subtitle {
   margin: 0.4rem 0 0;
   font-size: 0.8125rem;
@@ -2755,6 +2768,14 @@ html.auth-transition-active #pending-view {
 .onboarding-task-card.is-ready .onboarding-task-card__banner-icon {
   background: rgb(255 255 255 / 0.18);
   color: #ecfdf5;
+}
+
+.onboarding-task-card.is-ready .onboarding-task-card__due {
+  color: #d1fae5;
+}
+
+.onboarding-task-card.is-ready .onboarding-task-card__due.is-overdue {
+  color: #fecaca;
 }
 
 @media (min-width: 640px) {
