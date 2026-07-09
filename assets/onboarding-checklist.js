@@ -10,7 +10,7 @@
 
     const INCOMPLETE_MESSAGES = {
         students: 'Add each enrolled student in Academic Records (name and current grade), then check this box.',
-        prior_years: 'Optional for K–8. If your student has previously completed high school years, add those records in Academic Records before checking this off.',
+        prior_years: 'Optional for K–9. Students starting in 9th grade have no prior high school years. If your student completed high school years before enrolling (grades 10–12), add those records in Academic Records before checking this off.',
         guide: 'Read how progress reports work below and click "I\'ve read this" to check this off.',
         conduct: 'Sign the Code of Conduct in My Tasks, or open your signed copy under My Documents, then check this box.',
         id: 'Upload your government-issued ID in My Tasks before checking this box.',
@@ -872,17 +872,19 @@
         const students = await AR.fetchStudents(userId);
         const hasStudents = students.length > 0;
 
-        const hasHighSchoolStudent = students.some((student) => AR.isHighSchoolGrade(student.current_grade_level));
+        const studentNeedsPriorYears = (student) => {
+            if (!AR.isHighSchoolGrade(student.current_grade_level)) return false;
+            return student.prior_years_status === 'pending';
+        };
 
-        let priorYearsOk = true;
-        if (hasHighSchoolStudent) {
-            priorYearsOk = students.every((student) => {
-                if (!AR.isHighSchoolGrade(student.current_grade_level)) return true;
-                if (student.prior_years_status === 'complete') return true;
-                if (student.current_grade_level === '9' && student.prior_years_status === 'not_applicable') return true;
-                return false;
-            });
-        }
+        const familyRequiresPriorYears = students.some(studentNeedsPriorYears);
+
+        const priorYearsOk = students.every((student) => {
+            if (!AR.isHighSchoolGrade(student.current_grade_level)) return true;
+            if (student.prior_years_status === 'complete') return true;
+            if (student.prior_years_status === 'not_applicable') return true;
+            return false;
+        });
 
         const guideRead = Boolean(onboarding?.guide_read);
         const conductSigned = await isConductSigned(userId, onboarding);
@@ -900,8 +902,8 @@
             {
                 id: 'prior_years',
                 label: 'Add prior year records',
-                detail: 'Optional for K–8. Required for any previously completed high school years.',
-                required: hasHighSchoolStudent,
+                detail: 'Optional for K–9. Required for grades 10–12 when prior high school years still need to be added.',
+                required: familyRequiresPriorYears,
                 taskComplete: priorYearsOk,
                 manuallyChecked: Boolean(manualChecks.prior_years),
                 incompleteMessage: INCOMPLETE_MESSAGES.prior_years,
@@ -1078,7 +1080,7 @@
                         onclick="window.OnboardingChecklist.finish()">
                     Complete setup checklist
                 </button>
-                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off each required item after you finish that step. Prior year records are optional for K–8 and required for any previously completed high school years.</p>' : ''}
+                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off each required item after you finish that step. Prior year records are optional for K–9; students starting in 9th grade have none. Grades 10–12 may need prior high school years added.</p>' : ''}
             </div>
         `;
     }
@@ -1196,7 +1198,7 @@
                 .filter((item) => !(item.taskComplete && item.manuallyChecked))
                 .map((item) => (
                     item.required === false
-                        ? `${item.label} (optional for K–8)`
+                        ? `${item.label} (optional for K–9)`
                         : item.label
                 ));
 
