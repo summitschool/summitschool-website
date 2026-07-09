@@ -2661,6 +2661,112 @@ html.auth-transition-active #pending-view {
   }
 }
 
+/* Onboarding setup checklist card */
+.onboarding-task-card {
+  border-radius: 1.125rem;
+  border: 1px solid rgb(251 191 36 / 0.5);
+  background: linear-gradient(165deg, #fffbeb 0%, #fef3c7 38%, #fff7ed 100%);
+  box-shadow: 0 4px 22px rgb(10 37 64 / 0.1);
+  overflow: hidden;
+}
+
+.onboarding-task-card__banner {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.15rem 1.25rem;
+  background: linear-gradient(135deg, #0a2540 0%, #0f3a5f 100%);
+  color: #fff;
+}
+
+.onboarding-task-card__banner-icon {
+  flex-shrink: 0;
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 0.9rem;
+  background: rgb(251 191 36 / 0.22);
+  color: #fcd34d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+.onboarding-task-card__eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #fcd34d;
+}
+
+.onboarding-task-card__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.onboarding-task-card__subtitle {
+  margin: 0.4rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: rgb(226 232 240);
+}
+
+.onboarding-task-card__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.65rem 0 0;
+  padding: 0.3rem 0.7rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.14);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.onboarding-task-card__body {
+  padding: 1.125rem 1.25rem 1.35rem;
+}
+
+.onboarding-task-card__lede {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: rgb(71 85 105);
+}
+
+.onboarding-task-card.is-ready {
+  border-color: rgb(52 211 153 / 0.55);
+  background: linear-gradient(165deg, #ecfdf5 0%, #d1fae5 38%, #f0fdf4 100%);
+}
+
+.onboarding-task-card.is-ready .onboarding-task-card__banner {
+  background: linear-gradient(135deg, #047857 0%, #059669 100%);
+}
+
+.onboarding-task-card.is-ready .onboarding-task-card__eyebrow {
+  color: #a7f3d0;
+}
+
+.onboarding-task-card.is-ready .onboarding-task-card__banner-icon {
+  background: rgb(255 255 255 / 0.18);
+  color: #ecfdf5;
+}
+
+@media (min-width: 640px) {
+  .onboarding-task-card__body {
+    padding: 1.35rem 1.5rem 1.6rem;
+  }
+
+  .onboarding-task-card__banner {
+    padding: 1.25rem 1.5rem;
+  }
+}
+
 /* Onboarding checklist — progress reports guide */
 .onboarding-guide-body {
   padding: 0 0.75rem 0.75rem 2.25rem;

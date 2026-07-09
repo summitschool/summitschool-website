@@ -1061,6 +1061,36 @@
         `;
     }
 
+    function buildOnboardingCardBannerHtml(items, canFinish) {
+        const doneCount = items.filter((item) => item.taskComplete && item.manuallyChecked).length;
+        const totalCount = items.length;
+        const readyClass = canFinish ? ' is-ready' : '';
+
+        const headline = canFinish
+            ? 'You\'re ready to finish!'
+            : 'Complete your family setup';
+        const subtitle = canFinish
+            ? 'Every step is done — tap the button below to close out this checklist.'
+            : 'Work through each step below, then check it off. This stays in My Tasks until everything is finished.';
+
+        return `
+            <div class="onboarding-task-card__banner">
+                <div class="onboarding-task-card__banner-icon" aria-hidden="true">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <div class="onboarding-task-card__banner-copy">
+                    <p class="onboarding-task-card__eyebrow">Required setup</p>
+                    <h4 class="onboarding-task-card__title">${escapeHtml(headline)}</h4>
+                    <p class="onboarding-task-card__subtitle">${escapeHtml(subtitle)}</p>
+                    <p class="onboarding-task-card__progress">
+                        <i class="fas fa-${canFinish ? 'check-circle' : 'list-check'}" aria-hidden="true"></i>
+                        ${doneCount} of ${totalCount} steps complete
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+
     async function renderOnboardingTaskCard(task, cachedState = null) {
         const client = window.supabaseClient;
         const { data: { user } } = await client.auth.getUser();
@@ -1068,19 +1098,21 @@
 
         const { items, canFinish } = cachedState || await getChecklistState(user.id);
         const list = items.map((item) => buildChecklistItemHtml(item)).join('');
+        const readyClass = canFinish ? ' is-ready' : '';
 
         return `
-            <div class="hub-panel hub-panel-padded border-navy/20 !bg-slate-50" id="onboarding-task-card">
-                <h4 class="font-semibold text-lg text-navy">${escapeHtml(task.title)}</h4>
-                <p class="text-sm text-slate-600 mt-1">${escapeHtml(task.description || '')}</p>
-                <p class="text-xs text-slate-500 mt-2">Complete each step, then check it off. The checklist stays until every box is checked and every step is finished.</p>
-                <div class="mt-4 space-y-2">${list}</div>
-                <button type="button" class="mt-4 w-full py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl text-sm ${canFinish ? '' : 'opacity-50 cursor-not-allowed'}"
-                        ${canFinish ? '' : 'disabled'}
-                        onclick="window.OnboardingChecklist.finish()">
-                    Complete setup checklist
-                </button>
-                ${!canFinish ? '<p class="mt-2 text-xs text-slate-500 text-center">Check off each required item after you finish that step. Prior year records are optional for K–9; students starting in 9th grade have none. Grades 10–12 may need prior high school years added.</p>' : ''}
+            <div class="onboarding-task-card${readyClass}" id="onboarding-task-card">
+                ${buildOnboardingCardBannerHtml(items, canFinish)}
+                <div class="onboarding-task-card__body">
+                    <p class="onboarding-task-card__lede">${escapeHtml(task.description || 'Complete every step, check each box, then finish this checklist.')}</p>
+                    <div class="onboarding-task-card__items space-y-2">${list}</div>
+                    <button type="button" class="onboarding-task-card__finish-btn mt-4 w-full py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl text-sm ${canFinish ? '' : 'opacity-50 cursor-not-allowed'}"
+                            ${canFinish ? '' : 'disabled'}
+                            onclick="window.OnboardingChecklist.finish()">
+                        Complete setup checklist
+                    </button>
+                    ${!canFinish ? '<p class="mt-2 text-xs text-slate-600 text-center">Prior year records are optional for K–9. Grades 10–12 may need prior high school years added.</p>' : ''}
+                </div>
             </div>
         `;
     }
