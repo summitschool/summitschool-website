@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260763';
+            var BUILD = '20260764';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -272,7 +272,7 @@
                                 <div class="auth-signup-step-marker" aria-hidden="true"><i class="fas fa-envelope" aria-hidden="true"></i></div>
                                 <div class="auth-signup-step-body">
                                     <p class="auth-signup-step-title">Confirm your email <span class="auth-signup-step-tag">Email signups</span></p>
-                                    <p class="auth-signup-step-desc">We'll email you a confirmation link. <strong>Open that email and click the link</strong> to verify your address — you won't be able to sign in until you do. Google sign-in skips this step.</p>
+                                    <p class="auth-signup-step-desc">We'll email you a confirmation link. <strong>Open that email and tap the link</strong> to verify your address — you won't be able to sign in until you do. Link expired? Use <strong>Didn't confirm your email yet?</strong> on the sign-in tab for a fresh link. Google sign-in skips this step.</p>
                                 </div>
                             </div>
                             <div class="auth-signup-step" role="listitem">
@@ -325,8 +325,15 @@
                                 </button>
                             </form>
 
-                            <div class="mt-4 text-center">
-                                <a href="#" onclick="showForgotPasswordPanel(); return false;" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
+                            <div id="login-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
+
+                            <div class="mt-4 text-center space-y-2">
+                                <div>
+                                    <a href="#" onclick="showResendConfirmationPanel(); return false;" class="text-sm font-medium text-navy hover:text-sage transition">Didn't confirm your email yet?</a>
+                                </div>
+                                <div>
+                                    <a href="#" onclick="showForgotPasswordPanel(); return false;" class="text-sm text-sage hover:text-navy transition">Forgot your password?</a>
+                                </div>
                             </div>
                         </div>
 
@@ -349,6 +356,36 @@
                                 </button>
                             </form>
                             <div id="forgot-password-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
+                            <p class="mt-4 text-center">
+                                <a href="#" onclick="showAuthTab('login'); return false;" class="text-sm text-sage hover:text-navy transition">Back to sign in</a>
+                            </p>
+                        </div>
+
+                        <div id="resend-confirmation-form-container" class="hidden">
+                            <div class="auth-form-intro mb-5">
+                                <h2 class="auth-form-heading">Get a new confirmation link</h2>
+                                <p class="auth-form-subtitle">If your old link expired, enter the email you signed up with. We'll send a fresh confirmation email right away.</p>
+                            </div>
+                            <ol class="text-sm text-slate-600 space-y-2 mb-5 list-decimal list-inside text-left">
+                                <li>Enter your signup email below</li>
+                                <li>Check your inbox and spam folder</li>
+                                <li>Tap <strong>Confirm Email Address</strong> in the email</li>
+                                <li>Come back here and sign in</li>
+                            </ol>
+                            <form id="resend-confirmation-form" class="space-y-4" action="#" method="post" novalidate>
+                                <div>
+                                    <label for="resend-confirmation-email" class="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+                                    <input type="email" id="resend-confirmation-email" required
+                                           class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                           placeholder="you@family.com"
+                                           autocomplete="email">
+                                </div>
+                                <button type="button" id="resend-confirmation-submit-btn"
+                                        class="w-full py-3.5 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                    Email Me a New Confirmation Link
+                                </button>
+                            </form>
+                            <div id="resend-confirmation-status" class="hidden mt-4 p-4 rounded-2xl text-sm border" role="alert" aria-live="polite"></div>
                             <p class="mt-4 text-center">
                                 <a href="#" onclick="showAuthTab('login'); return false;" class="text-sm text-sage hover:text-navy transition">Back to sign in</a>
                             </p>
@@ -1786,10 +1823,16 @@
             statusEl.className = 'hidden mt-4 p-4 rounded-2xl text-sm border';
         }
 
-        function showSignupSuccessScreen() {
+        function showSignupSuccessScreen(email = '') {
             const loginView = document.getElementById('login-view');
             const dashboardView = document.getElementById('dashboard-view');
             const pendingView = document.getElementById('pending-view');
+
+            if (email) {
+                try {
+                    sessionStorage.setItem('last_signup_email', email);
+                } catch (e) {}
+            }
 
             if (loginView) loginView.classList.remove('hidden');
             if (dashboardView) dashboardView.classList.add('hidden');
@@ -1798,14 +1841,24 @@
 
             const signupPanel = document.getElementById('signup-form-panel');
             if (signupPanel) {
+                const safeEmail = escapeHtml(email || 'your email');
                 signupPanel.innerHTML = `
                     <div class="text-center py-4">
-                        <div class="text-emerald-600 text-3xl mb-3"><i class="fas fa-check-circle"></i></div>
-                        <h3 class="font-semibold text-lg text-navy">Account created!</h3>
-                        <p class="text-sm text-slate-600 mt-2">Check your email (including spam folder) for a confirmation link. You must confirm your email before you can sign in.</p>
-                        <p class="text-sm text-slate-600 mt-1">Once confirmed and your account is approved by our team, you will be able to access the Family Hub.</p>
+                        <div class="text-emerald-600 text-3xl mb-3"><i class="fas fa-envelope-circle-check"></i></div>
+                        <h3 class="font-semibold text-lg text-navy">Almost done — check your email</h3>
+                        <p class="text-sm text-slate-600 mt-2">We sent a confirmation link to <strong>${safeEmail}</strong>. Open that email (check spam too) and tap <strong>Confirm Email Address</strong>.</p>
+                        <p class="text-sm text-slate-600 mt-2">You must confirm before you can sign in.</p>
+                        <ol class="text-sm text-slate-600 mt-4 space-y-1 text-left list-decimal list-inside max-w-sm mx-auto">
+                            <li>Open the confirmation email</li>
+                            <li>Tap the confirm button</li>
+                            <li>Come back and sign in</li>
+                        </ol>
+                        <button type="button" onclick="showResendConfirmationPanel()"
+                                class="mt-5 w-full max-w-sm mx-auto px-6 py-3 bg-navy text-white text-sm font-semibold rounded-2xl">
+                            Send Me a New Confirmation Link
+                        </button>
                         <button type="button" onclick="showAuthTab('login')"
-                                class="mt-4 px-6 py-2 bg-navy text-white text-sm font-semibold rounded-2xl">
+                                class="mt-3 px-6 py-2 border border-slate-300 text-slate-700 text-sm font-semibold rounded-2xl">
                             Go to Sign In
                         </button>
                     </div>
@@ -1844,6 +1897,204 @@
             if (!statusEl) return;
             statusEl.textContent = '';
             statusEl.className = 'hidden mt-4 p-4 rounded-2xl text-sm border';
+        }
+
+        function showLoginStatus(type, message, options = {}) {
+            const statusEl = document.getElementById('login-status');
+            if (!statusEl) return;
+
+            statusEl.classList.remove(
+                'hidden',
+                'bg-red-50', 'border-red-200', 'text-red-800',
+                'bg-emerald-50', 'border-emerald-200', 'text-emerald-900',
+                'bg-amber-50', 'border-amber-200', 'text-amber-900'
+            );
+
+            if (type === 'success') {
+                statusEl.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+            } else if (type === 'warning') {
+                statusEl.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-900');
+            } else {
+                statusEl.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+            }
+
+            if (options.html) {
+                statusEl.innerHTML = message;
+            } else {
+                statusEl.textContent = message;
+            }
+            statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function clearLoginStatus() {
+            const statusEl = document.getElementById('login-status');
+            if (!statusEl) return;
+            statusEl.textContent = '';
+            statusEl.className = 'hidden mt-4 p-4 rounded-2xl text-sm border';
+        }
+
+        function showResendConfirmationStatus(type, message) {
+            const statusEl = document.getElementById('resend-confirmation-status');
+            if (!statusEl) return;
+
+            statusEl.classList.remove(
+                'hidden',
+                'bg-red-50', 'border-red-200', 'text-red-800',
+                'bg-emerald-50', 'border-emerald-200', 'text-emerald-900',
+                'bg-amber-50', 'border-amber-200', 'text-amber-900'
+            );
+
+            if (type === 'success') {
+                statusEl.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+            } else if (type === 'warning') {
+                statusEl.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-900');
+            } else {
+                statusEl.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+            }
+
+            statusEl.textContent = message;
+            statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function clearResendConfirmationStatus() {
+            const statusEl = document.getElementById('resend-confirmation-status');
+            if (!statusEl) return;
+            statusEl.textContent = '';
+            statusEl.className = 'hidden mt-4 p-4 rounded-2xl text-sm border';
+        }
+
+        function isEmailNotConfirmedError(error) {
+            const msg = String(error?.message || error?.msg || '').toLowerCase();
+            const code = String(error?.code || '').toLowerCase();
+            return code === 'email_not_confirmed'
+                || msg.includes('email not confirmed')
+                || msg.includes('not confirmed');
+        }
+
+        async function requestConfirmationEmail(email) {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/send-confirmation-email`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': SUPABASE_ANON_KEY
+                },
+                body: JSON.stringify({
+                    email,
+                    redirectTo: getAuthRedirectUrl('/confirm-email.html')
+                })
+            });
+
+            let result = {};
+            try {
+                result = await response.json();
+            } catch (_) {
+                result = {};
+            }
+
+            if (!response.ok || result.ok === false) {
+                const message = result.error || `Confirmation email request failed (${response.status}).`;
+                throw new Error(message);
+            }
+
+            return result;
+        }
+
+        let resendConfirmationInFlight = false;
+
+        async function handleResendConfirmationSubmit(event, prefillEmail = '') {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (resendConfirmationInFlight) return false;
+
+            const emailInput = document.getElementById('resend-confirmation-email');
+            const submitBtn = document.getElementById('resend-confirmation-submit-btn');
+            const email = String((emailInput?.value || prefillEmail || '')).trim().toLowerCase();
+
+            if (!email) {
+                showResendConfirmationStatus('error', 'Please enter the email address you used to sign up.');
+                return false;
+            }
+
+            clearResendConfirmationStatus();
+            resendConfirmationInFlight = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Sending...';
+            }
+
+            try {
+                await requestConfirmationEmail(email);
+                try {
+                    sessionStorage.setItem('last_signup_email', email);
+                } catch (e) {}
+                showResendConfirmationStatus(
+                    'success',
+                    'If an account exists for that email and still needs confirmation, we sent a fresh confirmation link. Check your inbox and spam folder, tap Confirm Email Address, then come back and sign in.'
+                );
+            } catch (err) {
+                const errText = err?.message || String(err);
+                if (String(errText).toLowerCase().includes('rate limit')) {
+                    showResendConfirmationStatus('warning', 'Too many emails have been sent recently. Please wait about an hour and try again.');
+                } else {
+                    showResendConfirmationStatus('error', errText);
+                }
+            } finally {
+                resendConfirmationInFlight = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Email Me a New Confirmation Link';
+                }
+            }
+
+            return false;
+        }
+
+        function showResendConfirmationPanel(prefillEmail = '') {
+            const loginContainer = document.getElementById('login-form-container');
+            const signupContainer = document.getElementById('signup-form-container');
+            const forgotContainer = document.getElementById('forgot-password-form-container');
+            const resendContainer = document.getElementById('resend-confirmation-form-container');
+            const tabLogin = document.getElementById('tab-login');
+            const tabSignup = document.getElementById('tab-signup');
+
+            clearLoginStatus();
+            clearForgotPasswordStatus();
+            clearResendConfirmationStatus();
+
+            if (loginContainer) loginContainer.classList.add('hidden');
+            if (signupContainer) signupContainer.classList.add('hidden');
+            if (forgotContainer) forgotContainer.classList.add('hidden');
+            if (resendContainer) resendContainer.classList.remove('hidden');
+            if (tabLogin) {
+                tabLogin.classList.add('is-active');
+                tabLogin.setAttribute('aria-selected', 'true');
+            }
+            if (tabSignup) {
+                tabSignup.classList.remove('is-active');
+                tabSignup.setAttribute('aria-selected', 'false');
+            }
+
+            setOAuthSectionVisible(false);
+            lastAuthTab = 'login';
+
+            const loginEmail = document.getElementById('login-email');
+            const resendEmail = document.getElementById('resend-confirmation-email');
+            const storedEmail = (() => {
+                try {
+                    return sessionStorage.getItem('last_signup_email') || '';
+                } catch (e) {
+                    return '';
+                }
+            })();
+            const emailToUse = prefillEmail || loginEmail?.value || storedEmail || '';
+            if (resendEmail && emailToUse) {
+                resendEmail.value = emailToUse;
+            }
+
+            resendContainer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         async function requestPasswordResetEmail(email) {
@@ -1930,14 +2181,18 @@
             const loginContainer = document.getElementById('login-form-container');
             const signupContainer = document.getElementById('signup-form-container');
             const forgotContainer = document.getElementById('forgot-password-form-container');
+            const resendContainer = document.getElementById('resend-confirmation-form-container');
             const tabLogin = document.getElementById('tab-login');
             const tabSignup = document.getElementById('tab-signup');
 
             clearSignupStatus();
             clearForgotPasswordStatus();
+            clearResendConfirmationStatus();
+            clearLoginStatus();
 
             if (loginContainer) loginContainer.classList.add('hidden');
             if (signupContainer) signupContainer.classList.add('hidden');
+            if (resendContainer) resendContainer.classList.add('hidden');
             if (forgotContainer) forgotContainer.classList.remove('hidden');
             setOAuthSectionVisible(false);
 
@@ -1968,6 +2223,7 @@
             const loginContainer = document.getElementById('login-form-container');
             const signupContainer = document.getElementById('signup-form-container');
             const forgotContainer = document.getElementById('forgot-password-form-container');
+            const resendContainer = document.getElementById('resend-confirmation-form-container');
             const tabLogin = document.getElementById('tab-login');
             const tabSignup = document.getElementById('tab-signup');
 
@@ -1977,7 +2233,10 @@
             }
 
             if (forgotContainer) forgotContainer.classList.add('hidden');
+            if (resendContainer) resendContainer.classList.add('hidden');
             clearForgotPasswordStatus();
+            clearResendConfirmationStatus();
+            clearLoginStatus();
             setOAuthSectionVisible(true);
 
             const loginIntro = document.getElementById('login-form-intro');
@@ -6858,7 +7117,15 @@
                 if (submitBtn) {
                     submitBtn.disabled = false;
                 }
-                await showAppAlert('Login failed: ' + error.message);
+                if (isEmailNotConfirmedError(error)) {
+                    showResendConfirmationPanel(email);
+                    showLoginStatus(
+                        'warning',
+                        'Your email is not confirmed yet. We opened the confirmation helper below — tap "Email Me a New Confirmation Link", then check your inbox and spam folder.'
+                    );
+                    return;
+                }
+                showLoginStatus('error', 'Login failed: ' + (error.message || 'Please try again.'));
                 return;
             }
 
@@ -6952,7 +7219,14 @@
 
             const identities = data?.user?.identities;
             if (Array.isArray(identities) && identities.length === 0) {
-                showSignupStatus('warning', 'An account with this email already exists. Try signing in, or use Forgot Password if needed.');
+                try {
+                    sessionStorage.setItem('last_signup_email', email);
+                } catch (e) {}
+                showSignupStatus(
+                    'warning',
+                    'An account with this email already exists. If you never confirmed your email, tap "Didn\'t confirm your email yet?" on the Sign In tab to get a fresh confirmation link.'
+                );
+                showResendConfirmationPanel(email);
                 signupInProgress = false;
                 return;
             }
@@ -6970,7 +7244,7 @@
                 await supabaseClient.auth.signOut({ scope: 'local' });
             }
 
-            showSignupSuccessScreen();
+            showSignupSuccessScreen(email);
             signupInProgress = false;
         }
 
@@ -7039,11 +7313,15 @@
             const signupForm = document.getElementById('signup-form');
             const forgotForm = document.getElementById('forgot-password-form');
             const forgotBtn = document.getElementById('forgot-password-submit-btn');
+            const resendConfirmForm = document.getElementById('resend-confirmation-form');
+            const resendConfirmBtn = document.getElementById('resend-confirmation-submit-btn');
 
             if (loginForm) loginForm.addEventListener('submit', handleLogin);
             if (signupForm) signupForm.addEventListener('submit', handleSignup);
             if (forgotForm) forgotForm.addEventListener('submit', handleForgotPasswordSubmit);
             if (forgotBtn) forgotBtn.addEventListener('click', handleForgotPasswordSubmit);
+            if (resendConfirmForm) resendConfirmForm.addEventListener('submit', handleResendConfirmationSubmit);
+            if (resendConfirmBtn) resendConfirmBtn.addEventListener('click', handleResendConfirmationSubmit);
 
             const googleBtn = document.getElementById('google-signin-btn');
             if (googleBtn) googleBtn.addEventListener('click', handleGoogleSignIn);
@@ -7114,6 +7392,8 @@
                 if (!oauthCallbackInProgress) {
                     if (authTabHash === '#signup' || authTabHash === '#create-account') {
                         showAuthTab('signup');
+                    } else if (authTabHash === '#resend-confirmation' || authTabHash === '#confirm-email') {
+                        showResendConfirmationPanel();
                     } else {
                         showAuthTab('login');
                     }

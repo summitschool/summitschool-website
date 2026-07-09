@@ -77,10 +77,25 @@
                     This confirmation link could not be verified. It may have expired or already been used.
                 </p>
                 <p class="mt-2 text-sm text-slate-500">
-                    Try signing in — your email may already be confirmed. If you still need help, contact us through the main site.
+                    No worries — enter your email below and we'll send a fresh confirmation link.
                 </p>
+                <form id="confirm-resend-form" class="mt-6 text-left space-y-4">
+                    <div>
+                        <label for="confirm-resend-email" class="block text-sm font-medium text-slate-700 mb-1.5">Your signup email</label>
+                        <input type="email" id="confirm-resend-email" required
+                               class="form-input w-full px-4 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                               placeholder="you@family.com"
+                               autocomplete="email">
+                    </div>
+                    <button type="submit"
+                            id="confirm-resend-btn"
+                            class="w-full py-3.5 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                        Email Me a New Confirmation Link
+                    </button>
+                </form>
+                <div id="confirm-resend-status" class="hidden mt-4 p-4 rounded-2xl text-sm border text-left" role="alert" aria-live="polite"></div>
                 <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="members.html"
+                    <a href="members.html#resend-confirmation"
                        class="inline-flex items-center justify-center px-8 py-3.5 text-sm font-semibold rounded-2xl bg-navy hover:bg-[#0F3A5F] text-white transition-all active:scale-[0.985]">
                         Go to Sign In
                     </a>
@@ -306,7 +321,95 @@
             }
         }
 
+        function showConfirmResendStatus(type, message) {
+            const statusEl = document.getElementById('confirm-resend-status');
+            if (!statusEl) return;
+            statusEl.classList.remove(
+                'hidden',
+                'bg-red-50', 'border-red-200', 'text-red-800',
+                'bg-emerald-50', 'border-emerald-200', 'text-emerald-900',
+                'bg-amber-50', 'border-amber-200', 'text-amber-900'
+            );
+            if (type === 'success') {
+                statusEl.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+            } else if (type === 'warning') {
+                statusEl.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-900');
+            } else {
+                statusEl.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+            }
+            statusEl.textContent = message;
+        }
+
+        async function requestConfirmationEmail(email) {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/send-confirmation-email`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': SUPABASE_ANON_KEY
+                },
+                body: JSON.stringify({
+                    email,
+                    redirectTo: window.location.origin + '/confirm-email.html'
+                })
+            });
+
+            let result = {};
+            try {
+                result = await response.json();
+            } catch (_) {
+                result = {};
+            }
+
+            if (!response.ok || result.ok === false) {
+                throw new Error(result.error || `Confirmation email request failed (${response.status}).`);
+            }
+        }
+
+        function setupConfirmResendForm() {
+            const form = document.getElementById('confirm-resend-form');
+            const btn = document.getElementById('confirm-resend-btn');
+            if (!form) return;
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const emailInput = document.getElementById('confirm-resend-email');
+                const email = String(emailInput?.value || '').trim().toLowerCase();
+                if (!email) {
+                    showConfirmResendStatus('error', 'Please enter your email address.');
+                    return;
+                }
+
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Sending...';
+                }
+
+                try {
+                    await requestConfirmationEmail(email);
+                    showConfirmResendStatus(
+                        'success',
+                        'If your account still needs confirmation, a fresh link is on its way. Check your inbox and spam folder, tap Confirm Email Address, then sign in at the Family Hub.'
+                    );
+                } catch (err) {
+                    const errText = err?.message || String(err);
+                    if (String(errText).toLowerCase().includes('rate limit')) {
+                        showConfirmResendStatus('warning', 'Too many emails have been sent recently. Please wait about an hour and try again.');
+                    } else {
+                        showConfirmResendStatus('error', errText);
+                    }
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Email Me a New Confirmation Link';
+                    }
+                }
+            });
+        }
+
         async function init() {
+            setupConfirmResendForm();
+
             if (isRecoveryAuthUrl()) {
                 window.location.replace('reset-password.html' + window.location.hash + window.location.search);
                 return;
