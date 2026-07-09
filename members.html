@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260776';
+            var BUILD = '20260777';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260745">
+    <link rel="stylesheet" href="assets/styles.css?v=20260777">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -758,153 +758,146 @@
                     </div>
                 </div>
 
-                <!-- 3. Families: per-family document management -->
+                <!-- 3. Families: per-family document & task management -->
                 <div id="admin-section-families" class="hidden">
-                <div id="admin-upload-section" class="pt-2">
-                    <h3 class="hub-admin-block-title mb-1">Family Documents &amp; Tasks</h3>
-                    <p class="hub-section-subtitle mb-6">Upload personal documents, assign standard forms, and manage each family's My Documents and My Tasks. <strong>DocuSeal tip:</strong> paste a signing link for one family, then upload the signed PDF once complete.</p>
+                    <div class="hub-admin-block">
+                        <h3 class="hub-admin-block-title mb-1">Families</h3>
+                        <p class="hub-section-subtitle mb-6">Upload documents, assign tasks, and manage onboarding for approved families.</p>
 
-                    <div class="hub-panel hub-panel-padded">
-                        <form id="admin-upload-form" class="space-y-6">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
-                                <div class="flex flex-col sm:flex-row gap-3">
-                                    <select id="admin-family-select" required class="form-input flex-1 px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="onAdminFamilyChange()">
-                                        <option value="">Loading families...</option>
-                                    </select>
-                                    <button type="button" onclick="assignSetupTasksForSelectedFamily()"
-                                            class="px-5 py-3 border border-amber-200 text-amber-900 font-semibold rounded-2xl hover:bg-amber-50 transition-all text-sm whitespace-nowrap">
-                                        Assign Setup Tasks
-                                    </button>
-                                    <button type="button" onclick="resendApprovalEmailForSelectedFamily()"
-                                            class="px-5 py-3 border border-emerald-200 text-emerald-800 font-semibold rounded-2xl hover:bg-emerald-50 transition-all text-sm whitespace-nowrap">
-                                        Resend Approval Email
-                                    </button>
-                                    <button type="button" onclick="resetAdminFamilySelection()"
-                                            class="px-5 py-3 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm whitespace-nowrap">
-                                        Clear
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Title</label>
-                                    <input type="text" id="admin-doc-title" required 
-                                           class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
-                                           placeholder="e.g. 2026-2027 Enrollment Form">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
-                                    <input type="text" id="admin-doc-category" value="Document"
-                                           class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">School Year (for archive / organization)</label>
-                                <select id="admin-doc-school-year" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
-                                    <!-- JS populated with recent years, defaults to current -->
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Description (optional)</label>
-                                <textarea id="admin-doc-description" rows="2"
-                                          class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y"
-                                          placeholder="Short note for the family"></textarea>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">URL (e.g. DocuSeal signing link) or upload a file below</label>
-                                <input type="url" id="admin-doc-url" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="https://docuseal.co/s/... (leave blank if uploading file)">
-                                <p class="text-xs text-slate-500 mt-1">Use a URL for DocuSeal signing links or external resources you want only this family to see in My Documents.</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Or upload file (signed PDF, report, etc.)</label>
-                                <input type="file" id="admin-doc-file"
-                                       class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-navy file:text-white hover:file:bg-[#0F3A5F]">
-                                <p class="text-xs text-slate-500 mt-1">Uploaded files are stored privately for this family only. After a family signs a DocuSeal form, upload the completed PDF here (and remove the signing URL entry below if desired).</p>
-                            </div>
-
-                            <div class="flex items-center gap-3">
-                                <label class="flex items-center gap-2 text-sm font-medium">
-                                    <input type="checkbox" id="admin-personal-notify">
-                                    Notify this family by email
-                                </label>
-                            </div>
-
-                            <div class="flex flex-col sm:flex-row gap-3">
-                                <button type="submit" 
-                                        class="flex-1 py-4 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
-                                    Upload for Selected Family
+                        <div class="admin-families-toolbar hub-panel hub-panel-padded">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-family-select">Family</label>
+                            <select id="admin-family-select" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="onAdminFamilyChange()">
+                                <option value="">Loading families...</option>
+                            </select>
+                            <div class="admin-families-actions">
+                                <button type="button" onclick="assignSetupTasksForSelectedFamily()" class="hub-admin-action-btn admin-families-action admin-families-action--primary">
+                                    <i class="fas fa-list-check" aria-hidden="true"></i> Assign setup tasks
                                 </button>
-                                <button type="button" onclick="resetAdminUploadFormOnly()"
-                                        class="px-5 py-4 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm">
-                                    Clear Form
+                                <button type="button" onclick="resendApprovalEmailForSelectedFamily()" class="hub-admin-action-btn admin-families-action">
+                                    <i class="fas fa-envelope" aria-hidden="true"></i> Resend approval email
+                                </button>
+                                <button type="button" onclick="reSendIDTask()" class="hub-admin-action-btn admin-families-action">
+                                    <i class="fas fa-id-card" aria-hidden="true"></i> Re-send ID task
+                                </button>
+                                <button type="button" onclick="openSelectedFamilyInAcademicTab()" class="hub-admin-action-btn admin-families-action">
+                                    <i class="fas fa-graduation-cap" aria-hidden="true"></i> Academic records
+                                </button>
+                                <button type="button" onclick="resetAdminFamilySelection()" class="hub-admin-action-btn admin-families-action admin-families-action--muted">
+                                    Clear
                                 </button>
                             </div>
-                        </form>
-
-                        <div class="mt-3 pt-3 border-t border-slate-200">
-                            <h4 class="text-sm font-semibold text-navy mb-2">Assign Selected Standard Documents</h4>
-
-                            <!-- Destination choice for this batch of standards (per-family flexibility) -->
-                            <div class="flex items-center gap-4 mb-2 text-xs">
-                                <span class="text-slate-600">Send selected to:</span>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="radio" name="standards-destination" value="documents" class="accent-navy"> My Documents
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="radio" name="standards-destination" value="tasks" checked class="accent-navy"> My Tasks
-                                </label>
-                            </div>
-
-                            <div id="admin-standard-checkboxes" class="max-h-36 overflow-auto border border-slate-200 rounded-xl p-2 text-xs space-y-1 bg-white">
-                                Select a family above to choose which standard documents to assign (e.g. exclude graduation packets for non-seniors).
-                            </div>
-                            <button type="button" onclick="assignSelectedStandardsToFamily()"
-                                    class="mt-2 w-full py-2 border border-navy text-navy hover:bg-navy hover:text-white font-semibold rounded-2xl transition-all text-sm">
-                                Assign Selected Standards to Family
-                            </button>
-                            <p class="text-xs text-slate-500 mt-1 text-center">Choose destination for the selected standards. The "Upload Government Issued ID" standard shows a special camera+ack form when sent to My Tasks.</p>
                         </div>
 
-                        <!-- Quick re-send ID task -->
-                        <div class="mt-2">
-                            <button type="button" onclick="reSendIDTask()"
-                                    class="w-full py-1.5 text-xs border border-amber-600 text-amber-700 hover:bg-amber-50 rounded-2xl transition-all">
-                                Re-send "Upload ID" Task to this family (to My Tasks)
-                            </button>
+                        <div id="admin-families-empty" class="hub-empty-state mt-6">
+                            Select a family to view their setup progress, tasks, and documents.
                         </div>
 
-                        <div class="mt-6 pt-4 border-t border-slate-200">
-                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Tasks for selected family</label>
-                            <p class="text-xs text-slate-500 mb-2">New tasks default to due one week from the day they are assigned. Edit due dates per task below.</p>
-                            <div id="admin-family-tasks-list" class="text-sm text-slate-600 border border-amber-200 rounded-2xl p-3 min-h-[60px] bg-amber-50/30">
-                                Select a family above to view and manage task due dates.
+                        <div id="admin-families-workspace" class="hidden mt-6 space-y-4">
+                            <div class="admin-families-summary hub-panel hub-panel-padded">
+                                <div id="admin-family-summary-name" class="admin-families-summary-name"></div>
+                                <div id="admin-family-checklist-summary" class="admin-families-checklist-summary mt-3 text-sm text-slate-600"></div>
+                            </div>
+
+                            <div id="admin-upload-status" class="text-sm hidden"></div>
+
+                            <div class="hub-admin-tab-group admin-families-subtabs" role="tablist" aria-label="Family management views">
+                                <button type="button" role="tab" id="admin-families-tab-tasks" class="hub-admin-tab-btn is-active" aria-selected="true" onclick="adminFamiliesShowPanel('tasks')">
+                                    <i class="fas fa-clipboard-list" aria-hidden="true"></i> Tasks
+                                </button>
+                                <button type="button" role="tab" id="admin-families-tab-documents" class="hub-admin-tab-btn" aria-selected="false" onclick="adminFamiliesShowPanel('documents')">
+                                    <i class="fas fa-folder-open" aria-hidden="true"></i> Documents
+                                </button>
+                                <button type="button" role="tab" id="admin-families-tab-add" class="hub-admin-tab-btn" aria-selected="false" onclick="adminFamiliesShowPanel('add')">
+                                    <i class="fas fa-plus-circle" aria-hidden="true"></i> Add document
+                                </button>
+                                <button type="button" role="tab" id="admin-families-tab-assign" class="hub-admin-tab-btn" aria-selected="false" onclick="adminFamiliesShowPanel('assign')">
+                                    <i class="fas fa-copy" aria-hidden="true"></i> Assign standards
+                                </button>
+                            </div>
+
+                            <div id="admin-families-panel-tasks" class="admin-families-panel hub-panel hub-panel-padded" role="tabpanel">
+                                <p class="text-xs text-slate-500 mb-3">Active tasks in My Tasks. New assignments default to due one week out — edit dates below.</p>
+                                <div id="admin-family-tasks-list" class="admin-families-list text-sm text-slate-600">
+                                    Loading tasks...
+                                </div>
+                            </div>
+
+                            <div id="admin-families-panel-documents" class="admin-families-panel hub-panel hub-panel-padded hidden" role="tabpanel">
+                                <p class="text-xs text-slate-500 mb-3">Archived items in My Documents (not tasks). Remove old DocuSeal signing links after uploading the signed PDF.</p>
+                                <div id="admin-family-docs-list" class="admin-families-list text-sm text-slate-600">
+                                    Loading documents...
+                                </div>
+                            </div>
+
+                            <div id="admin-families-panel-add" class="admin-families-panel hub-panel hub-panel-padded hidden" role="tabpanel">
+                                <p class="text-xs text-slate-500 mb-4">Add a DocuSeal signing link or upload a signed PDF for this family only.</p>
+                                <form id="admin-upload-form" class="space-y-5">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-doc-title">Title</label>
+                                            <input type="text" id="admin-doc-title" required
+                                                   class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"
+                                                   placeholder="e.g. 2026-2027 Enrollment Form">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-doc-category">Category</label>
+                                            <input type="text" id="admin-doc-category" value="Document"
+                                                   class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-doc-school-year">School year</label>
+                                        <select id="admin-doc-school-year" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base"></select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-doc-description">Description <span class="font-normal text-slate-500">(optional)</span></label>
+                                        <textarea id="admin-doc-description" rows="2"
+                                                  class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y"
+                                                  placeholder="Short note for the family"></textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-doc-url">URL or file</label>
+                                        <input type="url" id="admin-doc-url" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base mb-2" placeholder="https://enroll.summitchurchschool.org/d/... (DocuSeal link)">
+                                        <input type="file" id="admin-doc-file"
+                                               class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-navy file:text-white hover:file:bg-[#0F3A5F]">
+                                        <p class="text-xs text-slate-500 mt-1.5">Provide a signing URL <em>or</em> upload a file — not both required, but at least one is needed.</p>
+                                    </div>
+                                    <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                        <input type="checkbox" id="admin-personal-notify" class="accent-navy">
+                                        Email this family when added
+                                    </label>
+                                    <div class="flex flex-col sm:flex-row gap-3">
+                                        <button type="submit" class="flex-1 py-3.5 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                            Save to family
+                                        </button>
+                                        <button type="button" onclick="resetAdminUploadFormOnly()" class="px-5 py-3.5 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm">
+                                            Clear form
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div id="admin-families-panel-assign" class="admin-families-panel hub-panel hub-panel-padded hidden" role="tabpanel">
+                                <p class="text-xs text-slate-500 mb-3">Copy templates from the Document Library to this family. Uncheck items they do not need (e.g. graduation packets for non-seniors).</p>
+                                <div class="flex flex-wrap items-center gap-4 mb-3 text-sm text-slate-700">
+                                    <span class="font-medium">Send to:</span>
+                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                        <input type="radio" name="standards-destination" value="documents" class="accent-navy"> My Documents
+                                    </label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                        <input type="radio" name="standards-destination" value="tasks" checked class="accent-navy"> My Tasks
+                                    </label>
+                                </div>
+                                <div id="admin-standard-checkboxes" class="admin-families-standards-list text-sm text-slate-600">
+                                    Loading standards...
+                                </div>
+                                <button type="button" onclick="assignSelectedStandardsToFamily()"
+                                        class="mt-4 w-full py-3 border border-navy text-navy hover:bg-navy hover:text-white font-semibold rounded-2xl transition-all text-sm hub-admin-action-btn">
+                                    Assign selected standards
+                                </button>
                             </div>
                         </div>
-
-                        <div class="mt-6 pt-4 border-t border-slate-200">
-                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Academic records (selected family)</label>
-                            <p class="text-xs text-slate-500 mb-2">View courses and grades. Reopen a locked school year when a family needs to correct submitted grades.</p>
-                            <div id="admin-academic-records-list" class="text-sm text-slate-600 border border-sky-200 rounded-2xl p-3 min-h-[60px] bg-sky-50/30">
-                                Select a family above to view courses, grades, and credits.
-                            </div>
-                        </div>
-
-                        <div class="mt-6 pt-4 border-t border-slate-200">
-                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Current documents for selected family</label>
-                            <div id="admin-family-docs-list" class="text-sm text-slate-600 border border-slate-200 rounded-2xl p-3 min-h-[60px]">
-                                Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.
-                            </div>
-                        </div>
-
-                        <div id="admin-upload-status" class="mt-4 text-sm hidden"></div>
                     </div>
-                </div>
                 </div>
 
                 <!-- 2b. Family Records: read-only browse for any family -->
@@ -1157,7 +1150,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260776"></script>
+    <script src="assets/onboarding-checklist.js?v=20260777"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -1211,10 +1204,10 @@
         let hubSessionRestoreInProgress = false;
         let authTransitionFailsafeTimer = null;
 
-        const ADMIN_FAMILY_TASKS_PLACEHOLDER = 'Select a family above to view and manage task due dates.';
-        const ADMIN_FAMILY_DOCS_PLACEHOLDER = 'Select a family above to see and manage (delete) their existing My Documents entries. Use this to remove old DocuSeal signing links after the signed version has been uploaded.';
-        const ADMIN_STANDARDS_PLACEHOLDER = 'Select a family above to choose which standard documents to assign (e.g. exclude graduation packets for non-seniors).';
-        const ADMIN_ACADEMIC_RECORDS_PLACEHOLDER = 'Select a family above to view courses, grades, and credits.';
+        const ADMIN_FAMILY_TASKS_PLACEHOLDER = '<div class="text-slate-500 text-sm">No tasks to show.</div>';
+        const ADMIN_FAMILY_DOCS_PLACEHOLDER = '<div class="text-slate-500 text-sm italic">No documents yet.</div>';
+        const ADMIN_STANDARDS_PLACEHOLDER = '<span class="text-slate-400">Select a family to load standards.</span>';
+        const ADMIN_ACADEMIC_RECORDS_PLACEHOLDER = 'Select a family to view courses, grades, and credits.';
         const FAMILY_RECORDS_DOCS_PLACEHOLDER = '<div class="text-slate-500 text-sm">Select a family above.</div>';
 
         function initializeSupabase() {
@@ -2518,8 +2511,14 @@
             const stdCheckboxes = document.getElementById('admin-standard-checkboxes');
             if (stdCheckboxes) stdCheckboxes.innerHTML = ADMIN_STANDARDS_PLACEHOLDER;
 
-            const familiesAcademicList = document.getElementById('admin-academic-records-list');
-            if (familiesAcademicList) familiesAcademicList.innerHTML = ADMIN_ACADEMIC_RECORDS_PLACEHOLDER;
+            const summaryName = document.getElementById('admin-family-summary-name');
+            if (summaryName) summaryName.textContent = '';
+
+            const checklistSummary = document.getElementById('admin-family-checklist-summary');
+            if (checklistSummary) checklistSummary.innerHTML = '';
+
+            updateAdminFamiliesWorkspace();
+            adminFamiliesShowPanel('tasks');
         }
 
         function resetFamilyRecordsPanels() {
@@ -4731,6 +4730,7 @@
                     await showAppAlert(`Setup tasks could not be verified for ${name}. Refresh and try again, or check the browser console.`);
                 }
                 loadAdminFamilyTasks();
+                renderAdminFamilyChecklistSummary(userId);
                 if (typeof loadMyTasks === 'function') loadMyTasks({ force: true });
             } catch (err) {
                 console.error('Assign setup tasks failed:', err);
@@ -4908,11 +4908,118 @@
             });
         }
 
+        function updateAdminFamiliesWorkspace() {
+            const select = document.getElementById('admin-family-select');
+            const empty = document.getElementById('admin-families-empty');
+            const workspace = document.getElementById('admin-families-workspace');
+            const nameEl = document.getElementById('admin-family-summary-name');
+            const hasFamily = Boolean(select?.value);
+
+            if (empty) empty.classList.toggle('hidden', hasFamily);
+            if (workspace) workspace.classList.toggle('hidden', !hasFamily);
+
+            if (hasFamily && nameEl && select) {
+                nameEl.textContent = select.options[select.selectedIndex]?.text || '';
+            } else if (nameEl) {
+                nameEl.textContent = '';
+            }
+        }
+
+        function adminFamiliesShowPanel(panelId) {
+            const panels = {
+                tasks: document.getElementById('admin-families-panel-tasks'),
+                documents: document.getElementById('admin-families-panel-documents'),
+                add: document.getElementById('admin-families-panel-add'),
+                assign: document.getElementById('admin-families-panel-assign'),
+            };
+            const tabs = {
+                tasks: document.getElementById('admin-families-tab-tasks'),
+                documents: document.getElementById('admin-families-tab-documents'),
+                add: document.getElementById('admin-families-tab-add'),
+                assign: document.getElementById('admin-families-tab-assign'),
+            };
+
+            Object.entries(panels).forEach(([id, panel]) => {
+                if (!panel) return;
+                panel.classList.toggle('hidden', id !== panelId);
+            });
+            Object.entries(tabs).forEach(([id, tab]) => {
+                if (!tab) return;
+                const active = id === panelId;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+
+        function openSelectedFamilyInAcademicTab() {
+            const select = document.getElementById('admin-family-select');
+            const userId = select?.value;
+            if (!userId) {
+                showAppAlert('Select a family first.');
+                return;
+            }
+            showAdminSection('academic');
+            const academicSelect = document.getElementById('admin-academic-family-select');
+            if (academicSelect) {
+                academicSelect.value = userId;
+                if (academicSelect.value === userId) {
+                    loadAdminAcademicRecords();
+                }
+            }
+        }
+
+        async function renderAdminFamilyChecklistSummary(userId) {
+            const summaryEl = document.getElementById('admin-family-checklist-summary');
+            if (!summaryEl || !userId || !window.OnboardingChecklist?.getAdminOnboardingSummary) {
+                if (summaryEl) summaryEl.innerHTML = '';
+                return;
+            }
+
+            try {
+                const summary = await window.OnboardingChecklist.getAdminOnboardingSummary(userId);
+                if (summary?.status === 'completed') {
+                    const completedDate = summary.completedAt
+                        ? new Date(summary.completedAt).toLocaleString()
+                        : 'Unknown date';
+                    summaryEl.innerHTML = `
+                        <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs">
+                            <div class="font-semibold text-emerald-950">Setup checklist completed</div>
+                            <div class="mt-1">Finished ${escapeHtml(completedDate)}.</div>
+                        </div>
+                    `;
+                } else if (summary?.status === 'in_progress') {
+                    const allStepsDone = summary.doneCount === summary.totalCount && summary.totalCount > 0;
+                    summaryEl.innerHTML = `
+                        <div class="p-3 rounded-xl border border-navy/15 bg-white/90 text-xs text-slate-700">
+                            <div class="font-semibold text-navy">Setup progress: ${summary.doneCount}/${summary.totalCount}</div>
+                            ${summary.pendingLabels?.length
+                                ? `<div class="mt-1 text-slate-600">Still needed: ${escapeHtml(summary.pendingLabels.join(' · '))}</div>`
+                                : allStepsDone
+                                    ? '<div class="mt-1 text-emerald-700">All steps done — family can finish the checklist in My Tasks.</div>'
+                                    : '<div class="mt-1 text-slate-600">Checklist is open in My Tasks.</div>'}
+                        </div>
+                    `;
+                } else if (summary?.status === 'missing') {
+                    summaryEl.innerHTML = `
+                        <div class="p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-xs">
+                            <strong>No setup checklist assigned.</strong> Click <strong>Assign setup tasks</strong> above.
+                        </div>
+                    `;
+                } else {
+                    summaryEl.innerHTML = '';
+                }
+            } catch (stateErr) {
+                console.warn('[Admin] Checklist summary load failed:', stateErr);
+                summaryEl.innerHTML = '';
+            }
+        }
+
         // Helper for family select in admin (loads docs, tasks, standards checkboxes)
         function onAdminFamilyChange() {
+            updateAdminFamiliesWorkspace();
+            renderAdminFamilyChecklistSummary(document.getElementById('admin-family-select')?.value || '');
             loadAdminFamilyDocs();
             loadAdminFamilyTasks();
-            loadAdminAcademicRecords();
             loadStandardCheckboxesForFamily();
         }
 
@@ -4922,7 +5029,7 @@
             const container = document.getElementById('admin-standard-checkboxes');
             const familySel = document.getElementById('admin-family-select');
             if (!container || !familySel || !familySel.value) {
-                if (container) container.innerHTML = '<span class="text-slate-400">Select a family above to choose standards to assign.</span>';
+                if (container) container.innerHTML = ADMIN_STANDARDS_PLACEHOLDER;
                 return;
             }
             container.innerHTML = '<div class="text-slate-500">Loading standards...</div>';
@@ -4942,12 +5049,12 @@
             standards.forEach(s => {
                 const id = 'stdcb-' + s.id;
                 const div = document.createElement('div');
-                div.className = 'flex items-start gap-1.5';
+                div.className = 'flex items-start gap-2 py-1.5 border-b border-slate-100 last:border-b-0';
                 div.innerHTML = `
-                    <input type="checkbox" id="${id}" value="${s.id}" checked class="mt-0.5 rounded border-slate-300">
-                    <label for="${id}" class="text-xs leading-tight cursor-pointer">
-                        ${s.title}
-                        ${s.description ? `<span class="block text-[10px] text-slate-500">${s.description}</span>` : ''}
+                    <input type="checkbox" id="${id}" value="${s.id}" checked class="mt-1 rounded border-slate-300 accent-navy">
+                    <label for="${id}" class="text-sm leading-snug cursor-pointer text-slate-700">
+                        <span class="font-medium text-navy">${escapeHtml(s.title)}</span>
+                        ${s.description ? `<span class="block text-xs text-slate-500 mt-0.5">${escapeHtml(s.description)}</span>` : ''}
                     </label>
                 `;
                 container.appendChild(div);
@@ -6073,7 +6180,7 @@
             currentAdminDocsUserId = userId;
 
             if (!userId) {
-                listEl.innerHTML = '<span class="text-slate-500">Select a family to view their current documents.</span>';
+                listEl.innerHTML = ADMIN_FAMILY_DOCS_PLACEHOLDER;
                 return;
             }
 
@@ -6131,20 +6238,17 @@
 
             const userId = select.value;
             if (!userId) {
-                listEl.innerHTML = '<span class="text-slate-500">Select a family to view and manage their tasks.</span>';
+                listEl.innerHTML = ADMIN_FAMILY_TASKS_PLACEHOLDER;
                 return;
             }
 
             listEl.innerHTML = '<div class="text-slate-500">Loading tasks...</div>';
 
-            let repairNote = '';
             if (typeof window.OnboardingChecklist?.assignSetupTasksViaRpc === 'function') {
                 try {
                     const repairResult = await window.OnboardingChecklist.assignSetupTasksViaRpc(userId);
-                    if (repairResult?.repaired) {
-                        repairNote = '<div class="mb-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs">Missing setup tasks were assigned automatically for this family.</div>';
-                    } else if (repairResult?.missing?.length) {
-                        repairNote = `<div class="mb-3 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs">Setup tasks still missing: ${escapeHtml(repairResult.missing.join(', '))}. Click <strong>Assign Setup Tasks</strong> above or run the onboarding backfill SQL.</div>`;
+                    if (repairResult?.repaired || repairResult?.missing?.length) {
+                        await renderAdminFamilyChecklistSummary(userId);
                     }
                 } catch (repairErr) {
                     console.warn('[Admin] Onboarding repair failed:', repairErr);
@@ -6171,50 +6275,12 @@
                 }
             }
 
-            let checklistSummaryHtml = '';
-            if (window.OnboardingChecklist?.getAdminOnboardingSummary) {
-                try {
-                    const summary = await window.OnboardingChecklist.getAdminOnboardingSummary(userId);
-                    if (summary?.status === 'completed') {
-                        const completedDate = summary.completedAt
-                            ? new Date(summary.completedAt).toLocaleString()
-                            : 'Unknown date';
-                        checklistSummaryHtml = `
-                            <div class="mb-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs">
-                                <div class="font-semibold text-emerald-950">Setup checklist completed</div>
-                                <div class="mt-1">Finished ${escapeHtml(completedDate)}. The checklist task is removed from My Tasks after completion — this family finished all required onboarding steps.</div>
-                            </div>
-                        `;
-                    } else if (summary?.status === 'in_progress') {
-                        const allStepsDone = summary.doneCount === summary.totalCount && summary.totalCount > 0;
-                        checklistSummaryHtml = `
-                            <div class="mb-3 p-3 rounded-xl border border-navy/15 bg-white/90 text-xs text-slate-700">
-                                <div class="font-semibold text-navy">Setup checklist progress: ${summary.doneCount}/${summary.totalCount} steps finished</div>
-                                ${summary.pendingLabels?.length
-                                    ? `<div class="mt-1 text-slate-600">Still needed: ${escapeHtml(summary.pendingLabels.join(' · '))}</div>`
-                                    : allStepsDone
-                                        ? '<div class="mt-1 text-emerald-700">All checklist steps are done — family can tap Complete setup checklist in My Tasks.</div>'
-                                        : '<div class="mt-1 text-slate-600">Checklist is open in My Tasks.</div>'}
-                            </div>
-                        `;
-                    } else if (summary?.status === 'missing') {
-                        checklistSummaryHtml = `
-                            <div class="mb-3 p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-xs">
-                                <strong>No setup checklist assigned.</strong> This family should have the Family Hub Setup Checklist in My Tasks. Click <strong>Assign Setup Tasks</strong> above.
-                            </div>
-                        `;
-                    }
-                } catch (stateErr) {
-                    console.warn('[Admin] Checklist summary load failed:', stateErr);
-                }
-            }
-
             if (!tasks.length) {
-                listEl.innerHTML = repairNote + checklistSummaryHtml + '<div class="text-slate-500 text-xs italic">No active tasks for this family.</div>';
+                listEl.innerHTML = '<div class="text-slate-500 text-xs italic">No active tasks for this family.</div>';
                 return;
             }
 
-            let html = repairNote + checklistSummaryHtml + '<div class="space-y-3">';
+            let html = '<div class="space-y-3">';
             tasks.forEach(task => {
                 const isChecklist = window.OnboardingChecklist?.isOnboardingTask?.(task);
                 html += `
@@ -6234,31 +6300,12 @@
 
         function getAdminAcademicContext() {
             const academicSelect = document.getElementById('admin-academic-family-select');
-            const familiesSelect = document.getElementById('admin-family-select');
             const standaloneList = document.getElementById('admin-academic-records-standalone-list');
-            const familiesList = document.getElementById('admin-academic-records-list');
-
-            if (academicSelect?.value) {
-                return {
-                    userId: academicSelect.value,
-                    listEl: standaloneList,
-                    selectEl: academicSelect,
-                };
-            }
-
-            if (familiesSelect?.value) {
-                return {
-                    userId: familiesSelect.value,
-                    listEl: familiesList,
-                    selectEl: familiesSelect,
-                };
-            }
-
-            if (standaloneList && !standaloneList.classList.contains('hidden')) {
-                return { userId: '', listEl: standaloneList, selectEl: academicSelect };
-            }
-
-            return { userId: '', listEl: familiesList || standaloneList, selectEl: familiesSelect || academicSelect };
+            return {
+                userId: academicSelect?.value || '',
+                listEl: standaloneList,
+                selectEl: academicSelect,
+            };
         }
 
         async function loadAdminAcademicFamilies(preserveUserId = null) {

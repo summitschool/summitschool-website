@@ -901,6 +901,83 @@
     letter-spacing: -0.01em;
   }
 
+  .admin-families-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .admin-families-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .admin-families-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid rgb(203 213 225);
+    background: #fff;
+    color: #0A2540;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .admin-families-action:hover {
+    background: rgb(248 250 252);
+    border-color: rgb(148 163 184);
+  }
+
+  .admin-families-action--primary {
+    border-color: rgb(251 191 36 / 0.55);
+    background: rgb(255 251 235);
+    color: rgb(120 53 15);
+  }
+
+  .admin-families-action--primary:hover {
+    background: rgb(254 243 199);
+  }
+
+  .admin-families-action--muted {
+    color: rgb(100 116 139);
+  }
+
+  .admin-families-summary-name {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0A2540;
+    letter-spacing: -0.01em;
+  }
+
+  .admin-families-checklist-summary:empty {
+    display: none;
+  }
+
+  .admin-families-subtabs {
+    margin-bottom: 0;
+  }
+
+  .admin-families-panel.hidden {
+    display: none;
+  }
+
+  .admin-families-list {
+    min-height: 4rem;
+  }
+
+  .admin-families-standards-list {
+    max-height: 16rem;
+    overflow: auto;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 0.875rem;
+    padding: 0.75rem 1rem;
+    background: #fff;
+  }
+
   /* Mobile: spacious, touch-friendly portal layout */
   @media (max-width: 639px) {
     .auth-card,
