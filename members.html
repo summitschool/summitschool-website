@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260768';
+            var BUILD = '20260769';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -1157,7 +1157,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260768"></script>
+    <script src="assets/onboarding-checklist.js?v=20260769"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -6261,33 +6261,38 @@
             }
 
             let checklistSummaryHtml = '';
-            const onboardingTask = tasks.find((task) => window.OnboardingChecklist?.isOnboardingTask?.(task));
-            if (onboardingTask && window.OnboardingChecklist?.getChecklistState) {
+            if (window.OnboardingChecklist?.getAdminOnboardingSummary) {
                 try {
-                    const state = await window.OnboardingChecklist.getChecklistState(userId);
-                    const required = state?.requiredItems || state?.items?.filter((item) => item.required !== false) || [];
-                    const doneCount = required.filter((item) => item.taskComplete && item.manuallyChecked).length;
-                    const pendingLabels = required
-                        .filter((item) => !(item.taskComplete && item.manuallyChecked))
-                        .map((item) => item.label);
-                    checklistSummaryHtml = `
-                        <div class="mb-3 p-3 rounded-xl border border-navy/15 bg-white/90 text-xs text-slate-700">
-                            <div class="font-semibold text-navy">Setup checklist progress: ${doneCount}/${required.length} complete</div>
-                            ${pendingLabels.length
-                                ? `<div class="mt-1 text-slate-600">Still needed: ${escapeHtml(pendingLabels.join(' · '))}</div>`
-                                : '<div class="mt-1 text-emerald-700">All checklist steps are done — family can tap Complete setup checklist in My Tasks.</div>'}
-                        </div>
-                    `;
+                    const summary = await window.OnboardingChecklist.getAdminOnboardingSummary(userId);
+                    if (summary?.status === 'completed') {
+                        const completedDate = summary.completedAt
+                            ? new Date(summary.completedAt).toLocaleString()
+                            : 'Unknown date';
+                        checklistSummaryHtml = `
+                            <div class="mb-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs">
+                                <div class="font-semibold text-emerald-950">Setup checklist completed</div>
+                                <div class="mt-1">Finished ${escapeHtml(completedDate)}. The checklist task is removed from My Tasks after completion — this family finished all required onboarding steps.</div>
+                            </div>
+                        `;
+                    } else if (summary?.status === 'in_progress') {
+                        checklistSummaryHtml = `
+                            <div class="mb-3 p-3 rounded-xl border border-navy/15 bg-white/90 text-xs text-slate-700">
+                                <div class="font-semibold text-navy">Setup checklist progress: ${summary.doneCount}/${summary.totalCount} complete</div>
+                                ${summary.pendingLabels?.length
+                                    ? `<div class="mt-1 text-slate-600">Still needed: ${escapeHtml(summary.pendingLabels.join(' · '))}</div>`
+                                    : '<div class="mt-1 text-emerald-700">All checklist steps are done — family can tap Complete setup checklist in My Tasks.</div>'}
+                            </div>
+                        `;
+                    } else if (summary?.status === 'missing') {
+                        checklistSummaryHtml = `
+                            <div class="mb-3 p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-xs">
+                                <strong>No setup checklist assigned.</strong> This family should have the Family Hub Setup Checklist in My Tasks. Click <strong>Assign Setup Tasks</strong> above.
+                            </div>
+                        `;
+                    }
                 } catch (stateErr) {
-                    console.warn('[Admin] Checklist state load failed:', stateErr);
+                    console.warn('[Admin] Checklist summary load failed:', stateErr);
                 }
-            } else if (typeof window.OnboardingChecklist?.isOnboardingCompleted === 'function'
-                && !(await window.OnboardingChecklist.isOnboardingCompleted(userId))) {
-                checklistSummaryHtml = `
-                    <div class="mb-3 p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-xs">
-                        <strong>No setup checklist assigned.</strong> This family should have the Family Hub Setup Checklist in My Tasks. Click <strong>Assign Setup Tasks</strong> above.
-                    </div>
-                `;
             }
 
             if (!tasks.length) {

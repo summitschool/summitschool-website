@@ -970,6 +970,52 @@
         if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
     }
 
+    async function getAdminOnboardingSummary(userId) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return { status: 'unknown' };
+
+        const { data: onboarding, error } = await client
+            .from('family_onboarding')
+            .select('*')
+            .eq('family_user_id', userId)
+            .maybeSingle();
+
+        if (error) {
+            console.warn('[Onboarding] Could not load admin onboarding summary:', error.message);
+            return { status: 'error', message: error.message };
+        }
+
+        if (onboarding?.completed_at) {
+            return {
+                status: 'completed',
+                completedAt: onboarding.completed_at,
+                manualChecks: getManualChecks(onboarding),
+            };
+        }
+
+        const tasks = await fetchActiveTasks(userId);
+        const hasOnboardingTask = tasks.some(isOnboardingTask);
+
+        if (hasOnboardingTask || onboarding) {
+            const state = await getChecklistState(userId);
+            const required = state?.requiredItems
+                || state?.items?.filter((item) => item.required !== false)
+                || [];
+            const pendingLabels = required
+                .filter((item) => !(item.taskComplete && item.manuallyChecked))
+                .map((item) => item.label);
+
+            return {
+                status: 'in_progress',
+                doneCount: required.filter((item) => item.taskComplete && item.manuallyChecked).length,
+                totalCount: required.length,
+                pendingLabels,
+            };
+        }
+
+        return { status: 'missing' };
+    }
+
     window.OnboardingChecklist = {
         ONBOARDING_TASK_TITLE,
         ONBOARDING_TASK_URL,
@@ -993,6 +1039,7 @@
         setupFamilyOnApproval,
         repairFamilyOnboardingIfNeeded,
         isOnboardingCompleted,
+        getAdminOnboardingSummary,
         renderOnboardingTaskCard,
         handleItemToggle,
         markGuideRead,
