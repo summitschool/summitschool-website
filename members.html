@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260772';
+            var BUILD = '20260773';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -1157,7 +1157,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260772"></script>
+    <script src="assets/onboarding-checklist.js?v=20260773"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -4716,7 +4716,8 @@
             }
 
             try {
-                const result = await window.OnboardingChecklist?.forceReopenFamilySetup?.(userId, { throwOnError: true });
+                const result = await window.OnboardingChecklist?.assignSetupTasksViaRpc?.(userId, { throwOnError: true })
+                    || await window.OnboardingChecklist?.forceReopenFamilySetup?.(userId, { throwOnError: true });
                 const name = formatFamilyName(profile);
                 if (result?.repaired) {
                     await showAppAlert(`Setup checklist, Code of Conduct, and ID tasks are now assigned for ${name}.`, { tone: 'success' });
@@ -4766,98 +4767,10 @@
             }
         }
 
-        let conductSignedCleanupDone = false;
-
-        function isSignedConductDocument(doc) {
-            if (!doc || isTaskDocument(doc.category)) return false;
-            const title = String(doc.title || '').trim().toLowerCase();
-            if (title.includes('driver') || title.includes('dmv') || title.includes('enrollment')) return false;
-            return title.includes('scs code of conduct')
-                || title.includes('code of conduct');
-        }
-
-        async function cleanupSignedConductDuplicates() {
-            const { data: { user } } = await supabaseClient?.auth.getUser() || { data: {} };
-            if (conductSignedCleanupDone || !supabaseClient || !isFullAdminUser(user)) return;
-            conductSignedCleanupDone = true;
-
-            const { data: signedDocs, error } = await supabaseClient
-                .from('family_documents')
-                .select('id, user_id, title, category')
-                .or('title.ilike.%2026 - 2027 scs code of conduct%,title.ilike.%scs code of conduct%,title.ilike.%code of conduct%')
-                .not('category', 'ilike', '%task%');
-
-            if (error) {
-                console.warn('[Admin] Conduct cleanup could not load signed documents:', error.message);
-                conductSignedCleanupDone = false;
-                return;
-            }
-
-            const familyIds = [...new Set((signedDocs || [])
-                .filter(isSignedConductDocument)
-                .map((doc) => doc.user_id)
-                .filter(Boolean))];
-
-            for (const familyUserId of familyIds) {
-                const actuallySigned = typeof window.OnboardingChecklist?.isConductActuallySigned === 'function'
-                    ? await window.OnboardingChecklist.isConductActuallySigned(familyUserId)
-                    : false;
-                if (!actuallySigned) continue;
-
-                const { data: onboarding } = await supabaseClient
-                    .from('family_onboarding')
-                    .select('manual_checks, conduct_signed_at')
-                    .eq('family_user_id', familyUserId)
-                    .maybeSingle();
-
-                const manualChecks = onboarding?.manual_checks && typeof onboarding.manual_checks === 'object'
-                    ? onboarding.manual_checks
-                    : {};
-
-                const onboardingPayload = {
-                    family_user_id: familyUserId,
-                    manual_checks: { ...manualChecks, conduct: true },
-                };
-                if (!onboarding?.conduct_signed_at) {
-                    onboardingPayload.conduct_signed_at = new Date().toISOString();
-                }
-
-                let { error: onboardingError } = await supabaseClient
-                    .from('family_onboarding')
-                    .upsert(onboardingPayload, { onConflict: 'family_user_id' });
-
-                if (onboardingError && String(onboardingError.message || '').includes('conduct_signed_at')) {
-                    await supabaseClient
-                        .from('family_onboarding')
-                        .upsert({
-                            family_user_id: familyUserId,
-                            manual_checks: { ...manualChecks, conduct: true },
-                        }, { onConflict: 'family_user_id' });
-                }
-
-                const { data: cocTasks } = await supabaseClient
-                    .from('family_documents')
-                    .select('id, title, category')
-                    .eq('user_id', familyUserId)
-                    .ilike('title', '%code of conduct%')
-                    .ilike('category', '%task%');
-
-                const staleIds = (cocTasks || [])
-                    .filter((task) => window.OnboardingChecklist?.isCodeOfConductTask?.(task) ?? isTaskDocument(task.category))
-                    .map((task) => task.id);
-
-                if (staleIds.length) {
-                    await supabaseClient.from('family_documents').delete().in('id', staleIds);
-                }
-            }
-        }
-
         // Admin-only: Load list of approved families for the upload dropdown
         async function loadAdminFamilies(preserveUserId = null) {
             const select = document.getElementById('admin-family-select');
             if (!select || !supabaseClient) return;
-
-            await cleanupSignedConductDuplicates();
 
             const { data: families, error } = await supabaseClient
                 .from('profiles')
@@ -6223,9 +6136,9 @@
             listEl.innerHTML = '<div class="text-slate-500">Loading tasks...</div>';
 
             let repairNote = '';
-            if (typeof window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded === 'function') {
+            if (typeof window.OnboardingChecklist?.assignSetupTasksViaRpc === 'function') {
                 try {
-                    const repairResult = await window.OnboardingChecklist.repairFamilyOnboardingIfNeeded(userId);
+                    const repairResult = await window.OnboardingChecklist.assignSetupTasksViaRpc(userId);
                     if (repairResult?.repaired) {
                         repairNote = '<div class="mb-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs">Missing setup tasks were assigned automatically for this family.</div>';
                     } else if (repairResult?.missing?.length) {

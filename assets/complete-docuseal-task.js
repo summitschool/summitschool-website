@@ -1,8 +1,6 @@
 (function () {
     const SUPABASE_URL = 'https://tajyrmydwqsijstyzsjr.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy';
-    const CODE_OF_CONDUCT_SLUG = '3oBpb3Knk9GsNB';
-
     function isTaskDocument(category) {
         const normalized = String(category || '').toLowerCase();
         return normalized.includes('(task)') || normalized.includes('task');
@@ -57,29 +55,8 @@
             return;
         }
 
-        if (templateSlug.toLowerCase().includes(CODE_OF_CONDUCT_SLUG.toLowerCase())) {
-            const { data: onboarding } = await client
-                .from('family_onboarding')
-                .select('manual_checks')
-                .eq('family_user_id', user.id)
-                .maybeSingle();
-
-            const manualChecks = onboarding?.manual_checks && typeof onboarding.manual_checks === 'object'
-                ? onboarding.manual_checks
-                : {};
-
-            const { error: onboardingError } = await client
-                .from('family_onboarding')
-                .upsert({
-                    family_user_id: user.id,
-                    manual_checks: { ...manualChecks, conduct: true },
-                    conduct_signed_at: new Date().toISOString(),
-                }, { onConflict: 'family_user_id' });
-
-            if (onboardingError) {
-                console.warn('[DocuSeal task] Could not mark Code of Conduct complete:', onboardingError.message);
-            }
-        }
+        // Code of Conduct completion is recorded only after the signed PDF is archived
+        // to family_documents (hub-form-archive webhook). Do not set conduct_signed_at here.
     }
 
     window.completeDocuSealTask = completeDocuSealTask;

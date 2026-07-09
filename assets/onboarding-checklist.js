@@ -208,6 +208,38 @@
         return markConductCompleted(userId, onboarding);
     }
 
+    async function syncConductStateFromDocuments(userId, onboarding = null) {
+        if (await isConductActuallySigned(userId, onboarding)) {
+            return ensureConductManualCheck(userId, onboarding);
+        }
+        return clearInvalidConductCompletion(userId, onboarding);
+    }
+
+    async function assignSetupTasksViaRpc(userId, options = {}) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return { repaired: false, reason: 'no_client' };
+
+        const throwOnError = options.throwOnError === true;
+        const { data, error } = await client.rpc('admin_assign_family_setup_tasks', {
+            target_user_id: userId,
+        });
+
+        if (error) {
+            console.warn('[Onboarding] RPC assign setup tasks failed:', error.message);
+            if (throwOnError) throw error;
+            return { repaired: false, error };
+        }
+
+        const missing = Array.isArray(data?.missing) ? data.missing.filter(Boolean) : [];
+        if (missing.length) {
+            const message = `Missing setup tasks: ${missing.join(', ')}`;
+            if (throwOnError) throw new Error(message);
+            return { repaired: false, missing, rpc: data };
+        }
+
+        return { repaired: Boolean(data?.ok), rpc: data };
+    }
+
     async function clearInvalidConductCompletion(userId, onboarding = null) {
         if (await isConductActuallySigned(userId, onboarding)) return onboarding;
 
@@ -642,6 +674,9 @@
         if (!client || !userId) return { repaired: false, reason: 'no_client' };
 
         const throwOnError = options.throwOnError === true;
+        const rpcResult = await assignSetupTasksViaRpc(userId, { throwOnError: false });
+        if (rpcResult?.repaired) return rpcResult;
+
         await ensureOnboardingRow(userId);
 
         let { data: onboarding } = await client
@@ -795,8 +830,7 @@
             .eq('family_user_id', userId)
             .maybeSingle();
 
-        onboarding = await clearInvalidConductCompletion(userId, onboarding);
-        onboarding = await ensureConductSignedTimestamp(userId, onboarding);
+        onboarding = await syncConductStateFromDocuments(userId, onboarding);
 
         if (!onboarding?.completed_at) {
             await ensureOnboardingTask(userId);
@@ -1140,7 +1174,7 @@
             return { status: 'error', message: error.message };
         }
 
-        onboarding = await clearInvalidConductCompletion(userId, onboarding);
+        onboarding = await syncConductStateFromDocuments(userId, onboarding);
         const { reopened, onboarding: reopenedOnboarding } = await reopenInvalidOnboardingCompletion(userId, onboarding);
         if (reopened) onboarding = reopenedOnboarding || onboarding;
 
@@ -1199,6 +1233,8 @@
         sortTasksForDisplay,
         setupFamilyOnApproval,
         repairFamilyOnboardingIfNeeded,
+        assignSetupTasksViaRpc,
+        syncConductStateFromDocuments,
         forceReopenFamilySetup,
         forceAssignSetupTasks: forceReopenFamilySetup,
         needsCodeOfConductTask,
