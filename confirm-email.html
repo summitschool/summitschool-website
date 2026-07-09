@@ -23,6 +23,22 @@
                 window.location.replace('members.html' + search + hash);
             }
         })();
+        (function () {
+            var search = window.location.search || '';
+            var hash = window.location.hash || '';
+            if (search.indexOf('type=recovery') !== -1 || hash.indexOf('type=recovery') !== -1) return;
+
+            var params = new URLSearchParams(search);
+            var hashParams = new URLSearchParams(hash.charAt(0) === '#' ? hash.slice(1) : hash);
+            var err = params.get('error_description') || params.get('error')
+                || hashParams.get('error_description') || hashParams.get('error');
+            if (!err) return;
+
+            try {
+                sessionStorage.setItem('resend_confirmation_reason', 'expired');
+            } catch (e) {}
+            window.location.replace('members.html?resend=1#resend-confirmation');
+        })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -114,6 +130,8 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy';
         const OAUTH_CALLBACK_KEY = 'members_oauth_callback_pending';
         const OAUTH_ATTEMPT_MAX_AGE_MS = 10 * 60 * 1000;
+        const RESEND_CONFIRMATION_REASON_KEY = 'resend_confirmation_reason';
+        const RESEND_CONFIRMATION_URL = 'members.html?resend=1#resend-confirmation';
 
         function hasPendingOAuthAttempt() {
             const ts = localStorage.getItem(OAUTH_CALLBACK_KEY);
@@ -187,13 +205,18 @@
             return 'email';
         }
 
+        function redirectToResendConfirmation(reason = 'expired') {
+            try {
+                sessionStorage.setItem(RESEND_CONFIRMATION_REASON_KEY, reason);
+            } catch (e) {}
+            window.location.replace(RESEND_CONFIRMATION_URL);
+        }
+
         function isBenignConfirmationError(error) {
             const msg = String(error?.message || error || '').toLowerCase();
-            return msg.includes('expired')
-                || msg.includes('invalid')
-                || msg.includes('already')
-                || msg.includes('used')
-                || msg.includes('not found');
+            return (msg.includes('already') || msg.includes('used'))
+                && !msg.includes('expired')
+                && !msg.includes('invalid');
         }
 
         function showConfirmedSuccess(message) {
@@ -222,12 +245,7 @@
                 || searchParams.get('error_description') || searchParams.get('error');
 
             if (hashError) {
-                const errorMessage = document.getElementById('confirm-error-message');
-                if (errorMessage) {
-                    errorMessage.textContent = decodeURIComponent(hashError.replace(/\+/g, ' '));
-                }
-                history.replaceState(null, '', window.location.pathname);
-                showPanel('confirm-error');
+                redirectToResendConfirmation('expired');
                 return;
             }
 
@@ -243,7 +261,7 @@
             showPanel('confirm-loading');
 
             if (!window.supabase) {
-                showPanel('confirm-error');
+                redirectToResendConfirmation('expired');
                 return;
             }
 
@@ -302,20 +320,20 @@
                     return;
                 }
 
-                if (hadAuthCallback && (!confirmError || isBenignConfirmationError(confirmError))) {
+                if (hadAuthCallback && confirmError && isBenignConfirmationError(confirmError)) {
                     showConfirmedSuccess('Your email appears to be confirmed already. You can sign in to the Family Hub below while your account awaits approval.');
                     return;
                 }
 
-                history.replaceState(null, '', window.location.pathname);
-                const errorMessage = document.getElementById('confirm-error-message');
-                if (errorMessage) {
-                    errorMessage.textContent = confirmError?.message || 'This confirmation link could not be verified.';
+                if (hadAuthCallback) {
+                    redirectToResendConfirmation('expired');
+                    return;
                 }
-                showPanel('confirm-error');
+
+                redirectToResendConfirmation('expired');
             } catch (err) {
                 console.error('confirm-email init failed:', err);
-                showPanel('confirm-error');
+                redirectToResendConfirmation('expired');
             } finally {
                 authSubscription?.data?.subscription?.unsubscribe();
             }
@@ -422,13 +440,13 @@
             document.addEventListener('DOMContentLoaded', () => {
                 init().catch((err) => {
                     console.error('confirm-email boot failed:', err);
-                    showPanel('confirm-error');
+                    redirectToResendConfirmation('expired');
                 });
             });
         } else {
             init().catch((err) => {
                 console.error('confirm-email boot failed:', err);
-                showPanel('confirm-error');
+                redirectToResendConfirmation('expired');
             });
         }
     </script>

@@ -340,9 +340,9 @@
         return data;
     }
 
-    async function insertTaskIfMissing(userId, matchFn, payload) {
+    async function insertTaskIfMissing(userId, matchFn, payload, options = {}) {
         const client = window.supabaseClient;
-        if (!client || !userId) return;
+        if (!client || !userId) return { created: false, skipped: true };
 
         const { data: docs } = await client
             .from('family_documents')
@@ -350,15 +350,20 @@
             .eq('user_id', userId);
 
         const existing = (docs || []).find((doc) => isTaskDocument(doc) && matchFn(doc));
-        if (existing?.id) return;
+        if (existing?.id) return { created: false, skipped: true, existingId: existing.id };
 
         const { error } = await client.from('family_documents').insert(payload);
-        if (error) console.warn('[Onboarding] Could not create task:', error.message);
+        if (error) {
+            console.warn('[Onboarding] Could not create task:', error.message, payload?.title || '');
+            if (options.throwOnError) throw error;
+            return { created: false, error };
+        }
+        return { created: true };
     }
 
-    async function ensureOnboardingTask(userId) {
+    async function ensureOnboardingTask(userId, options = {}) {
         const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
-        await insertTaskIfMissing(
+        return insertTaskIfMissing(
             userId,
             (doc) => String(doc.url || '') === ONBOARDING_TASK_URL,
             {
@@ -370,7 +375,8 @@
                 school_year: schoolYear,
                 due_date_1: softDueDate(14),
                 due_date_1_cleared: false,
-            }
+            },
+            options
         );
     }
 
@@ -457,7 +463,7 @@
         await syncCodeOfConductTaskUrl(userId);
     }
 
-    async function assignIdTaskOnApproval(userId) {
+    async function assignIdTaskOnApproval(userId, options = {}) {
         const client = window.supabaseClient;
         if (!client || !userId) return;
 
@@ -469,7 +475,7 @@
 
         const std = stds?.[0];
         const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
-        await insertTaskIfMissing(
+        return insertTaskIfMissing(
             userId,
             isIdUploadTask,
             {
@@ -481,15 +487,59 @@
                 school_year: schoolYear,
                 due_date_1: softDueDate(14),
                 due_date_1_cleared: false,
-            }
+            },
+            options
         );
     }
 
-    async function setupFamilyOnApproval(userId) {
+    async function isOnboardingCompleted(userId) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return false;
+
+        const { data: onboarding } = await client
+            .from('family_onboarding')
+            .select('completed_at')
+            .eq('family_user_id', userId)
+            .maybeSingle();
+
+        return Boolean(onboarding?.completed_at);
+    }
+
+    async function repairFamilyOnboardingIfNeeded(userId, options = {}) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return { repaired: false, reason: 'no_client' };
+
+        if (await isOnboardingCompleted(userId)) {
+            return { repaired: false, reason: 'completed' };
+        }
+
+        const throwOnError = options.throwOnError === true;
         await ensureOnboardingRow(userId);
-        await ensureOnboardingTask(userId);
+        await ensureOnboardingTask(userId, { throwOnError });
         await assignCodeOfConductTaskOnApproval(userId);
-        await assignIdTaskOnApproval(userId);
+        await assignIdTaskOnApproval(userId, { throwOnError });
+
+        const tasks = await fetchActiveTasks(userId);
+        const missing = [];
+        if (!tasks.some(isOnboardingTask)) missing.push(ONBOARDING_TASK_TITLE);
+        if (!tasks.some(isCodeOfConductTask) && !await isConductMarkedComplete(userId)) {
+            missing.push(CODE_OF_CONDUCT_TITLE);
+        }
+        if (!tasks.some(isIdUploadTask) && !await isIdUploaded(userId)) {
+            missing.push(ID_TASK_TITLE);
+        }
+
+        if (missing.length) {
+            const message = `Missing setup tasks: ${missing.join(', ')}`;
+            if (throwOnError) throw new Error(message);
+            return { repaired: false, reason: 'partial', missing };
+        }
+
+        return { repaired: true };
+    }
+
+    async function setupFamilyOnApproval(userId) {
+        return repairFamilyOnboardingIfNeeded(userId, { throwOnError: true });
     }
 
     function getManualChecks(onboarding) {
@@ -541,6 +591,8 @@
         onboarding = await ensureConductSignedTimestamp(userId, onboarding);
 
         if (!onboarding?.completed_at) {
+            await ensureOnboardingTask(userId);
+
             const activeTasks = await fetchActiveTasks(userId);
             if (activeTasks.some(isOnboardingTask)) {
                 await removeStaleCodeOfConductTasks(userId, onboarding);
@@ -880,6 +932,8 @@
         removeStaleCodeOfConductTasks,
         sortTasksForDisplay,
         setupFamilyOnApproval,
+        repairFamilyOnboardingIfNeeded,
+        isOnboardingCompleted,
         renderOnboardingTaskCard,
         handleItemToggle,
         markGuideRead,

@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260764';
+            var BUILD = '20260767';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -772,6 +772,10 @@
                                     <select id="admin-family-select" required class="form-input flex-1 px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" onchange="onAdminFamilyChange()">
                                         <option value="">Loading families...</option>
                                     </select>
+                                    <button type="button" onclick="assignSetupTasksForSelectedFamily()"
+                                            class="px-5 py-3 border border-amber-200 text-amber-900 font-semibold rounded-2xl hover:bg-amber-50 transition-all text-sm whitespace-nowrap">
+                                        Assign Setup Tasks
+                                    </button>
                                     <button type="button" onclick="resendApprovalEmailForSelectedFamily()"
                                             class="px-5 py-3 border border-emerald-200 text-emerald-800 font-semibold rounded-2xl hover:bg-emerald-50 transition-all text-sm whitespace-nowrap">
                                         Resend Approval Email
@@ -1153,7 +1157,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260763"></script>
+    <script src="assets/onboarding-checklist.js?v=20260767"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -1793,6 +1797,7 @@
         }
 
         const FAMILY_HUB_CONTACT_URL = 'index.html?interest=family-hub-help#contact';
+        const RESEND_CONFIRMATION_REASON_KEY = 'resend_confirmation_reason';
 
         function showSignupStatus(type, message, options = {}) {
             const statusEl = document.getElementById('signup-status');
@@ -2052,6 +2057,56 @@
             return false;
         }
 
+        function redirectToResendConfirmation(reason = 'expired', email = '') {
+            try {
+                sessionStorage.setItem(RESEND_CONFIRMATION_REASON_KEY, reason);
+                if (email) sessionStorage.setItem('last_signup_email', email);
+            } catch (e) {}
+
+            const loginView = document.getElementById('login-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const pendingView = document.getElementById('pending-view');
+            if (loginView) loginView.classList.remove('hidden');
+            if (dashboardView) dashboardView.classList.add('hidden');
+            if (pendingView) pendingView.classList.add('hidden');
+
+            const target = 'members.html?resend=1#resend-confirmation';
+            const onResendPage = window.location.pathname.endsWith('members.html')
+                && window.location.hash === '#resend-confirmation';
+            if (onResendPage) {
+                showResendConfirmationPanel(email);
+                return;
+            }
+            window.location.replace(target);
+        }
+
+        function showResendConfirmationAutoMessage() {
+            let reason = '';
+            try {
+                reason = sessionStorage.getItem(RESEND_CONFIRMATION_REASON_KEY) || '';
+            } catch (e) {}
+
+            const params = new URLSearchParams(window.location.search);
+            const prompted = Boolean(reason || params.get('resend'));
+            if (!prompted) return;
+
+            const messages = {
+                expired: 'Your confirmation link expired or is no longer valid. Enter your email below — we\'ll send a fresh link right now.',
+                not_confirmed: 'You need to confirm your email before signing in. Enter your email below and we\'ll send a new confirmation link.',
+                login: 'Your email is not confirmed yet. Enter your email below and we\'ll send a new confirmation link.',
+            };
+
+            showResendConfirmationStatus('warning', messages[reason] || messages.expired);
+
+            try {
+                sessionStorage.removeItem(RESEND_CONFIRMATION_REASON_KEY);
+            } catch (e) {}
+
+            if (params.get('resend')) {
+                history.replaceState(null, '', window.location.pathname + window.location.hash);
+            }
+        }
+
         function showResendConfirmationPanel(prefillEmail = '') {
             const loginContainer = document.getElementById('login-form-container');
             const signupContainer = document.getElementById('signup-form-container');
@@ -2095,6 +2150,11 @@
             }
 
             resendContainer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            showResendConfirmationAutoMessage();
+
+            if (resendEmail) {
+                window.setTimeout(() => resendEmail.focus(), 150);
+            }
         }
 
         async function requestPasswordResetEmail(email) {
@@ -3520,6 +3580,14 @@
                     // Load member banner if active
                     loadMemberBanner();
 
+                    try {
+                        if (typeof window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded === 'function') {
+                            await window.OnboardingChecklist.repairFamilyOnboardingIfNeeded(user.id);
+                        }
+                    } catch (repairErr) {
+                        console.warn('[Family Hub] Onboarding repair skipped:', repairErr?.message || repairErr);
+                    }
+
                     // Load My Tasks (for badge + list)
                     if (typeof loadMyTasks === 'function') loadMyTasks();
 
@@ -4557,26 +4625,28 @@
             loadPendingApprovals();
             loadAdminFamilies();
 
-            if (!profile?.email) {
-                showPendingApprovalsStatus('warning', 'Family approved, but no email is on file — they will not receive an approval email.');
-                return;
-            }
-
+            let setupWarning = '';
             try {
                 if (typeof window.OnboardingChecklist?.setupFamilyOnApproval === 'function') {
                     await window.OnboardingChecklist.setupFamilyOnApproval(profileId);
                 }
             } catch (setupErr) {
                 console.error('Family Hub setup tasks failed:', setupErr);
+                setupWarning = ` Setup tasks may be incomplete: ${setupErr?.message || setupErr}. Use Assign Setup Tasks on the Families tab or ask the family to sign in once.`;
+            }
+
+            if (!profile?.email) {
+                showPendingApprovalsStatus('warning', `Family approved, but no email is on file — they will not receive an approval email.${setupWarning}`);
+                return;
             }
 
             try {
                 await sendApprovalEmail(profile);
                 const name = formatFamilyName(profile);
-                showPendingApprovalsStatus('success', `Family approved! Setup checklist, Code of Conduct, and ID tasks assigned. Approval email sent to ${name} at ${profile.email}.`);
+                showPendingApprovalsStatus('success', `Family approved! Setup checklist, Code of Conduct, and ID tasks assigned. Approval email sent to ${name} at ${profile.email}.${setupWarning}`);
             } catch (emailErr) {
                 console.error('Approval email failed:', emailErr);
-                showPendingApprovalsStatus('warning', `Family approved and setup tasks assigned, but the approval email could not be sent to ${profile.email}: ${emailErr.message || emailErr}`);
+                showPendingApprovalsStatus('warning', `Family approved and setup tasks assigned, but the approval email could not be sent to ${profile.email}: ${emailErr.message || emailErr}.${setupWarning}`);
             }
         }
 
@@ -4613,6 +4683,56 @@
             }
 
             loadPendingApprovals();
+        }
+
+        async function assignSetupTasksForSelectedFamily() {
+            if (!supabaseClient) return;
+
+            const select = document.getElementById('admin-family-select');
+            const userId = select?.value;
+            if (!userId) {
+                await showAppAlert('Select an approved family first.');
+                return;
+            }
+
+            const { data: profile, error } = await supabaseClient
+                .from('profiles')
+                .select('id, first_name, last_name, full_name, email, approved')
+                .eq('id', userId)
+                .maybeSingle();
+
+            if (error || !profile) {
+                await showAppAlert('Failed to load family details: ' + (error?.message || 'Not found'));
+                return;
+            }
+
+            if (!profile.approved) {
+                await showAppAlert('This family is not approved yet. Approve them first on the Signups tab.');
+                return;
+            }
+
+            if (typeof window.OnboardingChecklist?.isOnboardingCompleted === 'function'
+                && await window.OnboardingChecklist.isOnboardingCompleted(userId)) {
+                await showAppAlert('This family already finished the setup checklist.', { tone: 'success' });
+                return;
+            }
+
+            try {
+                const result = await window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded?.(userId, { throwOnError: true });
+                const name = formatFamilyName(profile);
+                if (result?.repaired) {
+                    await showAppAlert(`Setup checklist, Code of Conduct, and ID tasks are now assigned for ${name}.`, { tone: 'success' });
+                } else if (result?.missing?.length) {
+                    await showAppAlert(`Some setup tasks could not be assigned: ${result.missing.join(', ')}. Check staff permissions or run supabase/staff-signups-onboarding-tasks.sql.`);
+                } else {
+                    await showAppAlert(`Setup tasks are already in place for ${name}.`, { tone: 'success' });
+                }
+                loadAdminFamilyTasks();
+                if (typeof loadMyTasks === 'function') loadMyTasks({ force: true });
+            } catch (err) {
+                console.error('Assign setup tasks failed:', err);
+                await showAppAlert(`Could not assign setup tasks: ${err?.message || err}`);
+            }
         }
 
         async function resendApprovalEmailForSelectedFamily() {
@@ -6092,6 +6212,20 @@
 
             listEl.innerHTML = '<div class="text-slate-500">Loading tasks...</div>';
 
+            let repairNote = '';
+            if (typeof window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded === 'function') {
+                try {
+                    const repairResult = await window.OnboardingChecklist.repairFamilyOnboardingIfNeeded(userId);
+                    if (repairResult?.repaired) {
+                        repairNote = '<div class="mb-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs">Missing setup tasks were assigned automatically for this family.</div>';
+                    } else if (repairResult?.missing?.length) {
+                        repairNote = `<div class="mb-3 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs">Setup tasks still missing: ${escapeHtml(repairResult.missing.join(', '))}. Click <strong>Assign Setup Tasks</strong> above or run the onboarding backfill SQL.</div>`;
+                    }
+                } catch (repairErr) {
+                    console.warn('[Admin] Onboarding repair failed:', repairErr);
+                }
+            }
+
             const { data: docs, error } = await supabaseClient
                 .from('family_documents')
                 .select('id, title, url, created_at, category, school_year, due_date_1, due_date_2, due_date_1_cleared')
@@ -6116,17 +6250,48 @@
                 }
             }
 
+            let checklistSummaryHtml = '';
+            const onboardingTask = tasks.find((task) => window.OnboardingChecklist?.isOnboardingTask?.(task));
+            if (onboardingTask && window.OnboardingChecklist?.getChecklistState) {
+                try {
+                    const state = await window.OnboardingChecklist.getChecklistState(userId);
+                    const required = state?.requiredItems || state?.items?.filter((item) => item.required !== false) || [];
+                    const doneCount = required.filter((item) => item.taskComplete && item.manuallyChecked).length;
+                    const pendingLabels = required
+                        .filter((item) => !(item.taskComplete && item.manuallyChecked))
+                        .map((item) => item.label);
+                    checklistSummaryHtml = `
+                        <div class="mb-3 p-3 rounded-xl border border-navy/15 bg-white/90 text-xs text-slate-700">
+                            <div class="font-semibold text-navy">Setup checklist progress: ${doneCount}/${required.length} complete</div>
+                            ${pendingLabels.length
+                                ? `<div class="mt-1 text-slate-600">Still needed: ${escapeHtml(pendingLabels.join(' · '))}</div>`
+                                : '<div class="mt-1 text-emerald-700">All checklist steps are done — family can tap Complete setup checklist in My Tasks.</div>'}
+                        </div>
+                    `;
+                } catch (stateErr) {
+                    console.warn('[Admin] Checklist state load failed:', stateErr);
+                }
+            } else if (typeof window.OnboardingChecklist?.isOnboardingCompleted === 'function'
+                && !(await window.OnboardingChecklist.isOnboardingCompleted(userId))) {
+                checklistSummaryHtml = `
+                    <div class="mb-3 p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-xs">
+                        <strong>No setup checklist assigned.</strong> This family should have the Family Hub Setup Checklist in My Tasks. Click <strong>Assign Setup Tasks</strong> above.
+                    </div>
+                `;
+            }
+
             if (!tasks.length) {
-                listEl.innerHTML = '<div class="text-slate-500 text-xs italic">No active tasks for this family.</div>';
+                listEl.innerHTML = repairNote + checklistSummaryHtml + '<div class="text-slate-500 text-xs italic">No active tasks for this family.</div>';
                 return;
             }
 
-            let html = '<div class="space-y-3">';
+            let html = repairNote + checklistSummaryHtml + '<div class="space-y-3">';
             tasks.forEach(task => {
+                const isChecklist = window.OnboardingChecklist?.isOnboardingTask?.(task);
                 html += `
-                    <div class="border border-amber-200/80 rounded-xl p-3 bg-white/80">
+                    <div class="border ${isChecklist ? 'border-navy/25' : 'border-amber-200/80'} rounded-xl p-3 bg-white/80">
                         <div class="flex items-start justify-between gap-2">
-                            <div class="font-medium text-navy text-sm">${escapeHtml(task.title)}</div>
+                            <div class="font-medium text-navy text-sm">${escapeHtml(task.title)}${isChecklist ? ' <span class="text-[10px] font-semibold uppercase tracking-wide text-navy/70">Checklist</span>' : ''}</div>
                             <button type="button" onclick="deleteAdminFamilyDoc('${task.id}', this)" class="text-xs px-2 py-0.5 border border-red-200 text-red-600 rounded hover:bg-red-50 shrink-0">Delete</button>
                         </div>
                         <div class="text-[10px] text-slate-500 mt-0.5">Assigned ${new Date(task.created_at).toLocaleDateString()}</div>
@@ -7118,11 +7283,7 @@
                     submitBtn.disabled = false;
                 }
                 if (isEmailNotConfirmedError(error)) {
-                    showResendConfirmationPanel(email);
-                    showLoginStatus(
-                        'warning',
-                        'Your email is not confirmed yet. We opened the confirmation helper below — tap "Email Me a New Confirmation Link", then check your inbox and spam folder.'
-                    );
+                    redirectToResendConfirmation('not_confirmed', email);
                     return;
                 }
                 showLoginStatus('error', 'Login failed: ' + (error.message || 'Please try again.'));
@@ -7224,9 +7385,9 @@
                 } catch (e) {}
                 showSignupStatus(
                     'warning',
-                    'An account with this email already exists. If you never confirmed your email, tap "Didn\'t confirm your email yet?" on the Sign In tab to get a fresh confirmation link.'
+                    'An account with this email already exists. Sending you to get a fresh confirmation link now…'
                 );
-                showResendConfirmationPanel(email);
+                redirectToResendConfirmation('not_confirmed', email);
                 signupInProgress = false;
                 return;
             }
@@ -7392,7 +7553,11 @@
                 if (!oauthCallbackInProgress) {
                     if (authTabHash === '#signup' || authTabHash === '#create-account') {
                         showAuthTab('signup');
-                    } else if (authTabHash === '#resend-confirmation' || authTabHash === '#confirm-email') {
+                    } else if (
+                        authTabHash === '#resend-confirmation'
+                        || authTabHash === '#confirm-email'
+                        || new URLSearchParams(window.location.search).get('resend')
+                    ) {
                         showResendConfirmationPanel();
                     } else {
                         showAuthTab('login');
