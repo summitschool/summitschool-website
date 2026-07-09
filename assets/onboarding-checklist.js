@@ -1191,17 +1191,19 @@
 
         if (hasOnboardingTask || onboarding) {
             const state = await getChecklistState(userId);
-            const required = state?.requiredItems
-                || state?.items?.filter((item) => item.required !== false)
-                || [];
-            const pendingLabels = required
+            const items = state?.items || [];
+            const pendingLabels = items
                 .filter((item) => !(item.taskComplete && item.manuallyChecked))
-                .map((item) => item.label);
+                .map((item) => (
+                    item.required === false
+                        ? `${item.label} (optional for K–8)`
+                        : item.label
+                ));
 
             return {
                 status: 'in_progress',
-                doneCount: required.filter((item) => item.taskComplete && item.manuallyChecked).length,
-                totalCount: required.length,
+                doneCount: items.filter((item) => item.taskComplete && item.manuallyChecked).length,
+                totalCount: items.length,
                 pendingLabels,
             };
         }
