@@ -112,4 +112,9 @@ WHERE p.approved = true
     WHERE fd.user_id = p.id
       AND coalesce(fd.category, '') ILIKE '%ID%'
       AND coalesce(fd.category, '') NOT ILIKE '%task%'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM public.id_uploads iu
+    WHERE iu.user_id = p.id
+      AND iu.status IN ('pending', 'approved')
   );

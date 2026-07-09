@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260767';
+            var BUILD = '20260768';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -1157,7 +1157,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260767"></script>
+    <script src="assets/onboarding-checklist.js?v=20260768"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -3446,6 +3446,10 @@
                     if (docInsertErr) {
                         console.error('[ID Upload] family_documents insert failed:', docInsertErr);
                         throw docInsertErr;
+                    }
+
+                    if (typeof window.OnboardingChecklist?.markIdSubmitted === 'function') {
+                        await window.OnboardingChecklist.markIdSubmitted(user.id);
                     }
                 }
 
@@ -5856,6 +5860,9 @@
 
                     await purgePendingIdDocumentRows(doc.user_id, docId);
                     await cleanupPendingIdStorageForUser(doc.user_id, [originalUrl, finalUrl]);
+                    if (typeof window.OnboardingChecklist?.markIdSubmitted === 'function') {
+                        await window.OnboardingChecklist.markIdSubmitted(doc.user_id);
+                    }
                     approveStorageMoved = storageMoved || !isPendingIdStoragePath(finalUrl);
                 } else if (source === 'id_uploads') {
                     const { data: upload, error: fetchError } = await supabaseClient
@@ -5892,6 +5899,9 @@
 
                     await purgePendingIdDocumentRows(upload.user_id, approvedDoc?.id);
                     await cleanupPendingIdStorageForUser(upload.user_id, [originalUrl, finalUrl]);
+                    if (typeof window.OnboardingChecklist?.markIdSubmitted === 'function') {
+                        await window.OnboardingChecklist.markIdSubmitted(upload.user_id);
+                    }
                     approveStorageMoved = storageMoved || !isPendingIdStoragePath(finalUrl);
                 }
 

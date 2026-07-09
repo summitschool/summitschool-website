@@ -243,11 +243,10 @@
         return markConductCompleted(userId, onboarding);
     }
 
-    async function isIdUploaded(userId) {
-        const tasks = await fetchActiveTasks(userId);
-        if (tasks.some(isIdUploadTask)) return false;
-
+    async function hasIdSubmissionOnFile(userId) {
         const client = window.supabaseClient;
+        if (!client || !userId) return false;
+
         const { data: uploads } = await client
             .from('id_uploads')
             .select('id, status')
@@ -258,12 +257,60 @@
 
         const { data: idDocs } = await client
             .from('family_documents')
-            .select('id, title')
+            .select('id, title, category')
             .eq('user_id', userId)
             .ilike('category', '%ID%')
-            .ilike('title', '%Government ID on File%')
-            .limit(1);
-        return Boolean(idDocs?.length);
+            .not('category', 'ilike', '%task%');
+
+        return (idDocs || []).some((doc) => {
+            const title = String(doc.title || '').trim().toLowerCase();
+            return title.includes('government id on file')
+                || title.includes('government id (pending admin review)')
+                || title.includes('government id');
+        });
+    }
+
+    async function isIdUploaded(userId) {
+        return hasIdSubmissionOnFile(userId);
+    }
+
+    async function removeStaleIdUploadTasks(userId) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return;
+
+        if (!(await hasIdSubmissionOnFile(userId))) return;
+
+        const tasks = await fetchActiveTasks(userId);
+        const staleIds = tasks.filter(isIdUploadTask).map((task) => task.id);
+        if (!staleIds.length) return;
+
+        const { error } = await client
+            .from('family_documents')
+            .delete()
+            .in('id', staleIds);
+        if (error) console.warn('[Onboarding] Could not remove stale ID task:', error.message);
+    }
+
+    async function ensureIdManualCheck(userId, onboarding = null) {
+        if (!(await hasIdSubmissionOnFile(userId))) return onboarding;
+        if (getManualChecks(onboarding).id) return onboarding;
+
+        await setManualCheck(userId, 'id', true, { soft: true });
+        const client = window.supabaseClient;
+        if (!client || !userId) return onboarding;
+
+        const { data: refreshed } = await client
+            .from('family_onboarding')
+            .select('*')
+            .eq('family_user_id', userId)
+            .maybeSingle();
+        return refreshed || onboarding;
+    }
+
+    async function markIdSubmitted(userId) {
+        if (!userId) return;
+        await removeStaleIdUploadTasks(userId);
+        await setManualCheck(userId, 'id', true, { soft: true });
     }
 
     function buildIdTaskDescriptionAfterDenial(denialReason, stdDescription = '') {
@@ -467,6 +514,11 @@
         const client = window.supabaseClient;
         if (!client || !userId) return;
 
+        if (await hasIdSubmissionOnFile(userId)) {
+            await removeStaleIdUploadTasks(userId);
+            return { created: false, skipped: true };
+        }
+
         const { data: stds } = await client
             .from('standard_documents')
             .select('*')
@@ -517,6 +569,7 @@
         await ensureOnboardingRow(userId);
         await ensureOnboardingTask(userId, { throwOnError });
         await assignCodeOfConductTaskOnApproval(userId);
+        await removeStaleIdUploadTasks(userId);
         await assignIdTaskOnApproval(userId, { throwOnError });
 
         const tasks = await fetchActiveTasks(userId);
@@ -606,6 +659,8 @@
                     }
                 }
 
+                await removeStaleIdUploadTasks(userId);
+
                 const refreshedTasks = await fetchActiveTasks(userId);
                 const hasIdTask = refreshedTasks.some(isIdUploadTask);
                 if (!await isIdUploaded(userId) && !hasIdTask) {
@@ -615,6 +670,7 @@
         }
 
         onboarding = await ensureConductManualCheck(userId, onboarding);
+        onboarding = await ensureIdManualCheck(userId, onboarding);
 
         const { data: refreshedOnboarding } = await client
             .from('family_onboarding')
@@ -930,6 +986,9 @@
         hasSignedCodeOfConductDocument,
         markConductCompleted,
         removeStaleCodeOfConductTasks,
+        removeStaleIdUploadTasks,
+        markIdSubmitted,
+        hasIdSubmissionOnFile,
         sortTasksForDisplay,
         setupFamilyOnApproval,
         repairFamilyOnboardingIfNeeded,
