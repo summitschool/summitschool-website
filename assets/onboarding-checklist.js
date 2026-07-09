@@ -1085,6 +1085,28 @@
         `;
     }
 
+    async function refreshOnboardingTaskCard(userId) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return false;
+
+        const existingCard = document.getElementById('onboarding-task-card');
+        if (!existingCard) return false;
+
+        const tasks = await fetchActiveTasks(userId);
+        const onboardingTask = tasks.find(isOnboardingTask);
+        if (!onboardingTask) return false;
+
+        const state = await getChecklistState(userId);
+        const html = await renderOnboardingTaskCard(onboardingTask, state);
+        const template = document.createElement('template');
+        template.innerHTML = html.trim();
+        const newCard = template.content.firstElementChild;
+        if (!newCard) return false;
+
+        existingCard.replaceWith(newCard);
+        return true;
+    }
+
     async function handleItemToggle(itemId, checkbox) {
         const client = window.supabaseClient;
         const { data: { user } } = await client.auth.getUser();
@@ -1093,6 +1115,7 @@
         if (!checkbox.checked) {
             try {
                 await setManualCheck(user.id, itemId, false);
+                await refreshOnboardingTaskCard(user.id);
             } catch (err) {
                 checkbox.checked = true;
                 await window.showAppAlert?.(err.message || String(err));
@@ -1110,7 +1133,10 @@
 
         try {
             await setManualCheck(user.id, itemId, true);
-            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
+            const refreshed = await refreshOnboardingTaskCard(user.id);
+            if (!refreshed && typeof window.loadMyTasks === 'function') {
+                await window.loadMyTasks({ force: true });
+            }
         } catch (err) {
             checkbox.checked = false;
             await window.showAppAlert?.(err.message || String(err));
@@ -1123,7 +1149,10 @@
         if (!user) return;
         try {
             await setGuideReadFlag(user.id);
-            if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
+            const refreshed = await refreshOnboardingTaskCard(user.id);
+            if (!refreshed && typeof window.loadMyTasks === 'function') {
+                await window.loadMyTasks({ force: true });
+            }
         } catch (err) {
             await window.showAppAlert?.(err.message || String(err));
         }
@@ -1158,7 +1187,14 @@
     }
 
     async function refresh() {
-        if (typeof window.loadMyTasks === 'function') await window.loadMyTasks({ force: true });
+        const client = window.supabaseClient;
+        const { data: { user } } = await client.auth.getUser();
+        if (!user) return;
+
+        const refreshed = await refreshOnboardingTaskCard(user.id);
+        if (!refreshed && typeof window.loadMyTasks === 'function') {
+            await window.loadMyTasks({ force: true });
+        }
     }
 
     async function getAdminOnboardingSummary(userId) {
@@ -1249,6 +1285,7 @@
         markGuideRead,
         finish,
         refresh,
+        refreshOnboardingTaskCard,
         getChecklistState,
         reopenIdUploadTaskAfterDenial,
         buildIdTaskDescriptionAfterDenial,
