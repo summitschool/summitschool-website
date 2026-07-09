@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260771';
+            var BUILD = '20260772';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -1157,7 +1157,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260771"></script>
+    <script src="assets/onboarding-checklist.js?v=20260772"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -4715,19 +4715,15 @@
                 return;
             }
 
-            if (typeof window.OnboardingChecklist?.isOnboardingCompleted === 'function'
-                && await window.OnboardingChecklist.isOnboardingCompleted(userId)) {
-                await showAppAlert('This family already finished the setup checklist.', { tone: 'success' });
-                return;
-            }
-
             try {
-                const result = await window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded?.(userId, { throwOnError: true });
+                const result = await window.OnboardingChecklist?.forceReopenFamilySetup?.(userId, { throwOnError: true });
                 const name = formatFamilyName(profile);
                 if (result?.repaired) {
                     await showAppAlert(`Setup checklist, Code of Conduct, and ID tasks are now assigned for ${name}.`, { tone: 'success' });
                 } else if (result?.missing?.length) {
-                    await showAppAlert(`Some setup tasks could not be assigned: ${result.missing.join(', ')}. Check staff permissions or run supabase/staff-signups-onboarding-tasks.sql.`);
+                    await showAppAlert(`Some setup tasks could not be assigned: ${result.missing.join(', ')}. Check staff permissions or run supabase/staff-families-onboarding-manage.sql.`);
+                } else if (result?.reason === 'completed') {
+                    await showAppAlert(`${name} already finished the setup checklist with a signed Code of Conduct.`, { tone: 'success' });
                 } else {
                     await showAppAlert(`Setup tasks are already in place for ${name}.`, { tone: 'success' });
                 }
@@ -4777,8 +4773,7 @@
             const title = String(doc.title || '').trim().toLowerCase();
             if (title.includes('driver') || title.includes('dmv') || title.includes('enrollment')) return false;
             return title.includes('scs code of conduct')
-                || title.includes('code of conduct')
-                || title.includes('conduct');
+                || title.includes('code of conduct');
         }
 
         async function cleanupSignedConductDuplicates() {
@@ -4804,6 +4799,11 @@
                 .filter(Boolean))];
 
             for (const familyUserId of familyIds) {
+                const actuallySigned = typeof window.OnboardingChecklist?.isConductActuallySigned === 'function'
+                    ? await window.OnboardingChecklist.isConductActuallySigned(familyUserId)
+                    : false;
+                if (!actuallySigned) continue;
+
                 const { data: onboarding } = await supabaseClient
                     .from('family_onboarding')
                     .select('manual_checks, conduct_signed_at')

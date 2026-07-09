@@ -93,6 +93,7 @@
 
         const title = String(doc.title || '').trim().toLowerCase();
         const category = String(doc.category || '').trim().toLowerCase();
+        if (title.includes('enrollment') || category.includes('enrollment')) return false;
         const description = String(doc.description || '').trim().toLowerCase();
         const normalizedStdTitle = String(stdTitle || '').trim().toLowerCase();
         const url = String(doc.url || '').trim();
@@ -102,12 +103,10 @@
         if (title === signedTitle || title.includes('scs code of conduct')) return true;
         if (title.includes('code of conduct')) return true;
         if (normalizedStdTitle && title === normalizedStdTitle) return true;
-        if (title.includes('conduct') && !title.includes('driver') && !title.includes('dmv')) return true;
 
         if (category.includes('signed form') && isStoredPdf && description.includes('signed and saved to your family hub')) {
             if (title.includes('driver') || title.includes('dmv') || title.includes('enrollment')) return false;
-            if (title.includes('conduct') || title.includes('code of conduct')) return true;
-            if (normalizedStdTitle && title.includes(normalizedStdTitle.split(' ')[0])) return true;
+            return title.includes('code of conduct') || title.includes('scs code of conduct');
         }
 
         return false;
@@ -134,22 +133,6 @@
             return true;
         }
 
-        const hasArchivedSignedForm = (docs || []).some((doc) => {
-            if (isTaskDocument(doc.category)) return false;
-
-            const title = String(doc.title || '').trim().toLowerCase();
-            const category = String(doc.category || '').trim().toLowerCase();
-            const url = String(doc.url || '').trim();
-            const isStoredPdf = Boolean(url) && !/^https?:\/\//i.test(url);
-
-            return category.includes('signed form')
-                && isStoredPdf
-                && !title.includes('driver')
-                && !title.includes('dmv')
-                && !title.includes('enrollment');
-        });
-        if (hasArchivedSignedForm) return true;
-
         const { data: archives, error: archiveError } = await client
             .from('hub_form_archive_log')
             .select('family_document_id, archived_at')
@@ -167,17 +150,7 @@
         if (!archivedDocIds.length) return false;
 
         const archivedDocs = (docs || []).filter((doc) => archivedDocIds.includes(doc.id));
-        return archivedDocs.some((doc) => {
-            if (isNonTaskCodeOfConductDocument(doc, stdTitle)) return true;
-
-            const title = String(doc.title || '').trim().toLowerCase();
-            const category = String(doc.category || '').trim().toLowerCase();
-            if (!category.includes('signed form')) return false;
-            if (title.includes('driver') || title.includes('dmv') || title.includes('enrollment')) return false;
-
-            // Hub archive webhook stores the signed COC PDF even when the template title omits "conduct".
-            return true;
-        });
+        return archivedDocs.some((doc) => isNonTaskCodeOfConductDocument(doc, stdTitle));
     }
 
     function hasConductSignedTimestamp(onboarding) {
@@ -185,29 +158,11 @@
     }
 
     async function isConductActuallySigned(userId, onboarding = null) {
-        if (await hasSignedCodeOfConductDocument(userId)) return true;
-        if (!hasConductSignedTimestamp(onboarding)) return false;
-        if (!getManualChecks(onboarding).conduct) return false;
+        return hasSignedCodeOfConductDocument(userId);
+    }
 
-        const tasks = await fetchActiveTasks(userId);
-        if (tasks.some(isCodeOfConductTask)) return false;
-
-        const client = window.supabaseClient;
-        if (!client || !userId) return false;
-
-        const { data: archives, error: archiveError } = await client
-            .from('hub_form_archive_log')
-            .select('id')
-            .eq('family_user_id', userId)
-            .not('archived_at', 'is', null)
-            .limit(1);
-
-        if (archiveError) {
-            console.warn('[Onboarding] Could not load hub form archive log:', archiveError.message);
-            return false;
-        }
-
-        return Boolean(archives?.length);
+    async function needsCodeOfConductTask(userId) {
+        return !(await hasSignedCodeOfConductDocument(userId));
     }
 
     async function isConductMarkedComplete(userId, onboarding = null) {
@@ -244,8 +199,12 @@
     }
 
     async function ensureConductSignedTimestamp(userId, onboarding = null) {
+        const signed = await hasSignedCodeOfConductDocument(userId);
+        if (hasConductSignedTimestamp(onboarding) && !signed) {
+            return clearInvalidConductCompletion(userId, onboarding);
+        }
         if (hasConductSignedTimestamp(onboarding)) return onboarding;
-        if (!(await hasSignedCodeOfConductDocument(userId))) return onboarding;
+        if (!signed) return onboarding;
         return markConductCompleted(userId, onboarding);
     }
 
@@ -543,7 +502,7 @@
         }
     }
 
-    async function assignCodeOfConductTaskOnApproval(userId, onboarding = null) {
+    async function assignCodeOfConductTaskOnApproval(userId, onboarding = null, options = {}) {
         if (!window.supabaseClient || !userId) return;
 
         const client = window.supabaseClient;
@@ -557,14 +516,16 @@
             onboardingRow = data;
         }
 
-        if (await isConductMarkedComplete(userId, onboardingRow)) {
+        onboardingRow = await clearInvalidConductCompletion(userId, onboardingRow);
+
+        if (!(await needsCodeOfConductTask(userId))) {
             await removeStaleCodeOfConductTasks(userId, onboardingRow);
-            return;
+            return { created: false, skipped: true };
         }
 
         const std = await fetchCodeOfConductStandard();
         const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
-        await insertTaskIfMissing(
+        const result = await insertTaskIfMissing(
             userId,
             isCodeOfConductTask,
             {
@@ -576,9 +537,11 @@
                 school_year: schoolYear,
                 due_date_1: softDueDate(14),
                 due_date_1_cleared: false,
-            }
+            },
+            options
         );
         await syncCodeOfConductTaskUrl(userId);
+        return result;
     }
 
     async function assignIdTaskOnApproval(userId, options = {}) {
@@ -615,22 +578,136 @@
         );
     }
 
+    async function reopenInvalidOnboardingCompletion(userId, onboarding = null) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return { reopened: false, onboarding };
+
+        if (!onboarding) {
+            const { data } = await client
+                .from('family_onboarding')
+                .select('*')
+                .eq('family_user_id', userId)
+                .maybeSingle();
+            onboarding = data;
+        }
+
+        if (!onboarding?.completed_at) {
+            return { reopened: false, onboarding };
+        }
+
+        if (await isConductActuallySigned(userId, onboarding)) {
+            return { reopened: false, onboarding };
+        }
+
+        const manualChecks = getManualChecks(onboarding);
+        const { data, error } = await client
+            .from('family_onboarding')
+            .upsert({
+                family_user_id: userId,
+                completed_at: null,
+                conduct_signed_at: null,
+                manual_checks: { ...manualChecks, conduct: false },
+            }, { onConflict: 'family_user_id' })
+            .select('*')
+            .single();
+
+        if (error) {
+            console.warn('[Onboarding] Could not reopen invalid onboarding completion:', error.message);
+            return { reopened: false, onboarding };
+        }
+
+        return { reopened: true, onboarding: data || onboarding };
+    }
+
     async function isOnboardingCompleted(userId) {
         const client = window.supabaseClient;
         if (!client || !userId) return false;
 
         const { data: onboarding } = await client
             .from('family_onboarding')
-            .select('completed_at')
+            .select('*')
             .eq('family_user_id', userId)
             .maybeSingle();
 
-        return Boolean(onboarding?.completed_at);
+        if (!onboarding?.completed_at) return false;
+
+        const { reopened } = await reopenInvalidOnboardingCompletion(userId, onboarding);
+        if (reopened) return false;
+
+        return true;
+    }
+
+    async function forceReopenFamilySetup(userId, options = {}) {
+        const client = window.supabaseClient;
+        if (!client || !userId) return { repaired: false, reason: 'no_client' };
+
+        const throwOnError = options.throwOnError === true;
+        await ensureOnboardingRow(userId);
+
+        let { data: onboarding } = await client
+            .from('family_onboarding')
+            .select('*')
+            .eq('family_user_id', userId)
+            .maybeSingle();
+
+        onboarding = await clearInvalidConductCompletion(userId, onboarding);
+        const { reopened, onboarding: reopenedOnboarding } = await reopenInvalidOnboardingCompletion(userId, onboarding);
+        if (reopened) onboarding = reopenedOnboarding || onboarding;
+
+        const conductActuallySigned = await isConductActuallySigned(userId, onboarding);
+        const manualChecks = getManualChecks(onboarding);
+        const resetPayload = { family_user_id: userId };
+
+        if (onboarding?.completed_at && !conductActuallySigned) {
+            resetPayload.completed_at = null;
+        }
+        if (!conductActuallySigned && (hasConductSignedTimestamp(onboarding) || manualChecks.conduct)) {
+            resetPayload.conduct_signed_at = null;
+            resetPayload.manual_checks = { ...manualChecks, conduct: false };
+        }
+
+        if (Object.keys(resetPayload).length > 1) {
+            const { data: resetOnboarding, error: resetError } = await client
+                .from('family_onboarding')
+                .upsert(resetPayload, { onConflict: 'family_user_id' })
+                .select('*')
+                .single();
+
+            if (resetError) {
+                console.warn('[Onboarding] Could not reset family setup state:', resetError.message);
+                if (throwOnError) throw resetError;
+            } else {
+                onboarding = resetOnboarding || onboarding;
+            }
+        }
+
+        let result = await repairFamilyOnboardingIfNeeded(userId, { ...options, throwOnError });
+        if (!result?.repaired && result?.missing?.length) {
+            const retryPayload = {
+                family_user_id: userId,
+                completed_at: null,
+                conduct_signed_at: null,
+                manual_checks: { ...getManualChecks(onboarding), conduct: false },
+            };
+            const { error: retryResetError } = await client
+                .from('family_onboarding')
+                .upsert(retryPayload, { onConflict: 'family_user_id' });
+            if (retryResetError) {
+                console.warn('[Onboarding] Could not force-reset family setup state:', retryResetError.message);
+                if (throwOnError) throw retryResetError;
+            } else {
+                result = await repairFamilyOnboardingIfNeeded(userId, { ...options, throwOnError });
+            }
+        }
+
+        return result;
     }
 
     async function repairFamilyOnboardingIfNeeded(userId, options = {}) {
         const client = window.supabaseClient;
         if (!client || !userId) return { repaired: false, reason: 'no_client' };
+
+        await reopenInvalidOnboardingCompletion(userId);
 
         if (await isOnboardingCompleted(userId)) {
             return { repaired: false, reason: 'completed' };
@@ -645,18 +722,17 @@
             .maybeSingle();
         onboarding = await clearInvalidConductCompletion(userId, onboarding);
         await ensureOnboardingTask(userId, { throwOnError });
-        await assignCodeOfConductTaskOnApproval(userId, onboarding);
+        await assignCodeOfConductTaskOnApproval(userId, onboarding, { throwOnError });
         await removeStaleIdUploadTasks(userId);
         await assignIdTaskOnApproval(userId, { throwOnError });
 
-        const tasks = await fetchActiveTasks(userId);
         const missing = [];
-        if (!tasks.some(isOnboardingTask)) missing.push(ONBOARDING_TASK_TITLE);
-        if (!await hasCodeOfConductTask(userId) && !await isConductMarkedComplete(userId)) {
+        if (!(await fetchActiveTasks(userId)).some(isOnboardingTask)) missing.push(ONBOARDING_TASK_TITLE);
+        if (await needsCodeOfConductTask(userId) && !(await hasCodeOfConductTask(userId))) {
             const std = await fetchCodeOfConductStandard();
             missing.push(std?.title || CODE_OF_CONDUCT_TITLE);
         }
-        if (!tasks.some(isIdUploadTask) && !await isIdUploaded(userId)) {
+        if (!(await fetchActiveTasks(userId)).some(isIdUploadTask) && !await isIdUploaded(userId)) {
             missing.push(ID_TASK_TITLE);
         }
 
@@ -1053,7 +1129,7 @@
         const client = window.supabaseClient;
         if (!client || !userId) return { status: 'unknown' };
 
-        const { data: onboarding, error } = await client
+        let { data: onboarding, error } = await client
             .from('family_onboarding')
             .select('*')
             .eq('family_user_id', userId)
@@ -1064,7 +1140,11 @@
             return { status: 'error', message: error.message };
         }
 
-        if (onboarding?.completed_at) {
+        onboarding = await clearInvalidConductCompletion(userId, onboarding);
+        const { reopened, onboarding: reopenedOnboarding } = await reopenInvalidOnboardingCompletion(userId, onboarding);
+        if (reopened) onboarding = reopenedOnboarding || onboarding;
+
+        if (onboarding?.completed_at && await isConductActuallySigned(userId, onboarding)) {
             return {
                 status: 'completed',
                 completedAt: onboarding.completed_at,
@@ -1119,6 +1199,9 @@
         sortTasksForDisplay,
         setupFamilyOnApproval,
         repairFamilyOnboardingIfNeeded,
+        forceReopenFamilySetup,
+        forceAssignSetupTasks: forceReopenFamilySetup,
+        needsCodeOfConductTask,
         isOnboardingCompleted,
         getAdminOnboardingSummary,
         renderOnboardingTaskCard,
