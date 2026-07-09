@@ -22,15 +22,6 @@ BEGIN
 
   IF EXISTS (
     SELECT 1
-    FROM family_onboarding fo
-    WHERE fo.family_user_id = NEW.user_id
-      AND fo.conduct_signed_at IS NOT NULL
-  ) THEN
-    RETURN NULL;
-  END IF;
-
-  IF EXISTS (
-    SELECT 1
     FROM family_documents fd
     WHERE fd.user_id = NEW.user_id
       AND fd.id IS DISTINCT FROM NEW.id

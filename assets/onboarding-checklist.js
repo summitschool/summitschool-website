@@ -41,7 +41,15 @@
     }
 
     function isCodeOfConductTask(task) {
-        return String(task.title || '').toLowerCase().includes('code of conduct');
+        const title = String(task.title || '').toLowerCase();
+        const url = String(task.url || '').toLowerCase();
+        return title.includes('code of conduct')
+            || url.includes(CODE_OF_CONDUCT_SLUG.toLowerCase());
+    }
+
+    async function hasCodeOfConductTask(userId) {
+        const tasks = await fetchActiveTasks(userId);
+        return tasks.some(isCodeOfConductTask);
     }
 
     function isIdUploadTask(task) {
@@ -241,6 +249,34 @@
         return markConductCompleted(userId, onboarding);
     }
 
+    async function clearInvalidConductCompletion(userId, onboarding = null) {
+        if (await isConductActuallySigned(userId, onboarding)) return onboarding;
+
+        const manualChecks = getManualChecks(onboarding);
+        const needsClear = Boolean(manualChecks.conduct) || hasConductSignedTimestamp(onboarding);
+        if (!needsClear) return onboarding;
+
+        const client = window.supabaseClient;
+        if (!client || !userId) return onboarding;
+
+        const { data, error } = await client
+            .from('family_onboarding')
+            .upsert({
+                family_user_id: userId,
+                manual_checks: { ...manualChecks, conduct: false },
+                conduct_signed_at: null,
+            }, { onConflict: 'family_user_id' })
+            .select('*')
+            .single();
+
+        if (error) {
+            console.warn('[Onboarding] Could not clear invalid conduct completion:', error.message);
+            return onboarding;
+        }
+
+        return data || onboarding;
+    }
+
     async function removeStaleCodeOfConductTasks(userId, onboarding = null) {
         const client = window.supabaseClient;
         if (!client || !userId) return;
@@ -426,7 +462,21 @@
             if (options.throwOnError) throw error;
             return { created: false, error };
         }
-        return { created: true };
+
+        const { data: docsAfter } = await client
+            .from('family_documents')
+            .select('id, title, url, category')
+            .eq('user_id', userId);
+
+        const created = (docsAfter || []).find((doc) => isTaskDocument(doc) && matchFn(doc));
+        if (!created?.id) {
+            const message = `Task insert did not persist (${payload?.title || 'task'}). This can happen when conduct is falsely marked complete — refresh and try again.`;
+            console.warn('[Onboarding]', message);
+            if (options.throwOnError) throw new Error(message);
+            return { created: false, error: { message } };
+        }
+
+        return { created: true, existingId: created.id };
     }
 
     async function ensureOnboardingTask(userId, options = {}) {
@@ -588,16 +638,23 @@
 
         const throwOnError = options.throwOnError === true;
         await ensureOnboardingRow(userId);
+        let { data: onboarding } = await client
+            .from('family_onboarding')
+            .select('*')
+            .eq('family_user_id', userId)
+            .maybeSingle();
+        onboarding = await clearInvalidConductCompletion(userId, onboarding);
         await ensureOnboardingTask(userId, { throwOnError });
-        await assignCodeOfConductTaskOnApproval(userId);
+        await assignCodeOfConductTaskOnApproval(userId, onboarding);
         await removeStaleIdUploadTasks(userId);
         await assignIdTaskOnApproval(userId, { throwOnError });
 
         const tasks = await fetchActiveTasks(userId);
         const missing = [];
         if (!tasks.some(isOnboardingTask)) missing.push(ONBOARDING_TASK_TITLE);
-        if (!tasks.some(isCodeOfConductTask) && !await isConductMarkedComplete(userId)) {
-            missing.push(CODE_OF_CONDUCT_TITLE);
+        if (!await hasCodeOfConductTask(userId) && !await isConductMarkedComplete(userId)) {
+            const std = await fetchCodeOfConductStandard();
+            missing.push(std?.title || CODE_OF_CONDUCT_TITLE);
         }
         if (!tasks.some(isIdUploadTask) && !await isIdUploaded(userId)) {
             missing.push(ID_TASK_TITLE);
@@ -662,6 +719,7 @@
             .eq('family_user_id', userId)
             .maybeSingle();
 
+        onboarding = await clearInvalidConductCompletion(userId, onboarding);
         onboarding = await ensureConductSignedTimestamp(userId, onboarding);
 
         if (!onboarding?.completed_at) {
@@ -1047,6 +1105,7 @@
         ID_TASK_TITLE,
         isOnboardingTask,
         isCodeOfConductTask,
+        hasCodeOfConductTask,
         isIdUploadTask,
         isConductSigned,
         isConductActuallySigned,
