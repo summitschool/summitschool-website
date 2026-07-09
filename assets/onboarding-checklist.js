@@ -176,17 +176,38 @@
         return Boolean(onboarding?.conduct_signed_at);
     }
 
-    async function isConductMarkedComplete(userId, onboarding = null) {
-        if (hasConductSignedTimestamp(onboarding)) return true;
+    async function isConductActuallySigned(userId, onboarding = null) {
         if (await hasSignedCodeOfConductDocument(userId)) return true;
-        const manualChecks = getManualChecks(onboarding);
-        return Boolean(manualChecks.conduct);
+        if (!hasConductSignedTimestamp(onboarding)) return false;
+        if (!getManualChecks(onboarding).conduct) return false;
+
+        const tasks = await fetchActiveTasks(userId);
+        if (tasks.some(isCodeOfConductTask)) return false;
+
+        const client = window.supabaseClient;
+        if (!client || !userId) return false;
+
+        const { data: archives, error: archiveError } = await client
+            .from('hub_form_archive_log')
+            .select('id')
+            .eq('family_user_id', userId)
+            .not('archived_at', 'is', null)
+            .limit(1);
+
+        if (archiveError) {
+            console.warn('[Onboarding] Could not load hub form archive log:', archiveError.message);
+            return false;
+        }
+
+        return Boolean(archives?.length);
+    }
+
+    async function isConductMarkedComplete(userId, onboarding = null) {
+        return isConductActuallySigned(userId, onboarding);
     }
 
     async function isConductSigned(userId, onboarding = null) {
-        if (await isConductMarkedComplete(userId, onboarding)) return true;
-        const tasks = await fetchActiveTasks(userId);
-        return !tasks.some(isCodeOfConductTask);
+        return isConductActuallySigned(userId, onboarding);
     }
 
     async function markConductCompleted(userId, onboarding = null, signedAt = null) {
@@ -238,8 +259,8 @@
     }
 
     async function ensureConductManualCheck(userId, onboarding = null) {
-        if (!(await isConductMarkedComplete(userId, onboarding))) return onboarding;
-        if (hasConductSignedTimestamp(onboarding) && getManualChecks(onboarding).conduct) return onboarding;
+        if (!(await isConductActuallySigned(userId, onboarding))) return onboarding;
+        if (getManualChecks(onboarding).conduct) return onboarding;
         return markConductCompleted(userId, onboarding);
     }
 
@@ -1028,6 +1049,7 @@
         isCodeOfConductTask,
         isIdUploadTask,
         isConductSigned,
+        isConductActuallySigned,
         isConductMarkedComplete,
         hasSignedCodeOfConductDocument,
         markConductCompleted,
