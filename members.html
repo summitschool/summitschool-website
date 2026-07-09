@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260773';
+            var BUILD = '20260774';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -1157,7 +1157,7 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260773"></script>
+    <script src="assets/onboarding-checklist.js?v=20260774"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -3010,10 +3010,6 @@
             if (window.OnboardingChecklist?.isConductMarkedComplete) {
                 const conductComplete = await window.OnboardingChecklist.isConductMarkedComplete(user.id);
                 if (conductComplete) {
-                    if (allTasks.some((task) => window.OnboardingChecklist.isCodeOfConductTask(task))
-                        && window.OnboardingChecklist.removeStaleCodeOfConductTasks) {
-                        await window.OnboardingChecklist.removeStaleCodeOfConductTasks(user.id);
-                    }
                     allTasks = allTasks.filter((task) => !window.OnboardingChecklist.isCodeOfConductTask(task));
                 }
             }
@@ -4720,13 +4716,19 @@
                     || await window.OnboardingChecklist?.forceReopenFamilySetup?.(userId, { throwOnError: true });
                 const name = formatFamilyName(profile);
                 if (result?.repaired) {
-                    await showAppAlert(`Setup checklist, Code of Conduct, and ID tasks are now assigned for ${name}.`, { tone: 'success' });
+                    const created = [];
+                    if (result?.rpc?.created_coc) created.push('Code of Conduct');
+                    if (result?.rpc?.created_checklist) created.push('setup checklist');
+                    const detail = created.length ? ` Assigned: ${created.join(' and ')}.` : '';
+                    await showAppAlert(`Setup tasks are in place for ${name}.${detail}`, { tone: 'success' });
                 } else if (result?.missing?.length) {
                     await showAppAlert(`Some setup tasks could not be assigned: ${result.missing.join(', ')}. Check staff permissions or run supabase/staff-families-onboarding-manage.sql.`);
                 } else if (result?.reason === 'completed') {
                     await showAppAlert(`${name} already finished the setup checklist with a signed Code of Conduct.`, { tone: 'success' });
+                } else if (result?.error) {
+                    await showAppAlert(`Could not assign setup tasks: ${result.error.message || result.error}`);
                 } else {
-                    await showAppAlert(`Setup tasks are already in place for ${name}.`, { tone: 'success' });
+                    await showAppAlert(`Setup tasks could not be verified for ${name}. Refresh and try again, or check the browser console.`);
                 }
                 loadAdminFamilyTasks();
                 if (typeof loadMyTasks === 'function') loadMyTasks({ force: true });
@@ -6165,10 +6167,6 @@
             if (window.OnboardingChecklist?.isConductMarkedComplete) {
                 const conductComplete = await window.OnboardingChecklist.isConductMarkedComplete(userId);
                 if (conductComplete) {
-                    if (tasks.some((task) => window.OnboardingChecklist.isCodeOfConductTask(task))
-                        && window.OnboardingChecklist.removeStaleCodeOfConductTasks) {
-                        await window.OnboardingChecklist.removeStaleCodeOfConductTasks(userId);
-                    }
                     tasks = tasks.filter((task) => !window.OnboardingChecklist.isCodeOfConductTask(task));
                 }
             }

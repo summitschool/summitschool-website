@@ -89,7 +89,7 @@
     }
 
     function isNonTaskCodeOfConductDocument(doc, stdTitle = '') {
-        if (!doc || isTaskDocument(doc.category)) return false;
+        if (!doc || isTaskDocument(doc)) return false;
 
         const title = String(doc.title || '').trim().toLowerCase();
         const category = String(doc.category || '').trim().toLowerCase();
