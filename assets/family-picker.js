@@ -32,6 +32,12 @@
         return `${name}${email}`;
     }
 
+    function sortFamiliesAlphabetically(families) {
+        return [...(families || [])].sort((a, b) => (
+            formatFamilyName(a).localeCompare(formatFamilyName(b), undefined, { sensitivity: 'base' })
+        ));
+    }
+
     function familySearchHaystack(profile) {
         return [
             formatFamilyName(profile),
@@ -372,7 +378,7 @@
         const state = ensureBound(select);
         if (!state) return;
 
-        state.families = Array.isArray(families) ? families : [];
+        state.families = sortFamiliesAlphabetically(Array.isArray(families) ? families : []);
         state.placeholder = placeholder;
         state.searchPlaceholder = families.length
             ? 'Find a family by name or email'
@@ -431,5 +437,6 @@
         getSelectedFamily,
         formatFamilyName,
         formatFamilyOptionLabel,
+        sortFamiliesAlphabetically,
     };
 })();
