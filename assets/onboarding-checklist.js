@@ -816,57 +816,71 @@
         }
     }
 
-    async function getChecklistState(userId) {
+    async function syncActiveChecklistTasks(userId, onboarding = null) {
+        if (onboarding?.completed_at) return onboarding;
+
+        await ensureOnboardingTask(userId);
+
+        const activeTasks = await fetchActiveTasks(userId);
+        if (!activeTasks.some(isOnboardingTask)) return onboarding;
+
+        await removeStaleCodeOfConductTasks(userId, onboarding);
+
+        const conductMarkedComplete = await isConductMarkedComplete(userId, onboarding);
+        if (!conductMarkedComplete) {
+            const refreshedTasks = await fetchActiveTasks(userId);
+            if (!refreshedTasks.some(isCodeOfConductTask)) {
+                await assignCodeOfConductTaskOnApproval(userId, onboarding);
+                await syncCodeOfConductTaskUrl(userId);
+            }
+        }
+
+        await removeStaleIdUploadTasks(userId);
+
+        const refreshedTasks = await fetchActiveTasks(userId);
+        const hasIdTask = refreshedTasks.some(isIdUploadTask);
+        if (!await isIdUploaded(userId) && !hasIdTask) {
+            await assignIdTaskOnApproval(userId);
+        }
+
+        return onboarding;
+    }
+
+    async function getChecklistState(userId, options = {}) {
         const client = window.supabaseClient;
         const AR = window.AcademicRecords;
+        const syncTasks = options.syncTasks === true;
         if (!client || !userId || !AR) {
             return { items: [], allTasksComplete: false, allManuallyChecked: false, canFinish: false };
         }
 
-        await ensureOnboardingRow(userId);
+        if (syncTasks) {
+            await ensureOnboardingRow(userId);
+        }
+
         let { data: onboarding } = await client
             .from('family_onboarding')
             .select('*')
             .eq('family_user_id', userId)
             .maybeSingle();
 
-        onboarding = await syncConductStateFromDocuments(userId, onboarding);
+        if (syncTasks) {
+            onboarding = await syncConductStateFromDocuments(userId, onboarding);
 
-        if (!onboarding?.completed_at) {
-            await ensureOnboardingTask(userId);
-
-            const activeTasks = await fetchActiveTasks(userId);
-            if (activeTasks.some(isOnboardingTask)) {
-                await removeStaleCodeOfConductTasks(userId, onboarding);
-
-                const conductMarkedComplete = await isConductMarkedComplete(userId, onboarding);
-                if (!conductMarkedComplete) {
-                    const refreshedTasks = await fetchActiveTasks(userId);
-                    if (!refreshedTasks.some(isCodeOfConductTask)) {
-                        await assignCodeOfConductTaskOnApproval(userId, onboarding);
-                        await syncCodeOfConductTaskUrl(userId);
-                    }
-                }
-
-                await removeStaleIdUploadTasks(userId);
-
-                const refreshedTasks = await fetchActiveTasks(userId);
-                const hasIdTask = refreshedTasks.some(isIdUploadTask);
-                if (!await isIdUploaded(userId) && !hasIdTask) {
-                    await assignIdTaskOnApproval(userId);
-                }
+            if (!onboarding?.completed_at) {
+                await syncActiveChecklistTasks(userId, onboarding);
             }
+
+            onboarding = await ensureConductManualCheck(userId, onboarding);
+            onboarding = await ensureIdManualCheck(userId, onboarding);
+
+            const { data: refreshedOnboarding } = await client
+                .from('family_onboarding')
+                .select('*')
+                .eq('family_user_id', userId)
+                .maybeSingle();
+            onboarding = refreshedOnboarding || onboarding;
         }
-
-        onboarding = await ensureConductManualCheck(userId, onboarding);
-        onboarding = await ensureIdManualCheck(userId, onboarding);
-
-        const { data: refreshedOnboarding } = await client
-            .from('family_onboarding')
-            .select('*')
-            .eq('family_user_id', userId)
-            .maybeSingle();
-        onboarding = refreshedOnboarding || onboarding;
 
         const manualChecks = getManualChecks(onboarding);
         const students = await AR.fetchStudents(userId);
@@ -1302,7 +1316,7 @@
         const hasOnboardingTask = tasks.some(isOnboardingTask);
 
         if (hasOnboardingTask || onboarding) {
-            const state = await getChecklistState(userId);
+            const state = await getChecklistState(userId, { syncTasks: true });
             const items = state?.items || [];
             const pendingLabels = items
                 .filter((item) => !(item.taskComplete && item.manuallyChecked))

@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260786';
+            var BUILD = '20260787';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260786">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260786">
+    <link rel="stylesheet" href="assets/styles.css?v=20260787">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260787">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1180,8 +1180,8 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260780"></script>
-    <script src="assets/family-picker.js?v=20260786"></script>
+    <script src="assets/onboarding-checklist.js?v=20260787"></script>
+    <script src="assets/family-picker.js?v=20260787"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -1234,6 +1234,10 @@
         let oauthCallbackInProgress = false;
         let hubSessionRestoreInProgress = false;
         let authTransitionFailsafeTimer = null;
+        let adminBootstrapDone = false;
+        let approvedFamiliesCache = null;
+        let approvedFamiliesCacheAt = 0;
+        const APPROVED_FAMILIES_CACHE_MS = 60000;
 
         const ADMIN_FAMILY_TASKS_PLACEHOLDER = '<div class="text-slate-500 text-sm">No tasks to show.</div>';
         const ADMIN_FAMILY_DOCS_PLACEHOLDER = '<div class="text-slate-500 text-sm italic">No documents yet.</div>';
@@ -2455,7 +2459,20 @@
             }
         }
 
-        async function applyMemberAccessUI() {
+        function bootstrapFullAdminData() {
+            if (adminBootstrapDone || !currentUserAccess.isFullAdmin) return;
+            adminBootstrapDone = true;
+            if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
+            if (typeof loadAdminStandards === 'function') loadAdminStandards();
+        }
+
+        function invalidateApprovedFamiliesCache() {
+            approvedFamiliesCache = null;
+            approvedFamiliesCacheAt = 0;
+        }
+
+        async function applyMemberAccessUI(options = {}) {
+            const deferAdminLoads = options.deferAdminLoads === true;
             const adminTab = document.getElementById('tab-admin');
             const familyRecordsTab = document.getElementById('tab-family-records');
             const adminContent = document.getElementById('dashboard-admin');
@@ -2471,15 +2488,11 @@
                 applyStaffAdminNavVisibility();
                 lastAdminSection = getFirstAllowedAdminSection();
 
-                if (currentUserAccess.isFullAdmin) {
-                    loadAdminFamilies();
-                    if (typeof loadAdminSiteSummary === 'function') loadAdminSiteSummary();
-                    loadAdminSharedResources();
-                    loadCurrentBannerForAdmin();
-                    if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
-                    if (typeof loadAdminStandards === 'function') loadAdminStandards();
+                if (currentUserAccess.isFullAdmin && !deferAdminLoads) {
+                    bootstrapFullAdminData();
                 }
             } else {
+                adminBootstrapDone = false;
                 if (adminTab) adminTab.classList.add('hidden');
                 if (adminContent) adminContent.classList.add('hidden');
                 if (adminTab?.classList.contains('is-active')) {
@@ -2830,6 +2843,12 @@
                 section = getFirstAllowedAdminSection();
             }
 
+            if (window.FamilyPicker?.closeAll) {
+                window.FamilyPicker.closeAll();
+            }
+
+            bootstrapFullAdminData();
+
             const isSwitching = currentAdminSection !== section;
 
             if (currentAdminSection && isSwitching) {
@@ -2952,6 +2971,7 @@
                 activeTab = tabAdmin;
 
                 applyStaffAdminNavVisibility();
+                bootstrapFullAdminData();
                 currentAdminSection = null;
                 showAdminSection(getFirstAllowedAdminSection());
             }
@@ -3687,11 +3707,20 @@
                     loadMemberBanner();
 
                     try {
-                        if (typeof window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded === 'function') {
-                            await window.OnboardingChecklist.repairFamilyOnboardingIfNeeded(user.id);
-                        }
-                    } catch (repairErr) {
-                        console.warn('[Family Hub] Onboarding repair skipped:', repairErr?.message || repairErr);
+                        await loadUserAccess(user);
+                        await applyMemberAccessUI({ deferAdminLoads: true });
+                    } catch (accessErr) {
+                        console.error('[Family Hub] Access UI load failed:', accessErr);
+                    }
+
+                    if (typeof window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded === 'function') {
+                        void window.OnboardingChecklist.repairFamilyOnboardingIfNeeded(user.id)
+                            .then(() => {
+                                if (typeof loadMyTasks === 'function') loadMyTasks({ force: true });
+                            })
+                            .catch((repairErr) => {
+                                console.warn('[Family Hub] Onboarding repair skipped:', repairErr?.message || repairErr);
+                            });
                     }
 
                     // Load My Tasks (for badge + list)
@@ -3700,12 +3729,7 @@
                     // Load My ID section (under My Documents)
                     if (typeof loadMyIDSection === 'function') loadMyIDSection();
 
-                    try {
-                        await loadUserAccess(user);
-                        await applyMemberAccessUI();
-                    } catch (accessErr) {
-                        console.error('[Family Hub] Access UI load failed:', accessErr);
-                    }
+                    hideAuthTransition();
 
                     // Note: do NOT default the sub-tab here.
                     // Default happens only on initial load (see below) so that
@@ -4091,7 +4115,13 @@
             if (preserveUserId) select.value = preserveUserId;
         }
 
-        async function fetchApprovedFamilies() {
+        async function fetchApprovedFamilies(options = {}) {
+            const force = options.force === true;
+            const now = Date.now();
+            if (!force && approvedFamiliesCache && (now - approvedFamiliesCacheAt) < APPROVED_FAMILIES_CACHE_MS) {
+                return approvedFamiliesCache;
+            }
+
             const { data, error } = await supabaseClient
                 .from('profiles')
                 .select('id, first_name, last_name, full_name, email')
@@ -4100,12 +4130,15 @@
 
             if (error) {
                 console.error('[Families] Failed to load approved families:', error);
-                return [];
+                return approvedFamiliesCache || [];
             }
-            if (window.FamilyPicker?.sortFamiliesAlphabetically) {
-                return window.FamilyPicker.sortFamiliesAlphabetically(data || []);
-            }
-            return data || [];
+
+            const sorted = window.FamilyPicker?.sortFamiliesAlphabetically
+                ? window.FamilyPicker.sortFamiliesAlphabetically(data || [])
+                : (data || []);
+            approvedFamiliesCache = sorted;
+            approvedFamiliesCacheAt = now;
+            return sorted;
         }
 
         async function renderFamilyRecordsView(docsContainer, idContainer, familyUserId) {
@@ -4752,6 +4785,7 @@
                 }
             }
 
+            invalidateApprovedFamiliesCache();
             loadPendingApprovals();
             loadAdminFamilies();
 
@@ -7602,8 +7636,10 @@
             initSupabaseClient();
 
             if (supabaseClient) {
-                supabaseClient.auth.onAuthStateChange(() => {
+                supabaseClient.auth.onAuthStateChange((event) => {
                     if (signupInProgress || oauthCallbackInProgress) return;
+                    if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
+                    adminBootstrapDone = false;
                     checkLoginState({ skipAuthTransition: true });
                 });
             }

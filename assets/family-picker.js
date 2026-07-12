@@ -8,6 +8,7 @@
     ];
 
     const pickers = new Map();
+    let documentListenersBound = false;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -91,6 +92,10 @@
     function renderResults(state) {
         const filtered = getFilteredFamilies(state);
         updateStatus(state, filtered.length);
+
+        if (!state.isOpen) {
+            return;
+        }
 
         if (!state.families.length) {
             state.results.innerHTML = `<li class="family-picker__empty">${escapeHtml(state.placeholder || 'No families found')}</li>`;
@@ -338,14 +343,6 @@
             input.blur();
         });
 
-        document.addEventListener('mousedown', (event) => {
-            if (!state.isOpen) return;
-            if (wrap.contains(event.target)) return;
-            closeMenu(state);
-            input.setAttribute('aria-expanded', 'false');
-            menu.setAttribute('aria-hidden', 'true');
-        });
-
         pickers.set(select.id, state);
         updateClosedDisplay(state);
         renderResults(state);
@@ -421,7 +418,34 @@
         return state.families.find((profile) => profile.id === state.selectedId) || null;
     }
 
+    function bindDocumentListeners() {
+        if (documentListenersBound) return;
+        documentListenersBound = true;
+
+        document.addEventListener('mousedown', (event) => {
+            pickers.forEach((state) => {
+                if (!state.isOpen) return;
+                if (state.wrap.contains(event.target)) return;
+                closeMenu(state);
+                state.input.setAttribute('aria-expanded', 'false');
+                state.menu.setAttribute('aria-hidden', 'true');
+            });
+        });
+    }
+
+    function closeAll() {
+        pickers.forEach((state) => {
+            if (state.isOpen) {
+                state.input.blur();
+            }
+            closeMenu(state, { forceDisplayUpdate: true });
+            state.input.setAttribute('aria-expanded', 'false');
+            state.menu.setAttribute('aria-hidden', 'true');
+        });
+    }
+
     function bindAll() {
+        bindDocumentListeners();
         PICKER_SELECT_IDS.forEach((id) => {
             const select = document.getElementById(id);
             if (select) bindSelect(select);
@@ -430,6 +454,8 @@
 
     window.FamilyPicker = {
         bindAll,
+        bindDocumentListeners,
+        closeAll,
         ensureBound,
         setFamilies,
         setValue,
