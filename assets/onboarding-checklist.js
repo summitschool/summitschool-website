@@ -112,6 +112,31 @@
         return false;
     }
 
+    function hasSignedCodeOfConductFromDocs(docs, stdTitle = CODE_OF_CONDUCT_TITLE) {
+        return (docs || []).some((doc) => isNonTaskCodeOfConductDocument(doc, stdTitle));
+    }
+
+    function hasIdSubmissionFromDocs(docs) {
+        return (docs || []).some((doc) => {
+            const category = String(doc?.category || '').trim().toLowerCase();
+            if (category.includes('task')) return false;
+            if (!category.includes('id')) return false;
+            const title = String(doc?.title || '').trim().toLowerCase();
+            return title.includes('government id on file')
+                || title.includes('government id (pending admin review)')
+                || title.includes('government id');
+        });
+    }
+
+    let checklistStateCache = null;
+    const CHECKLIST_STATE_CACHE_MS = 15000;
+
+    function invalidateChecklistStateCache(userId = null) {
+        if (!userId || checklistStateCache?.userId === userId) {
+            checklistStateCache = null;
+        }
+    }
+
     async function hasSignedCodeOfConductDocument(userId) {
         const client = window.supabaseClient;
         if (!client || !userId) return false;
@@ -129,7 +154,7 @@
             return false;
         }
 
-        if ((docs || []).some((doc) => isNonTaskCodeOfConductDocument(doc, stdTitle))) {
+        if (hasSignedCodeOfConductFromDocs(docs, stdTitle)) {
             return true;
         }
 
@@ -814,6 +839,7 @@
             }
             throw error;
         }
+        invalidateChecklistStateCache(userId);
     }
 
     async function syncActiveChecklistTasks(userId, onboarding = null) {
@@ -854,7 +880,14 @@
             return { items: [], allTasksComplete: false, allManuallyChecked: false, canFinish: false };
         }
 
+        if (!syncTasks
+            && checklistStateCache?.userId === userId
+            && (Date.now() - checklistStateCache.at) < CHECKLIST_STATE_CACHE_MS) {
+            return checklistStateCache.state;
+        }
+
         if (syncTasks) {
+            invalidateChecklistStateCache(userId);
             await ensureOnboardingRow(userId);
         }
 
@@ -883,7 +916,11 @@
         }
 
         const manualChecks = getManualChecks(onboarding);
-        const students = await AR.fetchStudents(userId);
+        const [students, conductSigned, idUploaded] = await Promise.all([
+            AR.fetchStudents(userId),
+            isConductSigned(userId, onboarding),
+            isIdUploaded(userId),
+        ]);
         const hasStudents = students.length > 0;
 
         const studentNeedsPriorYears = (student) => {
@@ -901,8 +938,6 @@
         });
 
         const guideRead = Boolean(onboarding?.guide_read);
-        const conductSigned = await isConductSigned(userId, onboarding);
-        const idUploaded = await isIdUploaded(userId);
 
         const items = [
             {
@@ -954,7 +989,11 @@
         const allManuallyChecked = requiredItems.every((item) => item.manuallyChecked);
         const canFinish = allTasksComplete && allManuallyChecked;
 
-        return { items, requiredItems, allTasksComplete, allManuallyChecked, canFinish, onboarding };
+        const state = { items, requiredItems, allTasksComplete, allManuallyChecked, canFinish, onboarding };
+        if (!syncTasks) {
+            checklistStateCache = { userId, at: Date.now(), state };
+        }
+        return state;
     }
 
     async function setGuideReadFlag(userId) {
@@ -1353,6 +1392,9 @@
         isConductActuallySigned,
         isConductMarkedComplete,
         hasSignedCodeOfConductDocument,
+        hasSignedCodeOfConductFromDocs,
+        hasIdSubmissionFromDocs,
+        invalidateChecklistStateCache,
         markConductCompleted,
         removeStaleCodeOfConductTasks,
         removeStaleIdUploadTasks,

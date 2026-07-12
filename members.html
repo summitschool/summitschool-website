@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260795';
+            var BUILD = '20260796';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260795">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260795">
+    <link rel="stylesheet" href="assets/styles.css?v=20260796">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260796">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1180,8 +1180,8 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260795"></script>
-    <script src="assets/family-picker.js?v=20260795"></script>
+    <script src="assets/onboarding-checklist.js?v=20260796"></script>
+    <script src="assets/family-picker.js?v=20260796"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -3112,7 +3112,8 @@
             const overdueBadge = document.getElementById('my-tasks-overdue-badge');
             if (!list || !badge || !supabaseClient) return;
 
-            const { data: { user } } = await supabaseClient.auth.getUser();
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const user = session?.user;
             if (!user) {
                 list.innerHTML = '<div class="text-slate-500 text-sm p-4">Please log in to see tasks.</div>';
                 badge.classList.add('hidden');
@@ -3145,13 +3146,16 @@
                 return;
             }
 
-            let allTasks = (taskDocs || []).filter(isTaskDocument);
+            const allFamilyDocs = taskDocs || [];
+            let allTasks = allFamilyDocs.filter(isTaskDocument);
 
-            if (window.OnboardingChecklist?.isConductMarkedComplete) {
-                const conductComplete = await window.OnboardingChecklist.isConductMarkedComplete(user.id);
-                if (conductComplete) {
-                    allTasks = allTasks.filter((task) => !window.OnboardingChecklist.isCodeOfConductTask(task));
-                }
+            const conductComplete = window.OnboardingChecklist?.hasSignedCodeOfConductFromDocs
+                ? window.OnboardingChecklist.hasSignedCodeOfConductFromDocs(allFamilyDocs)
+                : (window.OnboardingChecklist?.isConductMarkedComplete
+                    ? await window.OnboardingChecklist.isConductMarkedComplete(user.id)
+                    : false);
+            if (conductComplete) {
+                allTasks = allTasks.filter((task) => !window.OnboardingChecklist?.isCodeOfConductTask?.(task));
             }
 
             allTasks = window.OnboardingChecklist?.sortTasksForDisplay
@@ -3163,14 +3167,21 @@
                 .filter(Boolean))];
 
             const progressYearsForFilter = {};
+            const progressYearsByStudent = {};
             if (progressStudentIdsForFilter.length) {
                 const { data: progressYears } = await supabaseClient
                     .from('student_school_years')
                     .select('*')
                     .in('student_id', progressStudentIdsForFilter)
-                    .eq('entry_type', 'current');
+                    .order('school_year', { ascending: false });
                 (progressYears || []).forEach((yearRecord) => {
-                    progressYearsForFilter[yearRecord.student_id] = yearRecord;
+                    if (yearRecord.entry_type === 'current') {
+                        progressYearsForFilter[yearRecord.student_id] = yearRecord;
+                    }
+                    if (!progressYearsByStudent[yearRecord.student_id]) {
+                        progressYearsByStudent[yearRecord.student_id] = [];
+                    }
+                    progressYearsByStudent[yearRecord.student_id].push(yearRecord);
                 });
             }
 
@@ -3221,9 +3232,8 @@
             }
 
             const hasOnboardingTask = tasks.some((task) => window.OnboardingChecklist?.isOnboardingTask?.(task));
-            const onboardingState = hasOnboardingTask && window.OnboardingChecklist?.getChecklistState
-                ? await window.OnboardingChecklist.getChecklistState(user.id)
-                : null;
+            const hasIdTask = tasks.some((task) => window.OnboardingChecklist?.isIdUploadTask?.(task)
+                || (task.title && task.title.toLowerCase().includes('upload government issued id')));
 
             const progressStudentIds = [...new Set(tasks
                 .map((task) => window.AcademicRecords?.parseProgressReportStudentId?.(task.url))
@@ -3237,51 +3247,51 @@
                 .map((task) => window.KindergartenGraduationTasks?.parseKindergartenGraduationStudentId?.(task.url))
                 .filter(Boolean))];
 
+            const [
+                onboardingState,
+                gradStudentsRes,
+                kgStudentsRes,
+                progressStudentsRes,
+                idUploadsRes,
+            ] = await Promise.all([
+                hasOnboardingTask && window.OnboardingChecklist?.getChecklistState
+                    ? window.OnboardingChecklist.getChecklistState(user.id)
+                    : Promise.resolve(null),
+                graduationStudentIds.length
+                    ? supabaseClient.from('students').select('*').in('id', graduationStudentIds)
+                    : Promise.resolve({ data: [] }),
+                kindergartenStudentIds.length
+                    ? supabaseClient.from('students').select('*').in('id', kindergartenStudentIds)
+                    : Promise.resolve({ data: [] }),
+                progressStudentIds.length
+                    ? supabaseClient.from('students').select('*').in('id', progressStudentIds)
+                    : Promise.resolve({ data: [] }),
+                hasIdTask
+                    ? supabaseClient
+                        .from('id_uploads')
+                        .select('id, status, denial_reason, denied_at')
+                        .eq('user_id', user.id)
+                        .order('created_at', { ascending: false })
+                        .limit(5)
+                    : Promise.resolve({ data: [] }),
+            ]);
+
             const progressStudentsById = {};
-            const progressYearsByStudent = {};
             const graduationStudentsById = {};
             const kindergartenStudentsById = {};
-            if (graduationStudentIds.length) {
-                const { data: gradStudents } = await supabaseClient
-                    .from('students')
-                    .select('*')
-                    .in('id', graduationStudentIds);
-                (gradStudents || []).forEach((student) => {
-                    graduationStudentsById[student.id] = student;
-                });
-            }
+            (gradStudentsRes.data || []).forEach((student) => {
+                graduationStudentsById[student.id] = student;
+            });
+            (kgStudentsRes.data || []).forEach((student) => {
+                kindergartenStudentsById[student.id] = student;
+            });
+            (progressStudentsRes.data || []).forEach((student) => {
+                progressStudentsById[student.id] = student;
+            });
 
-            if (kindergartenStudentIds.length) {
-                const { data: kgStudents } = await supabaseClient
-                    .from('students')
-                    .select('*')
-                    .in('id', kindergartenStudentIds);
-                (kgStudents || []).forEach((student) => {
-                    kindergartenStudentsById[student.id] = student;
-                });
-            }
-
-            if (progressStudentIds.length && window.AcademicRecords) {
-                const { data: progressStudents } = await supabaseClient
-                    .from('students')
-                    .select('*')
-                    .in('id', progressStudentIds);
-                (progressStudents || []).forEach((student) => {
-                    progressStudentsById[student.id] = student;
-                });
-
-                const { data: progressYears } = await supabaseClient
-                    .from('student_school_years')
-                    .select('*')
-                    .in('student_id', progressStudentIds)
-                    .order('school_year', { ascending: false });
-                (progressYears || []).forEach((yearRecord) => {
-                    if (!progressYearsByStudent[yearRecord.student_id]) {
-                        progressYearsByStudent[yearRecord.student_id] = [];
-                    }
-                    progressYearsByStudent[yearRecord.student_id].push(yearRecord);
-                });
-            }
+            const idUploadRows = idUploadsRes.data || [];
+            const prefetchedPendingUpload = idUploadRows.find((row) => row.status === 'pending') || null;
+            const prefetchedDeniedUpload = idUploadRows.find((row) => row.status === 'denied') || null;
 
             const taskCards = await Promise.all(tasks.map(async (task) => {
                 const isOnboardingTask = window.OnboardingChecklist?.isOnboardingTask?.(task);
@@ -3327,37 +3337,18 @@
 
                 if (isIDTask) {
                     let denialBannerHtml = '';
-                    const { data: pendingUpload } = await supabaseClient
-                        .from('id_uploads')
-                        .select('id')
-                        .eq('user_id', user.id)
-                        .eq('status', 'pending')
-                        .limit(1)
-                        .maybeSingle();
-
-                    if (!pendingUpload) {
-                        const { data: deniedUpload } = await supabaseClient
-                            .from('id_uploads')
-                            .select('denial_reason, denied_at')
-                            .eq('user_id', user.id)
-                            .eq('status', 'denied')
-                            .order('denied_at', { ascending: false })
-                            .limit(1)
-                            .maybeSingle();
-
-                        if (deniedUpload?.denial_reason) {
-                            const deniedDate = deniedUpload.denied_at
-                                ? new Date(deniedUpload.denied_at).toLocaleString()
-                                : '';
-                            denialBannerHtml = `
-                                <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-                                    <div class="font-semibold text-red-800 mb-1">Previous submission not accepted</div>
-                                    <p class="leading-relaxed">${escapeHtml(deniedUpload.denial_reason)}</p>
-                                    ${deniedDate ? `<p class="text-xs text-red-700 mt-2">Reviewed ${escapeHtml(deniedDate)}</p>` : ''}
-                                    <p class="text-xs text-red-800 mt-2">Please upload a new clear photo below.</p>
-                                </div>
-                            `;
-                        }
+                    if (!prefetchedPendingUpload && prefetchedDeniedUpload?.denial_reason) {
+                        const deniedDate = prefetchedDeniedUpload.denied_at
+                            ? new Date(prefetchedDeniedUpload.denied_at).toLocaleString()
+                            : '';
+                        denialBannerHtml = `
+                            <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+                                <div class="font-semibold text-red-800 mb-1">Previous submission not accepted</div>
+                                <p class="leading-relaxed">${escapeHtml(prefetchedDeniedUpload.denial_reason)}</p>
+                                ${deniedDate ? `<p class="text-xs text-red-700 mt-2">Reviewed ${escapeHtml(deniedDate)}</p>` : ''}
+                                <p class="text-xs text-red-800 mt-2">Please upload a new clear photo below.</p>
+                            </div>
+                        `;
                     }
 
                     return `
@@ -3732,16 +3723,25 @@
                         console.error('[Family Hub] Access UI load failed:', accessErr);
                     }
 
+                    if (typeof loadMyTasks === 'function') loadMyTasks();
+
                     if (typeof window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded === 'function') {
-                        void window.OnboardingChecklist.repairFamilyOnboardingIfNeeded(user.id)
-                            .catch((repairErr) => {
-                                console.warn('[Family Hub] Onboarding repair skipped:', repairErr?.message || repairErr);
-                            })
-                            .finally(() => {
-                                if (typeof loadMyTasks === 'function') loadMyTasks({ force: true });
-                            });
-                    } else if (typeof loadMyTasks === 'function') {
-                        loadMyTasks();
+                        const runRepair = () => {
+                            void window.OnboardingChecklist.repairFamilyOnboardingIfNeeded(user.id)
+                                .then((result) => {
+                                    if (result?.repaired && typeof loadMyTasks === 'function') {
+                                        loadMyTasks({ force: true });
+                                    }
+                                })
+                                .catch((repairErr) => {
+                                    console.warn('[Family Hub] Onboarding repair skipped:', repairErr?.message || repairErr);
+                                });
+                        };
+                        if ('requestIdleCallback' in window) {
+                            requestIdleCallback(runRepair, { timeout: 3000 });
+                        } else {
+                            setTimeout(runRepair, 100);
+                        }
                     }
 
                     // Load My ID section (under My Documents)
