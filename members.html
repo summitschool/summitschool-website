@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260791';
+            var BUILD = '20260792';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260791">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260791">
+    <link rel="stylesheet" href="assets/styles.css?v=20260792">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260792">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1171,7 +1171,7 @@
         <i class="fas fa-chevron-up" aria-hidden="true"></i>
     </button>
 
-    <script src="assets/app-dialog.js?v=20260761"></script>
+    <script src="assets/app-dialog.js?v=20260792"></script>
     <script src="assets/progress-report-pdf.js?v=20260721"></script>
     <script src="assets/graduation-pdf.js?v=20260740"></script>
     <script src="assets/task-notify.js?v=20260750"></script>
@@ -1180,8 +1180,8 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260791"></script>
-    <script src="assets/family-picker.js?v=20260791"></script>
+    <script src="assets/onboarding-checklist.js?v=20260792"></script>
+    <script src="assets/family-picker.js?v=20260792"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -4035,48 +4035,11 @@
             statusDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        function setupPendingApprovalsPanel() {
-            const list = document.getElementById('admin-pending-approvals-list');
-            if (!list || list.dataset.bound === 'true') return;
-
-            list.addEventListener('click', (event) => {
-                const approveBtn = event.target.closest('[data-action="approve-family"]');
-                if (approveBtn) {
-                    event.preventDefault();
-                    void approveFamily(approveBtn.dataset.profileId);
-                    return;
-                }
-
-                const denyBtn = event.target.closest('[data-action="deny-family"]');
-                if (denyBtn) {
-                    event.preventDefault();
-                    void denyFamily(denyBtn.dataset.profileId, denyBtn.dataset.profileName);
-                }
-            });
-
-            list.dataset.bound = 'true';
-        }
-
-        function setupPendingIdsPanel() {
-            const list = document.getElementById('admin-pending-ids-list');
-            if (!list || list.dataset.bound === 'true') return;
-
-            list.addEventListener('click', (event) => {
-                const approveBtn = event.target.closest('[data-action="approve-pending-id"]');
-                if (approveBtn) {
-                    event.preventDefault();
-                    void approvePendingID(approveBtn);
-                    return;
-                }
-
-                const denyBtn = event.target.closest('[data-action="deny-pending-id"]');
-                if (denyBtn) {
-                    event.preventDefault();
-                    void denyPendingID(denyBtn);
-                }
-            });
-
-            list.dataset.bound = 'true';
+        function exposeAdminApprovalHandlers() {
+            window.approveFamily = approveFamily;
+            window.denyFamily = denyFamily;
+            window.approvePendingID = approvePendingID;
+            window.denyPendingID = denyPendingID;
         }
 
         function formatFamilyName(profile) {
@@ -4641,6 +4604,7 @@
         }
 
         function loadAdminMembersPanel() {
+            exposeAdminApprovalHandlers();
             void loadPendingApprovals();
             void loadPendingIDsForAdmin();
         }
@@ -4697,10 +4661,12 @@
                         </div>
                         <div class="flex gap-2 shrink-0">
                             <button type="button" data-action="approve-family" data-profile-id="${profile.id}"
+                                    onclick="approveFamily('${profile.id}')"
                                     class="hub-admin-action-btn px-4 py-2.5 bg-navy hover:bg-[#0F3A5F] text-white text-sm font-semibold rounded-xl transition-all">
                                 Approve
                             </button>
                             <button type="button" data-action="deny-family" data-profile-id="${profile.id}" data-profile-name="${escapeHtml(name)}"
+                                    onclick="denyFamily('${profile.id}', this.getAttribute('data-profile-name'))"
                                     class="hub-admin-action-btn px-4 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-xl transition-all">
                                 Deny
                             </button>
@@ -4751,7 +4717,15 @@
         }
 
         async function approveFamily(profileId) {
-            if (!supabaseClient || !profileId) return;
+            try {
+            if (!supabaseClient) {
+                await showAppAlert('Sign-in is required to approve families.');
+                return;
+            }
+            if (!profileId) {
+                await showAppAlert('Could not identify this family. Refresh the page and try again.');
+                return;
+            }
 
             const confirmed = await showAppConfirm({
                 title: 'Approve family?',
@@ -4816,10 +4790,22 @@
                 console.error('Approval email failed:', emailErr);
                 showPendingApprovalsStatus('warning', `Family approved and setup tasks assigned, but the approval email could not be sent to ${profile.email}: ${emailErr.message || emailErr}.${setupWarning}`);
             }
+            } catch (err) {
+                console.error('[Approve family] Failed:', err);
+                showPendingApprovalsStatus('error', 'Failed to approve family: ' + (err?.message || err));
+            }
         }
 
         async function denyFamily(profileId, displayName) {
-            if (!supabaseClient || !profileId) return;
+            try {
+            if (!supabaseClient) {
+                await showAppAlert('Sign-in is required to deny families.');
+                return;
+            }
+            if (!profileId) {
+                await showAppAlert('Could not identify this family. Refresh the page and try again.');
+                return;
+            }
 
             const confirmed = await showAppConfirm({
                 title: 'Deny access?',
@@ -4851,6 +4837,10 @@
             }
 
             loadPendingApprovals();
+            } catch (err) {
+                console.error('[Deny family] Failed:', err);
+                showPendingApprovalsStatus('error', 'Failed to deny family: ' + (err?.message || err));
+            }
         }
 
         async function assignSetupTasksForSelectedFamily() {
@@ -5969,10 +5959,12 @@
                             </div>
                             <div class="flex gap-2 shrink-0">
                                 <button type="button" data-action="approve-pending-id" data-doc-id="${item.id}" data-source="${item.source}" data-user-id="${item.user_id}"
+                                        onclick="approvePendingID(this)"
                                         class="hub-admin-action-btn px-3 py-2 bg-navy hover:bg-[#0F3A5F] text-white text-xs font-semibold rounded-lg transition-all">
                                     Approve
                                 </button>
                                 <button type="button" data-action="deny-pending-id" data-doc-id="${item.id}" data-source="${item.source}" data-user-id="${item.user_id || ''}" data-storage-path="${item.storage_path || ''}"
+                                        onclick="denyPendingID(this)"
                                         class="hub-admin-action-btn px-3 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-all">
                                     Deny
                                 </button>
@@ -5996,11 +5988,18 @@
         }
 
         async function approvePendingID(button) {
-            const docId = button.dataset.docId;
-            const source = button.dataset.source;
-            const userId = button.dataset.userId;
+            const docId = button?.dataset?.docId || button?.getAttribute?.('data-doc-id');
+            const source = button?.dataset?.source || button?.getAttribute?.('data-source');
+            const userId = button?.dataset?.userId || button?.getAttribute?.('data-user-id');
 
-            if (!docId || !supabaseClient) return;
+            if (!supabaseClient) {
+                await showAppAlert('Sign-in is required to approve IDs.');
+                return;
+            }
+            if (!docId) {
+                await showAppAlert('Could not identify this ID upload. Refresh the page and try again.');
+                return;
+            }
 
             const confirmed = await showAppConfirm({
                 title: 'Approve ID?',
@@ -6151,12 +6150,19 @@
         }
 
         async function denyPendingID(button) {
-            const docId = button.dataset.docId;
-            const source = button.dataset.source;
-            const storagePath = button.dataset.storagePath;
-            let deniedUserId = button.dataset.userId || null;
+            const docId = button?.dataset?.docId || button?.getAttribute?.('data-doc-id');
+            const source = button?.dataset?.source || button?.getAttribute?.('data-source');
+            const storagePath = button?.dataset?.storagePath || button?.getAttribute?.('data-storage-path');
+            let deniedUserId = button?.dataset?.userId || button?.getAttribute?.('data-user-id') || null;
 
-            if (!docId || !supabaseClient) return;
+            if (!supabaseClient) {
+                await showAppAlert('Sign-in is required to deny IDs.');
+                return;
+            }
+            if (!docId) {
+                await showAppAlert('Could not identify this ID upload. Refresh the page and try again.');
+                return;
+            }
 
             const denialReason = await showAppPrompt({
                 title: 'Deny ID submission',
@@ -7668,8 +7674,7 @@
                 setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
                 setupAdminBannerForm();   // banner management
                 setupStaffAccessPanel();
-                setupPendingApprovalsPanel();
-                setupPendingIdsPanel();
+                exposeAdminApprovalHandlers();
 
                 // Set initial tab state (support links from enrollment page)
                 const authTabHash = window.location.hash.toLowerCase();

@@ -43,10 +43,27 @@
         return dialog;
     }
 
+    function dialogHasRequiredChildren(dialog) {
+        return Boolean(
+            dialog
+            && document.getElementById(TITLE_ID)
+            && document.getElementById(MESSAGE_ID)
+            && document.getElementById(INPUT_ID)
+            && document.getElementById(CANCEL_ID)
+            && document.getElementById(OK_ID)
+            && document.getElementById(ACTIONS_ID)
+        );
+    }
+
     function ensureDialog() {
-        if (document.getElementById(DIALOG_ID)) {
+        const existing = document.getElementById(DIALOG_ID);
+        if (existing && dialogHasRequiredChildren(existing)) {
             mountDialog();
             return;
+        }
+
+        if (existing) {
+            existing.remove();
         }
 
         document.body.insertAdjacentHTML('beforeend', `
