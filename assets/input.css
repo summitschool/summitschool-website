@@ -980,9 +980,6 @@
 
   .family-picker {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
     flex: 1 1 auto;
     min-width: 0;
   }
@@ -999,42 +996,181 @@
     border: 0;
   }
 
-  .family-picker__search {
+  .family-picker__trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
     width: 100%;
+    min-height: 3.25rem;
+    padding: 0.8rem 1rem 0.8rem 0.95rem;
+    border-radius: 1rem;
+    border: 1px solid rgb(203 213 225);
+    background: linear-gradient(180deg, #fff 0%, rgb(248 250 252) 100%);
+    color: #0A2540;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   }
 
-  .family-picker__meta {
-    margin: 0;
-    font-size: 0.75rem;
-    line-height: 1.4;
-    color: rgb(100 116 139);
+  .family-picker__trigger:hover:not(:disabled) {
+    border-color: rgb(148 163 184);
+    background: #fff;
   }
 
-  .family-picker__list {
+  .family-picker__trigger:focus-visible {
+    outline: none;
+    border-color: #C9A227;
+    box-shadow: 0 0 0 3px rgb(201 162 39 / 0.15);
+  }
+
+  .family-picker__trigger:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+
+  .family-picker__trigger.has-selection .family-picker__trigger-label {
+    font-weight: 700;
+  }
+
+  .family-picker__trigger-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 0.8rem;
+    background: rgb(240 249 255);
+    color: #0A2540;
+    font-size: 0.95rem;
+  }
+
+  .family-picker__trigger-body {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    max-height: min(40vh, 14rem);
-    overflow: auto;
-    border: 1px solid rgb(226 232 240);
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .family-picker__trigger-label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #0A2540;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .family-picker__trigger-sub {
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: rgb(100 116 139);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .family-picker__trigger-sub.hidden {
+    display: none;
+  }
+
+  .family-picker__trigger-chevron {
+    flex-shrink: 0;
+    color: rgb(100 116 139);
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+  }
+
+  .family-picker__trigger[aria-expanded="true"] .family-picker__trigger-chevron {
+    transform: rotate(180deg);
+  }
+
+  .family-picker__panel {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 0;
+    right: 0;
+    z-index: 60;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
     border-radius: 1rem;
+    border: 1px solid rgb(203 213 225);
     background: #fff;
-    padding: 0.35rem;
+    box-shadow:
+      0 18px 40px -16px rgb(10 37 64 / 0.28),
+      0 8px 18px -10px rgb(15 23 42 / 0.18);
+  }
+
+  .family-picker__panel.is-open {
+    display: flex;
+  }
+
+  .family-picker__panel-search {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.8rem 0.95rem;
+    border-bottom: 1px solid rgb(241 245 249);
+    background: linear-gradient(180deg, rgb(248 250 252) 0%, #fff 100%);
+  }
+
+  .family-picker__panel-search-icon {
+    flex-shrink: 0;
+    color: rgb(148 163 184);
+    font-size: 0.85rem;
+  }
+
+  .family-picker__panel-input {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 1rem;
+    line-height: 1.4;
+    color: #0A2540;
+  }
+
+  .family-picker__panel-input:focus {
+    outline: none;
+  }
+
+  .family-picker__panel-input::placeholder {
+    color: rgb(148 163 184);
+  }
+
+  .family-picker__panel-hint {
+    margin: 0;
+    padding: 0.45rem 0.95rem 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgb(148 163 184);
+  }
+
+  .family-picker__panel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    max-height: min(52vh, 16.5rem);
+    overflow: auto;
+    padding: 0.45rem;
     -webkit-overflow-scrolling: touch;
   }
 
   .family-picker__option {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.1rem;
     width: 100%;
     text-align: left;
     border: 1px solid transparent;
-    border-radius: 0.8rem;
+    border-radius: 0.75rem;
     background: transparent;
-    padding: 0.7rem 0.8rem;
-    min-height: 2.75rem;
+    padding: 0.65rem 0.75rem;
     cursor: pointer;
     transition: background-color 0.15s ease, border-color 0.15s ease;
   }
@@ -1045,12 +1181,12 @@
   }
 
   .family-picker__option.is-selected {
-    background: rgb(240 249 255);
-    border-color: rgb(125 211 252);
+    background: rgb(255 251 235);
+    border-color: rgb(251 191 36 / 0.45);
   }
 
   .family-picker__option-name {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #0A2540;
     line-height: 1.25;
@@ -1060,33 +1196,42 @@
     font-size: 0.75rem;
     color: rgb(100 116 139);
     line-height: 1.3;
-    word-break: break-all;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .family-picker__empty {
-    padding: 0.85rem 0.9rem;
+    padding: 1rem 0.85rem;
     font-size: 0.8125rem;
     color: rgb(100 116 139);
     text-align: center;
   }
 
   @media (min-width: 640px) {
-    .family-picker__list {
-      max-height: 16rem;
+    .family-picker__trigger {
+      min-height: 3.5rem;
+      padding: 0.85rem 1.1rem 0.85rem 1rem;
+      border-radius: 1.125rem;
+    }
+
+    .family-picker__panel {
+      border-radius: 1.125rem;
+    }
+
+    .family-picker__panel-list {
+      max-height: 17rem;
     }
 
     .family-picker__option {
-      flex-direction: row;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
+      column-gap: 0.75rem;
     }
 
     .family-picker__option-email {
-      flex-shrink: 0;
-      max-width: 48%;
       text-align: right;
-      word-break: normal;
+      max-width: 46%;
     }
   }
 
