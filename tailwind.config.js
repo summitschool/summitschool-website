@@ -8,6 +8,7 @@ module.exports = {
     './enrollment-returning.html',
     './enrollment-new-family.html',
     './assets/app-dialog.js',
+    './assets/family-picker.js',
   ],
   theme: {
     extend: {

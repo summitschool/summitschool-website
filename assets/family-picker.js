@@ -46,9 +46,14 @@
     }
 
     function getFilteredFamilies(state) {
-        const query = state.filter.trim().toLowerCase();
+        const query = state.query.trim().toLowerCase();
         if (!query) return state.families;
         return state.families.filter((profile) => familySearchHaystack(profile).includes(query));
+    }
+
+    function getSelectedProfile(state) {
+        if (!state.selectedId) return null;
+        return state.families.find((profile) => profile.id === state.selectedId) || null;
     }
 
     function syncNativeSelect(state, userId) {
@@ -59,113 +64,124 @@
         select.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    function getSelectedProfile(state) {
-        if (!state.selectedId) return null;
-        return state.families.find((profile) => profile.id === state.selectedId) || null;
-    }
-
-    function updateTrigger(state) {
-        const profile = getSelectedProfile(state);
-        const hasFamilies = state.families.length > 0;
-
-        state.trigger.disabled = !hasFamilies;
-        state.trigger.setAttribute('aria-disabled', hasFamilies ? 'false' : 'true');
-
-        if (!hasFamilies) {
-            state.triggerLabel.textContent = state.placeholder || 'No families found';
-            state.triggerEmail.textContent = '';
-            state.triggerEmail.classList.add('hidden');
-            state.trigger.classList.remove('has-selection');
-            return;
-        }
-
-        if (profile) {
-            state.triggerLabel.textContent = formatFamilyName(profile);
-            state.triggerEmail.textContent = profile.email || '';
-            state.triggerEmail.classList.toggle('hidden', !profile.email);
-            state.trigger.classList.add('has-selection');
-            return;
-        }
-
-        state.triggerLabel.textContent = state.placeholder || 'Select a family...';
-        state.triggerEmail.textContent = 'Search by name or email';
-        state.triggerEmail.classList.remove('hidden');
-        state.trigger.classList.remove('has-selection');
-    }
-
-    function updateHint(state, filteredCount) {
+    function updateStatus(state, filteredCount) {
         const total = state.families.length;
         if (!total) {
-            state.hint.textContent = state.placeholder || 'No families found';
+            state.status.textContent = state.placeholder || 'No families found';
             return;
         }
 
-        const query = state.filter.trim();
+        const query = state.query.trim();
         if (!query) {
-            state.hint.textContent = total === 1
-                ? '1 family — scroll or type to search'
-                : `${total} families — scroll or type to search`;
+            state.status.textContent = total === 1 ? '1 family' : `${total} families`;
             return;
         }
 
-        state.hint.textContent = filteredCount === 0
-            ? `No matches for “${query}”`
+        state.status.textContent = filteredCount === 0
+            ? 'No matches'
             : `${filteredCount} of ${total} match`;
     }
 
-    function renderList(state) {
+    function renderResults(state) {
         const filtered = getFilteredFamilies(state);
-        updateHint(state, filtered.length);
+        updateStatus(state, filtered.length);
 
         if (!state.families.length) {
-            state.list.innerHTML = `<div class="family-picker__empty">${escapeHtml(state.placeholder || 'No families found')}</div>`;
+            state.results.innerHTML = `<li class="family-picker__empty">${escapeHtml(state.placeholder || 'No families found')}</li>`;
             return;
         }
 
         if (!filtered.length) {
-            state.list.innerHTML = '<div class="family-picker__empty">Try a different name or email.</div>';
+            state.results.innerHTML = '<li class="family-picker__empty">Try another name or email.</li>';
             return;
         }
 
-        state.list.innerHTML = filtered.map((profile) => {
+        state.results.innerHTML = filtered.map((profile) => {
             const isSelected = profile.id === state.selectedId;
             const name = escapeHtml(formatFamilyName(profile));
             const email = escapeHtml(profile.email || '');
             return `
-                <button type="button"
-                        class="family-picker__option${isSelected ? ' is-selected' : ''}"
-                        role="option"
-                        aria-selected="${isSelected ? 'true' : 'false'}"
-                        data-value="${escapeHtml(profile.id)}">
-                    <span class="family-picker__option-name">${name}</span>
-                    ${email ? `<span class="family-picker__option-email">${email}</span>` : ''}
-                </button>
+                <li>
+                    <button type="button"
+                            class="family-picker__option${isSelected ? ' is-selected' : ''}"
+                            role="option"
+                            aria-selected="${isSelected ? 'true' : 'false'}"
+                            data-value="${escapeHtml(profile.id)}">
+                        <span class="family-picker__option-name">${name}</span>
+                        ${email ? `<span class="family-picker__option-email">${email}</span>` : ''}
+                    </button>
+                </li>
             `;
         }).join('');
 
-        const selectedBtn = state.list.querySelector('.family-picker__option.is-selected');
+        const selectedBtn = state.results.querySelector('.family-picker__option.is-selected');
         if (selectedBtn && state.isOpen) {
             selectedBtn.scrollIntoView({ block: 'nearest' });
         }
     }
 
-    function closePanel(state) {
-        if (!state.isOpen) return;
-        state.isOpen = false;
-        state.panel.classList.remove('is-open');
-        state.panel.setAttribute('aria-hidden', 'true');
-        state.trigger.setAttribute('aria-expanded', 'false');
+    function updateClosedDisplay(state) {
+        const profile = getSelectedProfile(state);
+        const hasFamilies = state.families.length > 0;
+
+        state.input.disabled = !hasFamilies;
+        state.toggle.disabled = !hasFamilies;
+        state.clear.disabled = !hasFamilies;
+
+        state.wrap.classList.toggle('has-selection', Boolean(profile));
+
+        if (!hasFamilies) {
+            state.input.value = '';
+            state.input.placeholder = state.placeholder || 'No families found';
+            state.meta.textContent = '';
+            return;
+        }
+
+        if (profile && !state.isOpen) {
+            state.input.value = formatFamilyName(profile);
+            state.input.placeholder = '';
+            state.meta.textContent = profile.email || '';
+            return;
+        }
+
+        if (!state.isOpen) {
+            state.input.value = '';
+            state.input.placeholder = state.searchPlaceholder;
+            state.meta.textContent = '';
+        }
     }
 
-    function openPanel(state) {
+    function openMenu(state) {
         if (!state.families.length || state.isOpen) return;
         state.isOpen = true;
-        state.panel.classList.add('is-open');
-        state.panel.setAttribute('aria-hidden', 'false');
-        state.trigger.setAttribute('aria-expanded', 'true');
-        state.search.value = state.filter;
-        renderList(state);
-        window.setTimeout(() => state.search.focus(), 0);
+        state.wrap.classList.add('is-open');
+        state.input.readOnly = false;
+        state.query = state.input.value.trim();
+        if (getSelectedProfile(state) && state.input.value === formatFamilyName(getSelectedProfile(state))) {
+            state.query = '';
+            state.input.value = '';
+        }
+        state.input.placeholder = state.searchPlaceholder;
+        state.meta.textContent = '';
+        renderResults(state);
+        window.setTimeout(() => {
+            state.input.focus();
+            state.input.select();
+        }, 0);
+    }
+
+    function closeMenu(state, options = {}) {
+        if (!state.isOpen && !options.forceDisplayUpdate) {
+            updateClosedDisplay(state);
+            return;
+        }
+        state.isOpen = false;
+        state.wrap.classList.remove('is-open');
+        state.query = '';
+        updateClosedDisplay(state);
+        if (!options.keepInputValue) {
+            state.input.value = '';
+        }
     }
 
     function setSelected(state, userId, options = {}) {
@@ -173,11 +189,8 @@
         if (!options.skipNativeSync) {
             syncNativeSelect(state, state.selectedId);
         }
-        updateTrigger(state);
-        renderList(state);
-        if (!options.keepOpen) {
-            closePanel(state);
-        }
+        closeMenu(state, { forceDisplayUpdate: true });
+        renderResults(state);
     }
 
     function bindSelect(select) {
@@ -187,148 +200,149 @@
 
         select.dataset.familyPickerBound = 'true';
         select.classList.add('family-picker__native');
+        select.setAttribute('aria-hidden', 'true');
+        select.tabIndex = -1;
 
         const wrap = document.createElement('div');
         wrap.className = 'family-picker';
 
-        const trigger = document.createElement('button');
-        trigger.type = 'button';
-        trigger.className = 'family-picker__trigger';
-        trigger.id = `${select.id}-trigger`;
-        trigger.setAttribute('aria-haspopup', 'listbox');
-        trigger.setAttribute('aria-expanded', 'false');
+        const field = document.createElement('div');
+        field.className = 'family-picker__field';
 
-        const triggerIcon = document.createElement('span');
-        triggerIcon.className = 'family-picker__trigger-icon';
-        triggerIcon.innerHTML = '<i class="fas fa-users" aria-hidden="true"></i>';
+        const icon = document.createElement('span');
+        icon.className = 'family-picker__icon';
+        icon.innerHTML = '<i class="fas fa-search" aria-hidden="true"></i>';
 
-        const triggerBody = document.createElement('span');
-        triggerBody.className = 'family-picker__trigger-body';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'family-picker__input';
+        input.id = `${select.id}-input`;
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+        input.setAttribute('role', 'combobox');
+        input.setAttribute('aria-autocomplete', 'list');
+        input.setAttribute('aria-expanded', 'false');
 
-        const triggerLabel = document.createElement('span');
-        triggerLabel.className = 'family-picker__trigger-label';
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'family-picker__clear';
+        clearBtn.setAttribute('aria-label', 'Clear selected family');
+        clearBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
 
-        const triggerEmail = document.createElement('span');
-        triggerEmail.className = 'family-picker__trigger-sub';
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'family-picker__toggle';
+        toggleBtn.setAttribute('aria-label', 'Browse families');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down" aria-hidden="true"></i>';
 
-        triggerBody.appendChild(triggerLabel);
-        triggerBody.appendChild(triggerEmail);
+        field.appendChild(icon);
+        field.appendChild(input);
+        field.appendChild(clearBtn);
+        field.appendChild(toggleBtn);
 
-        const triggerChevron = document.createElement('span');
-        triggerChevron.className = 'family-picker__trigger-chevron';
-        triggerChevron.innerHTML = '<i class="fas fa-chevron-down" aria-hidden="true"></i>';
+        const meta = document.createElement('p');
+        meta.className = 'family-picker__meta';
 
-        trigger.appendChild(triggerIcon);
-        trigger.appendChild(triggerBody);
-        trigger.appendChild(triggerChevron);
+        const menu = document.createElement('div');
+        menu.className = 'family-picker__menu';
+        menu.setAttribute('aria-hidden', 'true');
 
-        const panel = document.createElement('div');
-        panel.className = 'family-picker__panel';
-        panel.setAttribute('aria-hidden', 'true');
+        const status = document.createElement('p');
+        status.className = 'family-picker__status';
+        status.setAttribute('aria-live', 'polite');
 
-        const searchWrap = document.createElement('div');
-        searchWrap.className = 'family-picker__panel-search';
+        const results = document.createElement('ul');
+        results.className = 'family-picker__results';
+        results.setAttribute('role', 'listbox');
 
-        const searchIcon = document.createElement('span');
-        searchIcon.className = 'family-picker__panel-search-icon';
-        searchIcon.innerHTML = '<i class="fas fa-search" aria-hidden="true"></i>';
-
-        const search = document.createElement('input');
-        search.type = 'search';
-        search.className = 'family-picker__panel-input';
-        search.placeholder = 'Search families…';
-        search.autocomplete = 'off';
-        search.setAttribute('aria-label', 'Search families');
-        search.enterKeyHint = 'search';
-
-        searchWrap.appendChild(searchIcon);
-        searchWrap.appendChild(search);
-
-        const hint = document.createElement('p');
-        hint.className = 'family-picker__panel-hint';
-        hint.setAttribute('aria-live', 'polite');
-
-        const list = document.createElement('div');
-        list.className = 'family-picker__panel-list';
-        list.setAttribute('role', 'listbox');
-
-        panel.appendChild(searchWrap);
-        panel.appendChild(hint);
-        panel.appendChild(list);
+        menu.appendChild(status);
+        menu.appendChild(results);
 
         const parent = select.parentNode;
         parent.insertBefore(wrap, select);
-        wrap.appendChild(trigger);
-        wrap.appendChild(panel);
+        wrap.appendChild(field);
+        wrap.appendChild(meta);
+        wrap.appendChild(menu);
         wrap.appendChild(select);
 
         const label = document.querySelector(`label[for="${select.id}"]`);
-        if (label) label.setAttribute('for', trigger.id);
+        if (label) label.setAttribute('for', input.id);
 
         const state = {
             select,
             wrap,
-            trigger,
-            triggerLabel,
-            triggerEmail,
-            panel,
-            search,
-            hint,
-            list,
+            field,
+            input,
+            meta,
+            menu,
+            status,
+            results,
+            clearBtn,
+            toggleBtn,
             families: [],
-            filter: '',
+            query: '',
             selectedId: select.value || '',
             placeholder: 'Select a family...',
+            searchPlaceholder: 'Find a family by name or email',
             isOpen: false,
         };
 
-        trigger.addEventListener('click', () => {
-            if (!state.families.length) return;
-            if (state.isOpen) {
-                closePanel(state);
-            } else {
-                openPanel(state);
-            }
+        input.addEventListener('focus', () => {
+            input.setAttribute('aria-expanded', 'true');
+            menu.setAttribute('aria-hidden', 'false');
+            openMenu(state);
         });
 
-        search.addEventListener('input', () => {
-            state.filter = search.value;
-            renderList(state);
+        input.addEventListener('input', () => {
+            state.query = input.value;
+            if (!state.isOpen) openMenu(state);
+            renderResults(state);
         });
 
-        search.addEventListener('keydown', (event) => {
+        input.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 event.preventDefault();
-                closePanel(state);
-                trigger.focus();
+                closeMenu(state);
+                input.blur();
             }
         });
 
-        list.addEventListener('click', (event) => {
+        toggleBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (state.isOpen) {
+                closeMenu(state);
+                input.blur();
+            } else {
+                openMenu(state);
+            }
+        });
+
+        clearBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setSelected(state, '');
+            openMenu(state);
+        });
+
+        results.addEventListener('click', (event) => {
             const option = event.target.closest('.family-picker__option');
             if (!option) return;
             setSelected(state, option.dataset.value || '');
-            state.filter = '';
-            state.search.value = '';
-            trigger.focus();
+            input.blur();
         });
 
-        document.addEventListener('click', (event) => {
+        document.addEventListener('mousedown', (event) => {
             if (!state.isOpen) return;
             if (wrap.contains(event.target)) return;
-            closePanel(state);
-        });
-
-        document.addEventListener('keydown', (event) => {
-            if (!state.isOpen || event.key !== 'Escape') return;
-            if (!wrap.contains(document.activeElement)) return;
-            closePanel(state);
-            trigger.focus();
+            closeMenu(state);
+            input.setAttribute('aria-expanded', 'false');
+            menu.setAttribute('aria-hidden', 'true');
         });
 
         pickers.set(select.id, state);
-        updateTrigger(state);
-        renderList(state);
+        updateClosedDisplay(state);
+        renderResults(state);
         return state;
     }
 
@@ -360,17 +374,19 @@
 
         state.families = Array.isArray(families) ? families : [];
         state.placeholder = placeholder;
+        state.searchPlaceholder = families.length
+            ? 'Find a family by name or email'
+            : placeholder;
         syncNativeOptions(state);
 
         const preserve = preserveUserId || state.selectedId;
         const hasPreserve = preserve && state.families.some((profile) => profile.id === preserve);
-        state.filter = '';
-        state.search.value = '';
-        closePanel(state);
+        state.query = '';
+        closeMenu(state, { forceDisplayUpdate: true });
         setSelected(state, hasPreserve ? preserve : '', { skipNativeSync: true });
         syncNativeSelect(state, hasPreserve ? preserve : '');
-        updateTrigger(state);
-        renderList(state);
+        updateClosedDisplay(state);
+        renderResults(state);
     }
 
     function setValue(selectOrId, userId) {
@@ -379,20 +395,16 @@
         if (userId && !state.families.some((profile) => profile.id === userId)) {
             return false;
         }
-        state.filter = '';
-        state.search.value = '';
+        state.query = '';
         setSelected(state, userId || '');
         return state.select.value === userId;
     }
 
-    function clearValue(selectOrId, options = {}) {
+    function clearValue(selectOrId) {
         const state = ensureBound(selectOrId);
         if (!state) return;
-        if (options.clearSearch) {
-            state.search.value = '';
-            state.filter = '';
-        }
-        closePanel(state);
+        state.query = '';
+        closeMenu(state, { forceDisplayUpdate: true });
         setSelected(state, '');
     }
 
