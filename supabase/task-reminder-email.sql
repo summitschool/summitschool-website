@@ -24,7 +24,10 @@ DECLARE
   notify_url text := 'https://tajyrmydwqsijstyzsjr.supabase.co/functions/v1/notify-task-reminders';
   webhook_secret text := 'REPLACE_WITH_YOUR_TASK_REMINDER_WEBHOOK_SECRET';
 BEGIN
-  IF webhook_secret = 'REPLACE_WITH_YOUR_TASK_REMINDER_WEBHOOK_SECRET' THEN
+  -- Only skip when the placeholder is still in place (do not compare to the real secret).
+  IF webhook_secret IS NULL
+     OR btrim(webhook_secret) = ''
+     OR webhook_secret = 'REPLACE_WITH_YOUR_TASK_REMINDER_WEBHOOK_SECRET' THEN
     RAISE WARNING 'task-reminder-email.sql: set TASK_REMINDER_WEBHOOK_SECRET before expecting emails.';
     RETURN;
   END IF;
