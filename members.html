@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260787';
+            var BUILD = '20260788';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260787">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260787">
+    <link rel="stylesheet" href="assets/styles.css?v=20260788">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260788">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -668,21 +668,21 @@
 
                 <div class="hub-nav-wrap !px-0 !pt-0 mb-6">
                     <div class="hub-admin-tab-group" role="tablist" aria-label="Admin sections">
-                        <button type="button" onclick="showAdminSection('members')" id="admin-nav-members" role="tab"
+                        <button type="button" id="admin-nav-members" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn is-active" aria-selected="true">Signups</button>
-                        <button type="button" onclick="showAdminSection('families')" id="admin-nav-families" role="tab"
+                        <button type="button" id="admin-nav-families" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Families</button>
-                        <button type="button" onclick="showAdminSection('academic')" id="admin-nav-academic" role="tab"
+                        <button type="button" id="admin-nav-academic" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Academic Records</button>
-                        <button type="button" onclick="showAdminSection('graduation')" id="admin-nav-graduation" role="tab"
+                        <button type="button" id="admin-nav-graduation" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Graduation</button>
-                        <button type="button" onclick="showAdminSection('site')" id="admin-nav-site" role="tab"
+                        <button type="button" id="admin-nav-site" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Site Content</button>
-                        <button type="button" onclick="showAdminSection('access')" id="admin-nav-access" role="tab"
+                        <button type="button" id="admin-nav-access" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Staff Access</button>
-                        <button type="button" onclick="showAdminSection('records')" id="admin-nav-records" role="tab"
+                        <button type="button" id="admin-nav-records" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Family Records</button>
-                        <button type="button" onclick="showAdminSection('library')" id="admin-nav-library" role="tab"
+                        <button type="button" id="admin-nav-library" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Document Library</button>
                     </div>
                 </div>
@@ -1180,8 +1180,8 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260787"></script>
-    <script src="assets/family-picker.js?v=20260787"></script>
+    <script src="assets/onboarding-checklist.js?v=20260788"></script>
+    <script src="assets/family-picker.js?v=20260788"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -1234,7 +1234,7 @@
         let oauthCallbackInProgress = false;
         let hubSessionRestoreInProgress = false;
         let authTransitionFailsafeTimer = null;
-        let adminBootstrapDone = false;
+        let suppressAdminFamilyChange = false;
         let approvedFamiliesCache = null;
         let approvedFamiliesCacheAt = 0;
         const APPROVED_FAMILIES_CACHE_MS = 60000;
@@ -2459,11 +2459,9 @@
             }
         }
 
-        function bootstrapFullAdminData() {
-            if (adminBootstrapDone || !currentUserAccess.isFullAdmin) return;
-            adminBootstrapDone = true;
-            if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
-            if (typeof loadAdminStandards === 'function') loadAdminStandards();
+        function loadAdminMembersPanel() {
+            if (typeof loadPendingApprovals === 'function') void loadPendingApprovals();
+            if (typeof loadPendingIDsForAdmin === 'function') void loadPendingIDsForAdmin();
         }
 
         function invalidateApprovedFamiliesCache() {
@@ -2488,11 +2486,7 @@
                 applyStaffAdminNavVisibility();
                 lastAdminSection = getFirstAllowedAdminSection();
 
-                if (currentUserAccess.isFullAdmin && !deferAdminLoads) {
-                    bootstrapFullAdminData();
-                }
             } else {
-                adminBootstrapDone = false;
                 if (adminTab) adminTab.classList.add('hidden');
                 if (adminContent) adminContent.classList.add('hidden');
                 if (adminTab?.classList.contains('is-active')) {
@@ -2543,11 +2537,16 @@
         }
 
         function resetAdminFamilySelection() {
-            if (window.FamilyPicker?.clearValue) {
-                window.FamilyPicker.clearValue('admin-family-select');
-            } else {
-                const familySelect = document.getElementById('admin-family-select');
-                if (familySelect) familySelect.value = '';
+            suppressAdminFamilyChange = true;
+            try {
+                if (window.FamilyPicker?.clearValue) {
+                    window.FamilyPicker.clearValue('admin-family-select', { silent: true });
+                } else {
+                    const familySelect = document.getElementById('admin-family-select');
+                    if (familySelect) familySelect.value = '';
+                }
+            } finally {
+                suppressAdminFamilyChange = false;
             }
             currentAdminDocsUserId = null;
 
@@ -2839,82 +2838,84 @@
 
         // Admin sub-section navigation
         function showAdminSection(section) {
-            if (!staffHasAdminSection(section)) {
-                section = getFirstAllowedAdminSection();
-            }
+            try {
+                if (!staffHasAdminSection(section)) {
+                    section = getFirstAllowedAdminSection();
+                }
 
-            if (window.FamilyPicker?.closeAll) {
-                window.FamilyPicker.closeAll();
-            }
+                const isSwitching = currentAdminSection !== section;
 
-            bootstrapFullAdminData();
+                if (currentAdminSection && isSwitching) {
+                    resetAdminSectionState(currentAdminSection);
+                }
 
-            const isSwitching = currentAdminSection !== section;
+                const sections = {
+                    members: document.getElementById('admin-section-members'),
+                    families: document.getElementById('admin-section-families'),
+                    academic: document.getElementById('admin-section-academic'),
+                    graduation: document.getElementById('admin-section-graduation'),
+                    records: document.getElementById('admin-section-records'),
+                    access: document.getElementById('admin-section-access'),
+                    library: document.getElementById('admin-section-library'),
+                    site: document.getElementById('admin-section-site')
+                };
+                const navButtons = {
+                    members: document.getElementById('admin-nav-members'),
+                    families: document.getElementById('admin-nav-families'),
+                    academic: document.getElementById('admin-nav-academic'),
+                    graduation: document.getElementById('admin-nav-graduation'),
+                    records: document.getElementById('admin-nav-records'),
+                    access: document.getElementById('admin-nav-access'),
+                    library: document.getElementById('admin-nav-library'),
+                    site: document.getElementById('admin-nav-site')
+                };
 
-            if (currentAdminSection && isSwitching) {
-                resetAdminSectionState(currentAdminSection);
-            }
+                Object.values(sections).forEach(el => el?.classList.add('hidden'));
 
-            const sections = {
-                members: document.getElementById('admin-section-members'),
-                families: document.getElementById('admin-section-families'),
-                academic: document.getElementById('admin-section-academic'),
-                graduation: document.getElementById('admin-section-graduation'),
-                records: document.getElementById('admin-section-records'),
-                access: document.getElementById('admin-section-access'),
-                library: document.getElementById('admin-section-library'),
-                site: document.getElementById('admin-section-site')
-            };
-            const navButtons = {
-                members: document.getElementById('admin-nav-members'),
-                families: document.getElementById('admin-nav-families'),
-                academic: document.getElementById('admin-nav-academic'),
-                graduation: document.getElementById('admin-nav-graduation'),
-                records: document.getElementById('admin-nav-records'),
-                access: document.getElementById('admin-nav-access'),
-                library: document.getElementById('admin-nav-library'),
-                site: document.getElementById('admin-nav-site')
-            };
+                const activeSection = sections[section];
+                const activeButton = navButtons[section];
+                if (activeSection) activeSection.classList.remove('hidden');
+                activateHubTabButtons(Object.values(navButtons), activeButton);
 
-            Object.values(sections).forEach(el => el?.classList.add('hidden'));
+                if (section === 'members') {
+                    loadAdminMembersPanel();
+                }
+                if (section === 'families' && typeof loadAdminFamilies === 'function') {
+                    loadAdminFamilies();
+                }
+                if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
+                    loadAdminAcademicFamilies();
+                }
+                if (section === 'graduation' && window.GraduationAdmin?.loadGraduationAdmin) {
+                    window.GraduationAdmin.loadGraduationAdmin();
+                }
+                if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
+                    loadAdminRecordsFamilies();
+                }
+                if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
+                    loadStaffAccessPanel();
+                }
+                if (section === 'library' && typeof loadAdminStandards === 'function') {
+                    loadAdminStandards();
+                }
+                if (section === 'site') {
+                    adminSiteShowPanel('resources');
+                    if (typeof loadAdminSiteSummary === 'function') loadAdminSiteSummary();
+                    if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
+                    if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
+                }
 
-            const activeSection = sections[section];
-            const activeButton = navButtons[section];
-            if (activeSection) activeSection.classList.remove('hidden');
-            activateHubTabButtons(Object.values(navButtons), activeButton);
+                lastAdminSection = section;
+                currentAdminSection = section;
 
-            if (section === 'members') {
-                if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
-                if (typeof loadPendingIDsForAdmin === 'function') loadPendingIDsForAdmin();
+                window.requestAnimationFrame(() => {
+                    window.FamilyPicker?.closeAll?.();
+                });
+            } catch (err) {
+                console.error('[Admin] Failed to switch section:', err);
             }
-            if (section === 'families' && typeof loadAdminFamilies === 'function') {
-                loadAdminFamilies();
-            }
-            if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
-                loadAdminAcademicFamilies();
-            }
-            if (section === 'graduation' && window.GraduationAdmin?.loadGraduationAdmin) {
-                window.GraduationAdmin.loadGraduationAdmin();
-            }
-            if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
-                loadAdminRecordsFamilies();
-            }
-            if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
-                loadStaffAccessPanel();
-            }
-            if (section === 'library' && typeof loadAdminStandards === 'function') {
-                loadAdminStandards();
-            }
-            if (section === 'site') {
-                adminSiteShowPanel('resources');
-                if (typeof loadAdminSiteSummary === 'function') loadAdminSiteSummary();
-                if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
-                if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
-            }
-
-            lastAdminSection = section;
-            currentAdminSection = section;
         }
+        window.showAdminSection = showAdminSection;
 
         // Tab switching for the logged-in dashboard (My Documents / My Tasks / Resources / Family Records / Admin)
         function showDashboardTab(tab) {
@@ -2971,7 +2972,6 @@
                 activeTab = tabAdmin;
 
                 applyStaffAdminNavVisibility();
-                bootstrapFullAdminData();
                 currentAdminSection = null;
                 showAdminSection(getFirstAllowedAdminSection());
             }
@@ -4034,6 +4034,21 @@
 
             statusDiv.textContent = message;
             statusDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function setupAdminSectionNav() {
+            const tabGroup = document.querySelector('#dashboard-admin .hub-admin-tab-group');
+            if (!tabGroup || tabGroup.dataset.bound === 'true') return;
+
+            tabGroup.addEventListener('click', (event) => {
+                const button = event.target.closest('.hub-admin-tab-btn');
+                if (!button || !tabGroup.contains(button)) return;
+                event.preventDefault();
+                const section = button.id.replace('admin-nav-', '');
+                if (section) showAdminSection(section);
+            });
+
+            tabGroup.dataset.bound = 'true';
         }
 
         function setupPendingApprovalsPanel() {
@@ -5172,6 +5187,7 @@
 
         // Helper for family select in admin (loads docs, tasks, standards checkboxes)
         function onAdminFamilyChange() {
+            if (suppressAdminFamilyChange) return;
             updateAdminFamiliesWorkspace();
             renderAdminFamilyChecklistSummary(document.getElementById('admin-family-select')?.value || '');
             loadAdminFamilyDocs();
@@ -5914,7 +5930,14 @@
 
             list.innerHTML = '<div class="text-slate-500 text-xs">Loading pending ID uploads...</div>';
 
-            const pending = await fetchPendingIDUploads('');
+            let pending = [];
+            try {
+                pending = await fetchPendingIDUploads('');
+            } catch (err) {
+                console.error('[Admin] Failed to load pending IDs:', err);
+                list.innerHTML = `<div class="text-red-600 text-xs p-3 border border-red-200 rounded-xl">Could not load pending ID uploads: ${escapeHtml(err?.message || String(err))}</div>`;
+                return;
+            }
 
             if (!pending.length) {
                 list.innerHTML = `<div class="text-xs text-slate-500">No pending ID uploads. When a family submits their ID task in My Tasks, it will appear here for review.</div>`;
@@ -7639,7 +7662,6 @@
                 supabaseClient.auth.onAuthStateChange((event) => {
                     if (signupInProgress || oauthCallbackInProgress) return;
                     if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
-                    adminBootstrapDone = false;
                     checkLoginState({ skipAuthTransition: true });
                 });
             }
@@ -7657,6 +7679,7 @@
                 setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
                 setupAdminBannerForm();   // banner management
                 setupStaffAccessPanel();
+                setupAdminSectionNav();
                 setupPendingApprovalsPanel();
                 setupPendingIdsPanel();
 

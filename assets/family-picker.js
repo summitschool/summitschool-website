@@ -63,12 +63,14 @@
         return state.families.find((profile) => profile.id === state.selectedId) || null;
     }
 
-    function syncNativeSelect(state, userId) {
+    function syncNativeSelect(state, userId, options = {}) {
         const select = state.select;
         const nextValue = userId || '';
         if (select.value === nextValue) return;
         select.value = nextValue;
-        select.dispatchEvent(new Event('change', { bubbles: true }));
+        if (!options.silent) {
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     }
 
     function updateStatus(state, filteredCount) {
@@ -198,7 +200,7 @@
     function setSelected(state, userId, options = {}) {
         state.selectedId = userId || '';
         if (!options.skipNativeSync) {
-            syncNativeSelect(state, state.selectedId);
+            syncNativeSelect(state, state.selectedId, { silent: options.silent === true });
         }
         closeMenu(state, { forceDisplayUpdate: true });
         renderResults(state);
@@ -386,8 +388,8 @@
         const hasPreserve = preserve && state.families.some((profile) => profile.id === preserve);
         state.query = '';
         closeMenu(state, { forceDisplayUpdate: true });
-        setSelected(state, hasPreserve ? preserve : '', { skipNativeSync: true });
-        syncNativeSelect(state, hasPreserve ? preserve : '');
+        setSelected(state, hasPreserve ? preserve : '', { skipNativeSync: true, silent: true });
+        syncNativeSelect(state, hasPreserve ? preserve : '', { silent: true });
         updateClosedDisplay(state);
         renderResults(state);
     }
@@ -403,12 +405,12 @@
         return state.select.value === userId;
     }
 
-    function clearValue(selectOrId) {
+    function clearValue(selectOrId, options = {}) {
         const state = ensureBound(selectOrId);
         if (!state) return;
         state.query = '';
         closeMenu(state, { forceDisplayUpdate: true });
-        setSelected(state, '');
+        setSelected(state, '', { silent: options.silent === true });
     }
 
     function getSelectedFamily(selectOrId) {
@@ -423,6 +425,10 @@
         documentListenersBound = true;
 
         document.addEventListener('mousedown', (event) => {
+            if (event.target.closest('.hub-admin-tab-group, .hub-tab-group, .hub-nav-wrap, #app-dialog')) {
+                return;
+            }
+
             pickers.forEach((state) => {
                 if (!state.isOpen) return;
                 if (state.wrap.contains(event.target)) return;
@@ -435,6 +441,7 @@
 
     function closeAll() {
         pickers.forEach((state) => {
+            if (!state?.wrap || !state.input || !state.menu) return;
             if (state.isOpen) {
                 state.input.blur();
             }
