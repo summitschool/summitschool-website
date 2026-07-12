@@ -978,6 +978,34 @@
     background: #fff;
   }
 
+  .admin-site-summary-stats strong {
+    color: #0A2540;
+    font-weight: 700;
+  }
+
+  .admin-site-summary-line + .admin-site-summary-line {
+    margin-top: 0.35rem;
+  }
+
+  .admin-site-subtabs {
+    margin-bottom: 0;
+  }
+
+  .admin-site-panel.hidden {
+    display: none;
+  }
+
+  .admin-site-list {
+    min-height: 4rem;
+  }
+
+  .admin-site-banner-preview {
+    border: 1px solid rgb(251 191 36 / 0.45);
+    border-radius: 1.125rem;
+    background: rgb(255 251 235);
+    padding: 1rem 1.125rem;
+  }
+
   /* Mobile: spacious, touch-friendly portal layout */
   @media (max-width: 639px) {
     .auth-card,

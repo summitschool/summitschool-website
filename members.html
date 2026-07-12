@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260780';
+            var BUILD = '20260781';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260780">
+    <link rel="stylesheet" href="assets/styles.css?v=20260781">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -490,7 +490,7 @@
                         <div id="member-banner" class="hub-announcement mx-auto hidden w-full max-w-md">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0 flex-1">
-                                    <strong class="mb-1 block text-sm">Announcement</strong>
+                                    <strong id="member-banner-headline" class="mb-1 block text-sm">Announcement</strong>
                                     <div id="member-banner-text" class="text-sm leading-relaxed whitespace-pre-wrap"></div>
                                 </div>
                                 <button type="button" onclick="dismissBanner()" class="shrink-0 self-start text-xs font-semibold text-amber-800 hover:text-amber-950">Dismiss</button>
@@ -1021,104 +1021,133 @@
 
                 <!-- 4. Site Content: shared resources + announcements -->
                 <div id="admin-section-site" class="hidden">
-                <div class="pt-2">
-                    <h3 class="hub-admin-block-title mb-1">Shared Resources</h3>
-                    <p class="text-sm text-slate-600 mb-6">Add, edit, or remove resources that appear for all approved families in the Resources tab.</p>
+                    <div class="hub-admin-block">
+                        <h3 class="hub-admin-block-title mb-1">Site Content</h3>
+                        <p class="hub-section-subtitle mb-6">Manage shared resources for the Resources tab and the announcement banner shown above Family Hub tabs.</p>
 
-                    <div class="hub-panel hub-panel-padded mb-6">
-                        <form id="admin-shared-form" class="space-y-5" autocomplete="off">
-                            <input type="hidden" id="admin-shared-id">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Title</label>
-                                <input type="text" id="admin-shared-title" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="e.g. 2025 School Calendar">
+                        <div class="admin-site-summary hub-panel hub-panel-padded">
+                            <div id="admin-site-summary-stats" class="admin-site-summary-stats text-sm text-slate-600">Loading site content summary...</div>
+                        </div>
+
+                        <div class="hub-admin-tab-group admin-site-subtabs mt-6" role="tablist" aria-label="Site content views">
+                            <button type="button" role="tab" id="admin-site-tab-resources" class="hub-admin-tab-btn is-active" aria-selected="true" onclick="adminSiteShowPanel('resources')">
+                                <i class="fas fa-folder-open" aria-hidden="true"></i> Resources
+                            </button>
+                            <button type="button" role="tab" id="admin-site-tab-add" class="hub-admin-tab-btn" aria-selected="false" onclick="adminSiteShowPanel('add')">
+                                <i class="fas fa-plus-circle" aria-hidden="true"></i> Add resource
+                            </button>
+                            <button type="button" role="tab" id="admin-site-tab-announcement" class="hub-admin-tab-btn" aria-selected="false" onclick="adminSiteShowPanel('announcement')">
+                                <i class="fas fa-bullhorn" aria-hidden="true"></i> Announcement
+                            </button>
+                        </div>
+
+                        <div id="admin-site-panel-resources" class="admin-site-panel hub-panel hub-panel-padded mt-4" role="tabpanel">
+                            <p class="text-xs text-slate-500 mb-3">Resources appear in the Family Hub Resources tab for all approved families. Hidden items stay in the list here but are not shown to families.</p>
+                            <div id="admin-shared-list" class="admin-site-list space-y-3">
+                                <!-- Populated by JS -->
                             </div>
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">URL (or upload file below)</label>
-                                <input type="url" id="admin-shared-url" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="https://... (leave blank if uploading file)">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Or Upload File (for all families)</label>
-                                <input type="file" id="admin-shared-file" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-navy file:text-white hover:file:bg-[#0F3A5F]">
-                                <p class="text-xs text-slate-500 mt-1">Uploaded files go into shared storage and will be visible to all approved families.</p>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div id="admin-site-panel-add" class="admin-site-panel hub-panel hub-panel-padded mt-4 hidden" role="tabpanel">
+                            <p class="text-xs text-slate-500 mb-4">Add a link or upload a file for all approved families. Use edit on the Resources tab to update an existing item.</p>
+                            <form id="admin-shared-form" class="space-y-5" autocomplete="off">
+                                <input type="hidden" id="admin-shared-id">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
-                                    <input type="text" id="admin-shared-category" value="General" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-shared-title">Title</label>
+                                    <input type="text" id="admin-shared-title" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="e.g. 2025 School Calendar">
                                 </div>
+
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Display Order (lower = first)</label>
-                                    <input type="number" id="admin-shared-order" value="0" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-shared-url">URL (or upload file below)</label>
+                                    <input type="url" id="admin-shared-url" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="https://... (leave blank if uploading file)">
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-shared-file">Or upload file (for all families)</label>
+                                    <input type="file" id="admin-shared-file" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-navy file:text-white hover:file:bg-[#0F3A5F]">
+                                    <p class="text-xs text-slate-500 mt-1">Uploaded files go into shared storage and will be visible to all approved families.</p>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-shared-category">Category</label>
+                                        <input type="text" id="admin-shared-category" value="General" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-shared-order">Display order (lower = first)</label>
+                                        <input type="number" id="admin-shared-order" value="0" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-shared-description">Description <span class="font-normal text-slate-500">(optional)</span></label>
+                                    <textarea id="admin-shared-description" rows="2" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y" placeholder="Optional note"></textarea>
+                                </div>
+
+                                <div class="flex flex-wrap items-center gap-4">
+                                    <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                        <input type="checkbox" id="admin-shared-visible" checked class="accent-navy">
+                                        Visible to families
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                        <input type="checkbox" id="admin-shared-notify" class="accent-navy">
+                                        Notify all approved families by email
+                                    </label>
+                                </div>
+
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <button type="submit" class="flex-1 py-3.5 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                        <span id="admin-shared-submit-text">Add shared resource</span>
+                                    </button>
+                                    <button type="button" onclick="cancelSharedEdit()" class="px-5 py-3.5 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm">
+                                        Clear form
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div id="admin-site-panel-announcement" class="admin-site-panel hub-panel hub-panel-padded mt-4 hidden" role="tabpanel">
+                            <p class="text-xs text-slate-500 mb-4">Publish a banner above the hub tabs for all approved families. Customize the headline label and message body.</p>
+
+                            <div id="current-banner-preview" class="hidden admin-site-banner-preview mb-5">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-amber-800 mb-2">Currently live</p>
+                                <div class="hub-announcement">
+                                    <strong id="current-banner-headline" class="mb-1 block text-sm">Announcement</strong>
+                                    <div id="current-banner-text" class="text-sm leading-relaxed whitespace-pre-wrap"></div>
                                 </div>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Description (optional)</label>
-                                <textarea id="admin-shared-description" rows="2" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y" placeholder="Optional note"></textarea>
-                            </div>
+                            <form id="admin-banner-form" class="space-y-5" autocomplete="off">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-banner-headline">Banner headline</label>
+                                    <input type="text" id="admin-banner-headline" value="Announcement" maxlength="80" class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base" placeholder="e.g. Announcement, Important update, Reminder">
+                                    <p class="text-xs text-slate-500 mt-1">Shown in bold above the banner message. Defaults to “Announcement” if left blank.</p>
+                                </div>
 
-                            <div class="flex items-center gap-3">
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" id="admin-shared-visible" checked class="rounded border-slate-300">
-                                    Visible to families
-                                </label>
-                                <label class="flex items-center gap-2 text-sm ml-4">
-                                    <input type="checkbox" id="admin-shared-notify">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-banner-message">Banner message</label>
+                                    <textarea id="admin-banner-message" rows="4" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y" placeholder="Enter the message to show to all Family Hub families..."></textarea>
+                                </div>
+
+                                <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                    <input type="checkbox" id="admin-banner-notify" class="accent-navy">
                                     Notify all approved families by email
                                 </label>
-                            </div>
 
-                            <div class="flex gap-3">
-                                <button type="submit" class="flex-1 py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all">
-                                    <span id="admin-shared-submit-text">Add Shared Resource</span>
-                                </button>
-                                <button type="button" onclick="cancelSharedEdit()" class="px-5 py-3 border border-slate-300 rounded-2xl text-sm">Clear</button>
-                            </div>
-                        </form>
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <button type="button" onclick="publishBanner()" class="flex-1 py-3.5 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all active:scale-[0.985]">
+                                        Publish banner
+                                    </button>
+                                    <button type="button" onclick="resetAdminBannerDraft()" class="px-5 py-3.5 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm">
+                                        Clear draft
+                                    </button>
+                                    <button type="button" onclick="deactivateCurrentBanner()" class="px-5 py-3.5 border border-red-200 text-red-600 font-semibold rounded-2xl hover:bg-red-50 transition-all text-sm whitespace-nowrap">
+                                        Remove current banner
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-
-                    <h3 class="text-lg font-semibold text-navy mb-3">Current Shared Resources</h3>
-                    <div id="admin-shared-list" class="space-y-3">
-                        <!-- Populated by JS -->
-                    </div>
-                </div>
-
-                <div class="mt-10 pt-8 border-t border-slate-200">
-                    <h3 class="hub-admin-block-title mb-1">Family Hub Announcement Banner</h3>
-                    <p class="text-sm text-slate-600 mb-6">Publish a message that appears above the hub tabs for all approved families on every page. You can deactivate it anytime.</p>
-
-                    <div class="hub-panel hub-panel-padded mb-6">
-                        <form id="admin-banner-form" class="space-y-5" autocomplete="off">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1.5">Banner Message</label>
-                                <textarea id="admin-banner-message" rows="4" required class="form-input w-full px-5 py-3 bg-white border border-slate-300 rounded-2xl text-base resize-y" placeholder="Enter the message to show to all Family Hub families..."></textarea>
-                            </div>
-
-                            <div class="flex items-center gap-3">
-                                <label class="flex items-center gap-2 text-sm font-medium">
-                                    <input type="checkbox" id="admin-banner-notify" class="rounded border-slate-300">
-                                    Notify all approved families by email
-                                </label>
-                            </div>
-
-                            <div class="flex flex-col sm:flex-row gap-3">
-                                <button type="button" onclick="publishBanner()" class="flex-1 py-3 bg-navy hover:bg-[#0F3A5F] text-white font-semibold rounded-2xl transition-all">
-                                    Publish Banner
-                                </button>
-                                <button type="button" onclick="resetAdminBannerDraft()" class="px-5 py-3 border border-slate-300 text-slate-700 rounded-2xl text-sm hover:bg-slate-50">Clear draft</button>
-                                <button type="button" onclick="deactivateCurrentBanner()" class="px-5 py-3 border border-red-200 text-red-600 rounded-2xl text-sm hover:bg-red-50 whitespace-nowrap">Remove Current Banner</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div id="current-banner-preview" class="hidden bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm">
-                        <strong>Current Active Banner:</strong>
-                        <div id="current-banner-text" class="mt-1 whitespace-pre-wrap"></div>
-                    </div>
-                </div>
                 </div>
             </div>
 
@@ -2442,6 +2471,7 @@
 
                 if (currentUserAccess.isFullAdmin) {
                     loadAdminFamilies();
+                    if (typeof loadAdminSiteSummary === 'function') loadAdminSiteSummary();
                     loadAdminSharedResources();
                     loadCurrentBannerForAdmin();
                     if (typeof loadPendingApprovals === 'function') loadPendingApprovals();
@@ -2592,6 +2622,8 @@
         function resetAdminBannerDraft() {
             const form = document.getElementById('admin-banner-form');
             if (form) form.reset();
+            const headlineEl = document.getElementById('admin-banner-headline');
+            if (headlineEl) headlineEl.value = 'Announcement';
         }
 
         function resetAdminSiteSection() {
@@ -2600,6 +2632,73 @@
             if (typeof cancelSharedEdit === 'function') cancelSharedEdit();
             resetAdminBannerDraft();
             clearFieldsInContainer(section);
+            adminSiteShowPanel('resources');
+        }
+
+        function adminSiteShowPanel(panelId) {
+            const panels = {
+                resources: document.getElementById('admin-site-panel-resources'),
+                add: document.getElementById('admin-site-panel-add'),
+                announcement: document.getElementById('admin-site-panel-announcement'),
+            };
+            const tabs = {
+                resources: document.getElementById('admin-site-tab-resources'),
+                add: document.getElementById('admin-site-tab-add'),
+                announcement: document.getElementById('admin-site-tab-announcement'),
+            };
+
+            Object.entries(panels).forEach(([id, panel]) => {
+                if (!panel) return;
+                panel.classList.toggle('hidden', id !== panelId);
+            });
+            Object.entries(tabs).forEach(([id, tab]) => {
+                if (!tab) return;
+                const active = id === panelId;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+
+        async function loadAdminSiteSummary() {
+            const summaryEl = document.getElementById('admin-site-summary-stats');
+            if (!summaryEl || !supabaseClient) return;
+
+            summaryEl.textContent = 'Loading site content summary...';
+
+            const [{ data: resources, error: resourcesError }, { data: banner, error: bannerError }] = await Promise.all([
+                supabaseClient
+                    .from('shared_resources')
+                    .select('visible'),
+                supabaseClient
+                    .from('member_banners')
+                    .select('headline, message')
+                    .eq('active', true)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle(),
+            ]);
+
+            if (resourcesError) {
+                summaryEl.textContent = 'Could not load shared resources summary.';
+                return;
+            }
+
+            const total = resources?.length || 0;
+            const visible = (resources || []).filter((item) => item.visible !== false).length;
+            const hidden = total - visible;
+
+            let bannerLine = 'No active announcement banner.';
+            if (!bannerError && banner) {
+                const headline = (banner.headline || 'Announcement').trim();
+                const preview = (banner.message || '').trim();
+                const snippet = preview.length > 72 ? `${preview.slice(0, 72)}…` : preview;
+                bannerLine = `Active banner: <strong>${escapeHtml(headline)}</strong>${snippet ? ` — ${escapeHtml(snippet)}` : ''}`;
+            }
+
+            summaryEl.innerHTML = `
+                <div class="admin-site-summary-line"><strong>${total}</strong> shared resource${total === 1 ? '' : 's'} · <strong>${visible}</strong> visible${hidden ? ` · ${hidden} hidden` : ''}</div>
+                <div class="admin-site-summary-line mt-1">${bannerLine}</div>
+            `;
         }
 
         function resetAdminAccessSection() {
@@ -2782,6 +2881,8 @@
                 loadAdminStandards();
             }
             if (section === 'site') {
+                adminSiteShowPanel('resources');
+                if (typeof loadAdminSiteSummary === 'function') loadAdminSiteSummary();
                 if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
                 if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
             }
@@ -6632,6 +6733,7 @@
                 `;
             });
             list.innerHTML = html;
+            loadAdminSiteSummary();
         }
 
         async function editSharedResource(id) {
@@ -6653,8 +6755,9 @@
             document.getElementById('admin-shared-description').value = res.description || '';
             document.getElementById('admin-shared-visible').checked = res.visible !== false;
 
-            document.getElementById('admin-shared-submit-text').textContent = 'Update Shared Resource';
-            document.getElementById('admin-shared-form').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('admin-shared-submit-text').textContent = 'Update shared resource';
+            adminSiteShowPanel('add');
+            document.getElementById('admin-shared-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         function cancelSharedEdit() {
@@ -6662,7 +6765,7 @@
             const form = document.getElementById('admin-shared-form');
             if (form) form.reset();
             document.getElementById('admin-shared-id').value = '';
-            document.getElementById('admin-shared-submit-text').textContent = 'Add Shared Resource';
+            document.getElementById('admin-shared-submit-text').textContent = 'Add shared resource';
         }
 
         async function deleteSharedResource(id) {
@@ -6997,15 +7100,37 @@
             }, 6500);
         }
 
+        function getBannerHeadlineValue(rawValue) {
+            const headline = (rawValue || '').trim();
+            return headline || 'Announcement';
+        }
+
+        function getAdminBannerPublishPayload() {
+            const message = document.getElementById('admin-banner-message')?.value.trim() || '';
+            const notify = document.getElementById('admin-banner-notify')?.checked || false;
+            const headline = getBannerHeadlineValue(document.getElementById('admin-banner-headline')?.value);
+            return { message, notify, headline };
+        }
+
+        function clearAdminBannerDraftFields() {
+            const messageEl = document.getElementById('admin-banner-message');
+            const notifyEl = document.getElementById('admin-banner-notify');
+            const headlineEl = document.getElementById('admin-banner-headline');
+            if (messageEl) messageEl.value = '';
+            if (notifyEl) notifyEl.checked = false;
+            if (headlineEl) headlineEl.value = 'Announcement';
+        }
+
         // Member banner functions
         async function loadMemberBanner() {
             const bannerDiv = document.getElementById('member-banner');
             const textDiv = document.getElementById('member-banner-text');
+            const headlineEl = document.getElementById('member-banner-headline');
             if (!bannerDiv || !textDiv || !supabaseClient) return;
 
             const { data: banner, error } = await supabaseClient
                 .from('member_banners')
-                .select('message')
+                .select('message, headline')
                 .eq('active', true)
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -7016,6 +7141,7 @@
                 return;
             }
 
+            if (headlineEl) headlineEl.textContent = getBannerHeadlineValue(banner.headline);
             textDiv.textContent = banner.message;
             bannerDiv.classList.remove('hidden');
 
@@ -7035,11 +7161,13 @@
         async function loadCurrentBannerForAdmin() {
             const preview = document.getElementById('current-banner-preview');
             const textDiv = document.getElementById('current-banner-text');
+            const previewHeadline = document.getElementById('current-banner-headline');
+            const draftHeadline = document.getElementById('admin-banner-headline');
             if (!preview || !textDiv || !supabaseClient) return;
 
             const { data: banner, error } = await supabaseClient
                 .from('member_banners')
-                .select('id, message')
+                .select('id, message, headline')
                 .eq('active', true)
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -7047,12 +7175,20 @@
 
             if (error || !banner) {
                 preview.classList.add('hidden');
+                if (draftHeadline && !draftHeadline.value.trim()) draftHeadline.value = 'Announcement';
+                loadAdminSiteSummary();
                 return;
             }
 
+            const headline = getBannerHeadlineValue(banner.headline);
+            if (previewHeadline) previewHeadline.textContent = headline;
             textDiv.textContent = banner.message;
             preview.classList.remove('hidden');
             preview.dataset.bannerId = banner.id;
+            if (draftHeadline && !document.getElementById('admin-banner-message')?.value.trim()) {
+                draftHeadline.value = headline;
+            }
+            loadAdminSiteSummary();
         }
 
         async function deactivateCurrentBanner() {
@@ -7075,10 +7211,7 @@
         }
 
         async function publishBanner() {
-            const messageEl = document.getElementById('admin-banner-message');
-            const notifyEl = document.getElementById('admin-banner-notify');
-            const message = messageEl.value.trim();
-            const notify = notifyEl.checked;
+            const { message, notify, headline } = getAdminBannerPublishPayload();
 
             if (!message) {
                 await showAppAlert('Message is required.');
@@ -7086,24 +7219,22 @@
             }
 
             try {
-                // Deactivate any existing
                 await supabaseClient
                     .from('member_banners')
                     .update({ active: false })
                     .eq('active', true);
 
-                // Insert new active
                 const { error } = await supabaseClient
                     .from('member_banners')
                     .insert({
                         message,
-                        active: true
+                        headline,
+                        active: true,
                     });
 
                 if (error) throw error;
 
-                messageEl.value = '';
-                notifyEl.checked = false;
+                clearAdminBannerDraftFields();
 
                 loadCurrentBannerForAdmin();
                 loadMemberBanner();
@@ -7112,9 +7243,9 @@
 
                 if (notify) {
                     showNotificationPrompt(
-                        'New Announcement from Summit Church School',
+                        `${headline} from Summit Church School`,
                         message,
-                        null  // will fetch all approved
+                        null
                     );
                 }
 
@@ -7130,50 +7261,7 @@
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-
-                const message = document.getElementById('admin-banner-message').value.trim();
-                const notify = document.getElementById('admin-banner-notify').checked;
-
-                if (!message) {
-                    await showAppAlert('Message is required.');
-                    return;
-                }
-
-                try {
-                    // Deactivate any existing
-                    await supabaseClient
-                        .from('member_banners')
-                        .update({ active: false })
-                        .eq('active', true);
-
-                    // Insert new active
-                    const { error } = await supabaseClient
-                        .from('member_banners')
-                        .insert({
-                            message,
-                            active: true
-                        });
-
-                    if (error) throw error;
-
-                    document.getElementById('admin-banner-message').value = '';
-                    document.getElementById('admin-banner-notify').checked = false;
-
-                    loadCurrentBannerForAdmin();
-                    loadMemberBanner();
-
-                    if (notify) {
-                        showNotificationPrompt(
-                            'New Announcement from Summit Church School',
-                            message,
-                            null  // will fetch all approved
-                        );
-                    }
-
-                } catch (err) {
-                    console.error(err);
-                    await showAppAlert('Failed to publish banner: ' + (err.message || err));
-                }
+                await publishBanner();
             });
         }
 
