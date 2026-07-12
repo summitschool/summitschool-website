@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260788';
+            var BUILD = '20260789';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260788">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260788">
+    <link rel="stylesheet" href="assets/styles.css?v=20260789">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260789">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1180,8 +1180,8 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260788"></script>
-    <script src="assets/family-picker.js?v=20260788"></script>
+    <script src="assets/onboarding-checklist.js?v=20260789"></script>
+    <script src="assets/family-picker.js?v=20260789"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -1235,6 +1235,7 @@
         let hubSessionRestoreInProgress = false;
         let authTransitionFailsafeTimer = null;
         let suppressAdminFamilyChange = false;
+        let myTasksLoadVersion = 0;
         let approvedFamiliesCache = null;
         let approvedFamiliesCacheAt = 0;
         const APPROVED_FAMILIES_CACHE_MS = 60000;
@@ -2844,10 +2845,7 @@
                 }
 
                 const isSwitching = currentAdminSection !== section;
-
-                if (currentAdminSection && isSwitching) {
-                    resetAdminSectionState(currentAdminSection);
-                }
+                const previousSection = currentAdminSection;
 
                 const sections = {
                     members: document.getElementById('admin-section-members'),
@@ -2870,47 +2868,45 @@
                     site: document.getElementById('admin-nav-site')
                 };
 
-                Object.values(sections).forEach(el => el?.classList.add('hidden'));
-
                 const activeSection = sections[section];
                 const activeButton = navButtons[section];
-                if (activeSection) activeSection.classList.remove('hidden');
+                if (!activeSection) return;
+
+                Object.entries(sections).forEach(([id, el]) => {
+                    if (!el) return;
+                    el.classList.toggle('hidden', id !== section);
+                });
                 activateHubTabButtons(Object.values(navButtons), activeButton);
+
+                lastAdminSection = section;
+                currentAdminSection = section;
+
+                window.FamilyPicker?.closeAll?.();
+
+                if (isSwitching && previousSection) {
+                    resetAdminSectionState(previousSection);
+                }
 
                 if (section === 'members') {
                     loadAdminMembersPanel();
-                }
-                if (section === 'families' && typeof loadAdminFamilies === 'function') {
+                } else if (section === 'families' && typeof loadAdminFamilies === 'function') {
                     loadAdminFamilies();
-                }
-                if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
+                } else if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
                     loadAdminAcademicFamilies();
-                }
-                if (section === 'graduation' && window.GraduationAdmin?.loadGraduationAdmin) {
+                } else if (section === 'graduation' && window.GraduationAdmin?.loadGraduationAdmin) {
                     window.GraduationAdmin.loadGraduationAdmin();
-                }
-                if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
+                } else if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
                     loadAdminRecordsFamilies();
-                }
-                if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
+                } else if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
                     loadStaffAccessPanel();
-                }
-                if (section === 'library' && typeof loadAdminStandards === 'function') {
+                } else if (section === 'library' && typeof loadAdminStandards === 'function') {
                     loadAdminStandards();
-                }
-                if (section === 'site') {
+                } else if (section === 'site') {
                     adminSiteShowPanel('resources');
                     if (typeof loadAdminSiteSummary === 'function') loadAdminSiteSummary();
                     if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
                     if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
                 }
-
-                lastAdminSection = section;
-                currentAdminSection = section;
-
-                window.requestAnimationFrame(() => {
-                    window.FamilyPicker?.closeAll?.();
-                });
             } catch (err) {
                 console.error('[Admin] Failed to switch section:', err);
             }
@@ -3115,7 +3111,10 @@
                 return;
             }
 
-            list.innerHTML = '<div class="hub-empty-state">Loading your tasks...</div>';
+            const loadVersion = ++myTasksLoadVersion;
+            if (!hasRenderedTasks) {
+                list.innerHTML = '<div class="hub-empty-state">Loading your tasks...</div>';
+            }
 
             // Fetch items marked as tasks (standards assigned to My Tasks get ' (Task)' appended to category)
             // ID verification standard gets special upload form when sent as a task.
@@ -3126,7 +3125,9 @@
                 .order('created_at', { ascending: false });
 
             if (error) {
-                list.innerHTML = '<div class="text-red-500 text-sm p-4">Error loading tasks.</div>';
+                if (loadVersion === myTasksLoadVersion) {
+                    list.innerHTML = '<div class="text-red-500 text-sm p-4">Error loading tasks.</div>';
+                }
                 console.error(error);
                 return;
             }
@@ -3199,7 +3200,10 @@
             }
 
             if (tasks.length === 0) {
-                list.innerHTML = '<div class="hub-empty-state">No pending tasks.</div>';
+                if (loadVersion === myTasksLoadVersion) {
+                    list.innerHTML = '<div class="hub-empty-state">No pending tasks.</div>';
+                    lastMyTasksUserId = user.id;
+                }
                 return;
             }
 
@@ -3410,6 +3414,8 @@
                     </div>
                 `;
             }));
+
+            if (loadVersion !== myTasksLoadVersion) return;
 
             list.innerHTML = taskCards.join('');
             lastMyTasksUserId = user.id;
@@ -3715,16 +3721,15 @@
 
                     if (typeof window.OnboardingChecklist?.repairFamilyOnboardingIfNeeded === 'function') {
                         void window.OnboardingChecklist.repairFamilyOnboardingIfNeeded(user.id)
-                            .then(() => {
-                                if (typeof loadMyTasks === 'function') loadMyTasks({ force: true });
-                            })
                             .catch((repairErr) => {
                                 console.warn('[Family Hub] Onboarding repair skipped:', repairErr?.message || repairErr);
+                            })
+                            .finally(() => {
+                                if (typeof loadMyTasks === 'function') loadMyTasks({ force: true });
                             });
+                    } else if (typeof loadMyTasks === 'function') {
+                        loadMyTasks();
                     }
-
-                    // Load My Tasks (for badge + list)
-                    if (typeof loadMyTasks === 'function') loadMyTasks();
 
                     // Load My ID section (under My Documents)
                     if (typeof loadMyIDSection === 'function') loadMyIDSection();
@@ -4036,63 +4041,43 @@
             statusDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        function setupAdminSectionNav() {
-            const tabGroup = document.querySelector('#dashboard-admin .hub-admin-tab-group');
-            if (!tabGroup || tabGroup.dataset.bound === 'true') return;
+        function setupAdminDashboardActions() {
+            const root = document.getElementById('dashboard-admin');
+            if (!root || root.dataset.actionsBound === 'true') return;
 
-            tabGroup.addEventListener('click', (event) => {
-                const button = event.target.closest('.hub-admin-tab-btn');
-                if (!button || !tabGroup.contains(button)) return;
-                event.preventDefault();
-                const section = button.id.replace('admin-nav-', '');
-                if (section) showAdminSection(section);
-            });
-
-            tabGroup.dataset.bound = 'true';
-        }
-
-        function setupPendingApprovalsPanel() {
-            const list = document.getElementById('admin-pending-approvals-list');
-            if (!list || list.dataset.bound === 'true') return;
-
-            list.addEventListener('click', (event) => {
-                const approveBtn = event.target.closest('[data-action="approve-family"]');
-                if (approveBtn) {
-                    event.preventDefault();
-                    void approveFamily(approveBtn.dataset.profileId);
+            root.addEventListener('click', (event) => {
+                const tabButton = event.target.closest('.hub-admin-tab-btn');
+                if (tabButton && tabButton.closest('.hub-admin-tab-group')) {
+                    const section = tabButton.id.replace('admin-nav-', '');
+                    if (section) showAdminSection(section);
                     return;
                 }
 
-                const denyBtn = event.target.closest('[data-action="deny-family"]');
-                if (denyBtn) {
-                    event.preventDefault();
-                    void denyFamily(denyBtn.dataset.profileId, denyBtn.dataset.profileName);
-                }
-            });
-
-            list.dataset.bound = 'true';
-        }
-
-        function setupPendingIdsPanel() {
-            const list = document.getElementById('admin-pending-ids-list');
-            if (!list || list.dataset.bound === 'true') return;
-
-            list.addEventListener('click', (event) => {
-                const approveBtn = event.target.closest('[data-action="approve-pending-id"]');
-                if (approveBtn) {
-                    event.preventDefault();
-                    void approvePendingID(approveBtn);
+                const approveFamilyBtn = event.target.closest('[data-action="approve-family"]');
+                if (approveFamilyBtn) {
+                    void approveFamily(approveFamilyBtn.dataset.profileId);
                     return;
                 }
 
-                const denyBtn = event.target.closest('[data-action="deny-pending-id"]');
-                if (denyBtn) {
-                    event.preventDefault();
-                    void denyPendingID(denyBtn);
+                const denyFamilyBtn = event.target.closest('[data-action="deny-family"]');
+                if (denyFamilyBtn) {
+                    void denyFamily(denyFamilyBtn.dataset.profileId, denyFamilyBtn.dataset.profileName);
+                    return;
+                }
+
+                const approveIdBtn = event.target.closest('[data-action="approve-pending-id"]');
+                if (approveIdBtn) {
+                    void approvePendingID(approveIdBtn);
+                    return;
+                }
+
+                const denyIdBtn = event.target.closest('[data-action="deny-pending-id"]');
+                if (denyIdBtn) {
+                    void denyPendingID(denyIdBtn);
                 }
             });
 
-            list.dataset.bound = 'true';
+            root.dataset.actionsBound = 'true';
         }
 
         function formatFamilyName(profile) {
@@ -7679,9 +7664,7 @@
                 setupAdminStandardForm(); // standards CRUD (for auto-assigning to My Documents)
                 setupAdminBannerForm();   // banner management
                 setupStaffAccessPanel();
-                setupAdminSectionNav();
-                setupPendingApprovalsPanel();
-                setupPendingIdsPanel();
+                setupAdminDashboardActions();
 
                 // Set initial tab state (support links from enrollment page)
                 const authTabHash = window.location.hash.toLowerCase();

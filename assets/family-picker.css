@@ -143,6 +143,17 @@
 
 .family-picker.is-open .family-picker__menu {
   display: block;
+  pointer-events: auto;
+}
+
+.family-picker:not(.is-open) .family-picker__menu {
+  pointer-events: none !important;
+}
+
+.hidden .family-picker__menu,
+.hidden .family-picker.is-open .family-picker__menu {
+  display: none !important;
+  pointer-events: none !important;
 }
 
 .family-picker__status {

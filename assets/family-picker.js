@@ -8,7 +8,6 @@
     ];
 
     const pickers = new Map();
-    let documentListenersBound = false;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -164,8 +163,12 @@
         }
     }
 
+    function isPickerVisible(state) {
+        return Boolean(state?.wrap?.offsetParent);
+    }
+
     function openMenu(state) {
-        if (!state.families.length || state.isOpen) return;
+        if (!state.families.length || state.isOpen || !isPickerVisible(state)) return;
         state.isOpen = true;
         state.wrap.classList.add('is-open');
         state.input.readOnly = false;
@@ -301,6 +304,7 @@
         };
 
         input.addEventListener('focus', () => {
+            if (!isPickerVisible(state)) return;
             input.setAttribute('aria-expanded', 'true');
             menu.setAttribute('aria-hidden', 'false');
             openMenu(state);
@@ -420,25 +424,6 @@
         return state.families.find((profile) => profile.id === state.selectedId) || null;
     }
 
-    function bindDocumentListeners() {
-        if (documentListenersBound) return;
-        documentListenersBound = true;
-
-        document.addEventListener('mousedown', (event) => {
-            if (event.target.closest('.hub-admin-tab-group, .hub-tab-group, .hub-nav-wrap, #app-dialog')) {
-                return;
-            }
-
-            pickers.forEach((state) => {
-                if (!state.isOpen) return;
-                if (state.wrap.contains(event.target)) return;
-                closeMenu(state);
-                state.input.setAttribute('aria-expanded', 'false');
-                state.menu.setAttribute('aria-hidden', 'true');
-            });
-        });
-    }
-
     function closeAll() {
         pickers.forEach((state) => {
             if (!state?.wrap || !state.input || !state.menu) return;
@@ -452,7 +437,6 @@
     }
 
     function bindAll() {
-        bindDocumentListeners();
         PICKER_SELECT_IDS.forEach((id) => {
             const select = document.getElementById(id);
             if (select) bindSelect(select);
@@ -461,7 +445,6 @@
 
     window.FamilyPicker = {
         bindAll,
-        bindDocumentListeners,
         closeAll,
         ensureBound,
         setFamilies,
