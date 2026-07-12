@@ -151,10 +151,11 @@
     function updateClosedDisplay(state) {
         const profile = getSelectedProfile(state);
         const hasFamilies = state.families.length > 0;
+        const visible = isPickerVisible(state);
 
-        state.input.disabled = !hasFamilies;
-        state.toggle.disabled = !hasFamilies;
-        state.clear.disabled = !hasFamilies;
+        state.input.disabled = visible && !hasFamilies;
+        state.toggle.disabled = visible && !hasFamilies;
+        state.clear.disabled = visible && !hasFamilies;
 
         state.wrap.classList.toggle('has-selection', Boolean(profile));
 
@@ -437,6 +438,33 @@
         syncNativeSelect(state, hasPreserve ? preserve : '', { silent: true });
         updateClosedDisplay(state);
         renderResults(state);
+        window.requestAnimationFrame(() => {
+            if (isPickerVisible(state)) {
+                updateClosedDisplay(state);
+            }
+        });
+    }
+
+    function refreshDisplay(selectOrId) {
+        const state = ensureBound(selectOrId);
+        if (!state) return;
+        closeMenu(state, { forceDisplayUpdate: true });
+        state.input.setAttribute('aria-expanded', state.isOpen ? 'true' : 'false');
+        state.menu.setAttribute('aria-hidden', state.isOpen ? 'false' : 'true');
+        updateClosedDisplay(state);
+        renderResults(state);
+    }
+
+    function refreshVisible() {
+        pickers.forEach((state) => {
+            if (isPickerVisible(state)) {
+                refreshDisplay(state.select);
+            } else if (state.isOpen) {
+                closeMenu(state, { forceDisplayUpdate: true });
+                state.input.setAttribute('aria-expanded', 'false');
+                state.menu.setAttribute('aria-hidden', 'true');
+            }
+        });
     }
 
     function setValue(selectOrId, userId) {
@@ -468,7 +496,7 @@
     function closeAll() {
         pickers.forEach((state) => {
             if (!state?.wrap || !state.input || !state.menu) return;
-            if (state.isOpen) {
+            if (document.activeElement === state.input) {
                 state.input.blur();
             }
             closeMenu(state, { forceDisplayUpdate: true });
@@ -491,6 +519,8 @@
         setFamilies,
         setValue,
         clearValue,
+        refreshDisplay,
+        refreshVisible,
         getSelectedFamily,
         formatFamilyName,
         formatFamilyOptionLabel,

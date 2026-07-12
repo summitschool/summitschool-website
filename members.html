@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260792';
+            var BUILD = '20260793';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260792">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260792">
+    <link rel="stylesheet" href="assets/styles.css?v=20260793">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260793">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1180,8 +1180,8 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260792"></script>
-    <script src="assets/family-picker.js?v=20260792"></script>
+    <script src="assets/onboarding-checklist.js?v=20260793"></script>
+    <script src="assets/family-picker.js?v=20260793"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -2519,12 +2519,27 @@
             root.querySelectorAll('details[open]').forEach((details) => details.removeAttribute('open'));
         }
 
+        function clearFamilyPickerValue(selectId) {
+            if (window.FamilyPicker?.clearValue) {
+                window.FamilyPicker.clearValue(selectId, { silent: true });
+                window.FamilyPicker.refreshDisplay?.(selectId);
+                return;
+            }
+            const select = document.getElementById(selectId);
+            if (select) select.value = '';
+        }
+
         function clearFieldsInContainer(root) {
             if (!root) return;
             root.querySelectorAll('form').forEach((form) => {
                 try { form.reset(); } catch (err) { /* ignore */ }
             });
-            root.querySelectorAll('select').forEach((select) => { select.value = ''; });
+            root.querySelectorAll('select').forEach((select) => {
+                if (select.classList.contains('family-picker__native') || select.closest('.family-picker')) {
+                    return;
+                }
+                select.value = '';
+            });
             root.querySelectorAll('input[type="file"]').forEach((input) => { input.value = ''; });
             root.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea').forEach((input) => {
                 if (input.type === 'file') return;
@@ -2535,12 +2550,7 @@
         function resetAdminFamilySelection() {
             suppressAdminFamilyChange = true;
             try {
-                if (window.FamilyPicker?.clearValue) {
-                    window.FamilyPicker.clearValue('admin-family-select', { silent: true });
-                } else {
-                    const familySelect = document.getElementById('admin-family-select');
-                    if (familySelect) familySelect.value = '';
-                }
+                clearFamilyPickerValue('admin-family-select');
             } finally {
                 suppressAdminFamilyChange = false;
             }
@@ -2615,6 +2625,7 @@
         function resetAdminRecordsSection() {
             const section = document.getElementById('admin-section-records');
             collapseOpenAccordions(section);
+            clearFamilyPickerValue('admin-records-family-select');
             clearFieldsInContainer(section);
 
             const content = document.getElementById('admin-records-content');
@@ -2718,6 +2729,7 @@
         function resetAdminAccessSection() {
             const section = document.getElementById('admin-section-access');
             collapseOpenAccordions(section);
+            clearFamilyPickerValue('staff-add-select');
             clearFieldsInContainer(section);
 
             const addSections = document.getElementById('staff-add-sections');
@@ -2848,6 +2860,10 @@
                 resetAdminSectionState(currentAdminSection);
             }
 
+            if (window.FamilyPicker?.closeAll) {
+                window.FamilyPicker.closeAll();
+            }
+
             const sections = {
                 members: document.getElementById('admin-section-members'),
                 families: document.getElementById('admin-section-families'),
@@ -2878,6 +2894,10 @@
 
             lastAdminSection = section;
             currentAdminSection = section;
+
+            window.requestAnimationFrame(() => {
+                window.FamilyPicker?.refreshVisible?.();
+            });
 
             try {
                 if (section === 'members') {
@@ -4282,12 +4302,23 @@
             const select = document.getElementById('admin-records-family-select');
             if (!select || !supabaseClient) return;
 
-            const families = await fetchApprovedFamilies();
-            setFamilyPickerFamilies(
-                'admin-records-family-select',
-                families,
-                families.length ? 'Select a family...' : 'No approved families found'
-            );
+            try {
+                const families = await fetchApprovedFamilies();
+                setFamilyPickerFamilies(
+                    'admin-records-family-select',
+                    families,
+                    families.length ? 'Select a family...' : 'No approved families found'
+                );
+                window.FamilyPicker?.refreshDisplay?.('admin-records-family-select');
+            } catch (err) {
+                console.error('[Admin Records] Failed to load families:', err);
+                setFamilyPickerFamilies(
+                    'admin-records-family-select',
+                    [],
+                    'Could not load families'
+                );
+                window.FamilyPicker?.refreshDisplay?.('admin-records-family-select');
+            }
         }
 
         async function loadAdminFamilyRecords() {
@@ -4394,6 +4425,7 @@
 
             list.innerHTML = '<div class="text-slate-500">Loading staff members...</div>';
 
+            try {
             const { data: staffRows, error } = await supabaseClient
                 .from('staff_members')
                 .select('id, user_id, created_at, admin_sections')
@@ -4404,16 +4436,6 @@
                 return;
             }
 
-            const staffIds = new Set((staffRows || []).map(row => row.user_id));
-            const families = await fetchApprovedFamilies();
-            const addCandidates = families.filter(f => f.email !== FULL_ADMIN_EMAIL && !staffIds.has(f.id));
-
-            setFamilyPickerFamilies(
-                'staff-add-select',
-                addCandidates,
-                addCandidates.length ? 'Select user to add...' : 'No users available to add'
-            );
-
             const addSections = document.getElementById('staff-add-sections');
             if (addSections) {
                 addSections.innerHTML = renderStaffSectionCheckboxes(['records'], 'staff-add');
@@ -4421,13 +4443,15 @@
 
             if (!staffRows?.length) {
                 list.innerHTML = '<div class="text-slate-500 text-xs italic">No staff members yet. Add someone below and choose which Admin sub-tabs they can use.</div>';
-                return;
-            }
-
-            const { data: profiles } = await supabaseClient
+            } else {
+            const { data: profiles, error: profilesError } = await supabaseClient
                 .from('profiles')
                 .select('id, first_name, last_name, full_name, email')
                 .in('id', staffRows.map(row => row.user_id));
+
+            if (profilesError) {
+                console.error('[Staff Access] Failed to load staff profiles:', profilesError);
+            }
 
             const profileMap = {};
             (profiles || []).forEach(profile => {
@@ -4473,10 +4497,26 @@
             });
             html += '</div>';
             list.innerHTML = html;
+            }
+
+            const staffIds = new Set((staffRows || []).map(row => row.user_id));
+            const families = await fetchApprovedFamilies();
+            const addCandidates = families.filter(f => f.email !== FULL_ADMIN_EMAIL && !staffIds.has(f.id));
+
+            setFamilyPickerFamilies(
+                'staff-add-select',
+                addCandidates,
+                addCandidates.length ? 'Select user to add...' : 'No users available to add'
+            );
+            window.FamilyPicker?.refreshDisplay?.('staff-add-select');
 
             if (statusDiv) {
                 statusDiv.textContent = '';
                 statusDiv.classList.add('hidden');
+            }
+            } catch (err) {
+                console.error('[Staff Access] Failed to load panel:', err);
+                list.innerHTML = `<div class="text-red-600 text-xs p-3 border border-red-200 rounded-xl">Could not load staff access panel: ${escapeHtml(err?.message || String(err))}</div>`;
             }
         }
 
@@ -4933,16 +4973,26 @@
             const select = document.getElementById('admin-family-select');
             if (!select || !supabaseClient) return;
 
-            const families = await fetchApprovedFamilies();
-            setFamilyPickerFamilies(
-                'admin-family-select',
-                families,
-                families.length ? 'Select a family...' : 'No approved families found',
-                preserveUserId
-            );
+            try {
+                const families = await fetchApprovedFamilies();
+                setFamilyPickerFamilies(
+                    'admin-family-select',
+                    families,
+                    families.length ? 'Select a family...' : 'No approved families found',
+                    preserveUserId
+                );
+                window.FamilyPicker?.refreshDisplay?.('admin-family-select');
 
-            if (preserveUserId && select.value === preserveUserId) {
-                onAdminFamilyChange();
+                if (preserveUserId && select.value === preserveUserId) {
+                    onAdminFamilyChange();
+                } else {
+                    updateAdminFamiliesWorkspace();
+                }
+            } catch (err) {
+                console.error('[Admin Families] Failed to load families:', err);
+                setFamilyPickerFamilies('admin-family-select', [], 'Could not load families');
+                window.FamilyPicker?.refreshDisplay?.('admin-family-select');
+                updateAdminFamiliesWorkspace();
             }
         }
 
@@ -6502,6 +6552,7 @@
                 'Select a family...',
                 preserveUserId
             );
+            window.FamilyPicker?.refreshDisplay?.('admin-academic-family-select');
 
             if (preserveUserId && select.value === preserveUserId) {
                 loadAdminAcademicRecords();
@@ -6511,6 +6562,7 @@
         function resetAdminAcademicSection() {
             const section = document.getElementById('admin-section-academic');
             collapseOpenAccordions(section);
+            clearFamilyPickerValue('admin-academic-family-select');
             clearFieldsInContainer(section);
 
             const listEl = document.getElementById('admin-academic-records-standalone-list');
