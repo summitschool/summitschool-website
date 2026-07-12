@@ -153,9 +153,13 @@
         const hasFamilies = state.families.length > 0;
         const visible = isPickerVisible(state);
 
-        state.input.disabled = visible && !hasFamilies;
-        state.toggle.disabled = visible && !hasFamilies;
-        state.clear.disabled = visible && !hasFamilies;
+        const toggle = state.toggleBtn || state.toggle;
+        const clear = state.clearBtn || state.clear;
+        const disabled = visible && !hasFamilies;
+
+        if (state.input) state.input.disabled = disabled;
+        if (toggle) toggle.disabled = disabled;
+        if (clear) clear.disabled = disabled;
 
         state.wrap.classList.toggle('has-selection', Boolean(profile));
 
@@ -315,6 +319,8 @@
             results,
             clearBtn,
             toggleBtn,
+            clear: clearBtn,
+            toggle: toggleBtn,
             families: [],
             query: '',
             selectedId: select.value || '',
