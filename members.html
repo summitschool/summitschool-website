@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260793';
+            var BUILD = '20260794';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260793">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260793">
+    <link rel="stylesheet" href="assets/styles.css?v=20260794">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260794">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1180,8 +1180,8 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260793"></script>
-    <script src="assets/family-picker.js?v=20260793"></script>
+    <script src="assets/onboarding-checklist.js?v=20260794"></script>
+    <script src="assets/family-picker.js?v=20260794"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -2520,10 +2520,13 @@
         }
 
         function clearFamilyPickerValue(selectId) {
-            if (window.FamilyPicker?.clearValue) {
-                window.FamilyPicker.clearValue(selectId, { silent: true });
-                window.FamilyPicker.refreshDisplay?.(selectId);
-                return;
+            try {
+                if (window.FamilyPicker?.clearValue) {
+                    window.FamilyPicker.clearValue(selectId, { silent: true });
+                    return;
+                }
+            } catch (err) {
+                console.error('[FamilyPicker] Failed to clear:', selectId, err);
             }
             const select = document.getElementById(selectId);
             if (select) select.value = '';
@@ -2856,12 +2859,12 @@
 
             const isSwitching = currentAdminSection !== section;
 
-            if (currentAdminSection && isSwitching) {
-                resetAdminSectionState(currentAdminSection);
-            }
-
-            if (window.FamilyPicker?.closeAll) {
-                window.FamilyPicker.closeAll();
+            try {
+                if (currentAdminSection && isSwitching) {
+                    resetAdminSectionState(currentAdminSection);
+                }
+            } catch (err) {
+                console.error('[Admin] Failed to reset section:', currentAdminSection, err);
             }
 
             const sections = {
@@ -2895,9 +2898,11 @@
             lastAdminSection = section;
             currentAdminSection = section;
 
-            window.requestAnimationFrame(() => {
-                window.FamilyPicker?.refreshVisible?.();
-            });
+            try {
+                window.FamilyPicker?.closeAll?.();
+            } catch (err) {
+                console.error('[Admin] Failed to close family pickers:', err);
+            }
 
             try {
                 if (section === 'members') {
@@ -2923,6 +2928,14 @@
             } catch (err) {
                 console.error('[Admin] Failed to load section:', section, err);
             }
+
+            window.requestAnimationFrame(() => {
+                try {
+                    window.FamilyPicker?.refreshVisible?.();
+                } catch (err) {
+                    console.error('[Admin] Failed to refresh family pickers:', err);
+                }
+            });
         }
         window.showAdminSection = showAdminSection;
 
@@ -4056,10 +4069,10 @@
         }
 
         function exposeAdminApprovalHandlers() {
-            window.approveFamily = approveFamily;
-            window.denyFamily = denyFamily;
-            window.approvePendingID = approvePendingID;
-            window.denyPendingID = denyPendingID;
+            if (typeof approveFamily === 'function') window.approveFamily = approveFamily;
+            if (typeof denyFamily === 'function') window.denyFamily = denyFamily;
+            if (typeof approvePendingID === 'function') window.approvePendingID = approvePendingID;
+            if (typeof denyPendingID === 'function') window.denyPendingID = denyPendingID;
         }
 
         function formatFamilyName(profile) {
@@ -4309,7 +4322,6 @@
                     families,
                     families.length ? 'Select a family...' : 'No approved families found'
                 );
-                window.FamilyPicker?.refreshDisplay?.('admin-records-family-select');
             } catch (err) {
                 console.error('[Admin Records] Failed to load families:', err);
                 setFamilyPickerFamilies(
@@ -4317,7 +4329,6 @@
                     [],
                     'Could not load families'
                 );
-                window.FamilyPicker?.refreshDisplay?.('admin-records-family-select');
             }
         }
 
@@ -4508,8 +4519,6 @@
                 addCandidates,
                 addCandidates.length ? 'Select user to add...' : 'No users available to add'
             );
-            window.FamilyPicker?.refreshDisplay?.('staff-add-select');
-
             if (statusDiv) {
                 statusDiv.textContent = '';
                 statusDiv.classList.add('hidden');
@@ -4981,8 +4990,6 @@
                     families.length ? 'Select a family...' : 'No approved families found',
                     preserveUserId
                 );
-                window.FamilyPicker?.refreshDisplay?.('admin-family-select');
-
                 if (preserveUserId && select.value === preserveUserId) {
                     onAdminFamilyChange();
                 } else {
@@ -4991,7 +4998,6 @@
             } catch (err) {
                 console.error('[Admin Families] Failed to load families:', err);
                 setFamilyPickerFamilies('admin-family-select', [], 'Could not load families');
-                window.FamilyPicker?.refreshDisplay?.('admin-family-select');
                 updateAdminFamiliesWorkspace();
             }
         }
@@ -6552,7 +6558,7 @@
                 'Select a family...',
                 preserveUserId
             );
-            window.FamilyPicker?.refreshDisplay?.('admin-academic-family-select');
+
 
             if (preserveUserId && select.value === preserveUserId) {
                 loadAdminAcademicRecords();

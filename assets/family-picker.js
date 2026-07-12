@@ -446,23 +446,32 @@
     }
 
     function refreshDisplay(selectOrId) {
-        const state = ensureBound(selectOrId);
-        if (!state) return;
-        closeMenu(state, { forceDisplayUpdate: true });
-        state.input.setAttribute('aria-expanded', state.isOpen ? 'true' : 'false');
-        state.menu.setAttribute('aria-hidden', state.isOpen ? 'false' : 'true');
-        updateClosedDisplay(state);
-        renderResults(state);
+        try {
+            const state = ensureBound(selectOrId);
+            if (!state?.input || !state.menu) return;
+            closeMenu(state, { forceDisplayUpdate: true });
+            state.input.setAttribute('aria-expanded', 'false');
+            state.menu.setAttribute('aria-hidden', 'true');
+            updateClosedDisplay(state);
+            renderResults(state);
+        } catch (err) {
+            console.error('[FamilyPicker] refreshDisplay failed:', err);
+        }
     }
 
     function refreshVisible() {
         pickers.forEach((state) => {
-            if (isPickerVisible(state)) {
-                refreshDisplay(state.select);
-            } else if (state.isOpen) {
-                closeMenu(state, { forceDisplayUpdate: true });
-                state.input.setAttribute('aria-expanded', 'false');
-                state.menu.setAttribute('aria-hidden', 'true');
+            try {
+                if (!state?.select) return;
+                if (isPickerVisible(state)) {
+                    refreshDisplay(state.select);
+                } else if (state.isOpen) {
+                    closeMenu(state, { forceDisplayUpdate: true });
+                    state.input?.setAttribute('aria-expanded', 'false');
+                    state.menu?.setAttribute('aria-hidden', 'true');
+                }
+            } catch (err) {
+                console.error('[FamilyPicker] refreshVisible failed:', err);
             }
         });
     }
@@ -495,13 +504,17 @@
 
     function closeAll() {
         pickers.forEach((state) => {
-            if (!state?.wrap || !state.input || !state.menu) return;
-            if (document.activeElement === state.input) {
-                state.input.blur();
+            try {
+                if (!state?.wrap || !state.input || !state.menu) return;
+                if (document.activeElement === state.input) {
+                    state.input.blur();
+                }
+                closeMenu(state, { forceDisplayUpdate: true });
+                state.input.setAttribute('aria-expanded', 'false');
+                state.menu.setAttribute('aria-hidden', 'true');
+            } catch (err) {
+                console.error('[FamilyPicker] closeAll failed:', err);
             }
-            closeMenu(state, { forceDisplayUpdate: true });
-            state.input.setAttribute('aria-expanded', 'false');
-            state.menu.setAttribute('aria-hidden', 'true');
         });
     }
 
