@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260790';
+            var BUILD = '20260791';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260790">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260790">
+    <link rel="stylesheet" href="assets/styles.css?v=20260791">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260791">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1180,8 +1180,8 @@
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
-    <script src="assets/onboarding-checklist.js?v=20260790"></script>
-    <script src="assets/family-picker.js?v=20260790"></script>
+    <script src="assets/onboarding-checklist.js?v=20260791"></script>
+    <script src="assets/family-picker.js?v=20260791"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -2795,31 +2795,35 @@
 
         function resetAdminSectionState(section) {
             if (!section) return;
-            switch (section) {
-                case 'families':
-                    resetAdminFamiliesSection();
-                    break;
-                case 'academic':
-                    resetAdminAcademicSection();
-                    break;
-                case 'graduation':
-                    resetAdminGraduationSection();
-                    break;
-                case 'records':
-                    resetAdminRecordsSection();
-                    break;
-                case 'site':
-                    resetAdminSiteSection();
-                    break;
-                case 'access':
-                    resetAdminAccessSection();
-                    break;
-                case 'library':
-                    resetAdminLibrarySection();
-                    break;
-                case 'members':
-                    resetAdminMembersSection();
-                    break;
+            try {
+                switch (section) {
+                    case 'families':
+                        resetAdminFamiliesSection();
+                        break;
+                    case 'academic':
+                        resetAdminAcademicSection();
+                        break;
+                    case 'graduation':
+                        resetAdminGraduationSection();
+                        break;
+                    case 'records':
+                        resetAdminRecordsSection();
+                        break;
+                    case 'site':
+                        resetAdminSiteSection();
+                        break;
+                    case 'access':
+                        resetAdminAccessSection();
+                        break;
+                    case 'library':
+                        resetAdminLibrarySection();
+                        break;
+                    case 'members':
+                        resetAdminMembersSection();
+                        break;
+                }
+            } catch (err) {
+                console.error('[Admin] Failed to reset section:', section, err);
             }
         }
 
@@ -2872,36 +2876,33 @@
             if (activeSection) activeSection.classList.remove('hidden');
             activateHubTabButtons(Object.values(navButtons), activeButton);
 
-            if (section === 'members') {
-                loadAdminMembersPanel();
-            }
-            if (section === 'families' && typeof loadAdminFamilies === 'function') {
-                loadAdminFamilies();
-            }
-            if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
-                loadAdminAcademicFamilies();
-            }
-            if (section === 'graduation' && window.GraduationAdmin?.loadGraduationAdmin) {
-                window.GraduationAdmin.loadGraduationAdmin();
-            }
-            if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
-                loadAdminRecordsFamilies();
-            }
-            if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
-                loadStaffAccessPanel();
-            }
-            if (section === 'library' && typeof loadAdminStandards === 'function') {
-                loadAdminStandards();
-            }
-            if (section === 'site') {
-                adminSiteShowPanel('resources');
-                if (typeof loadAdminSiteSummary === 'function') loadAdminSiteSummary();
-                if (typeof loadAdminSharedResources === 'function') loadAdminSharedResources();
-                if (typeof loadCurrentBannerForAdmin === 'function') loadCurrentBannerForAdmin();
-            }
-
             lastAdminSection = section;
             currentAdminSection = section;
+
+            try {
+                if (section === 'members') {
+                    loadAdminMembersPanel();
+                } else if (section === 'families' && typeof loadAdminFamilies === 'function') {
+                    window.setTimeout(() => { void loadAdminFamilies(); }, 0);
+                } else if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
+                    window.setTimeout(() => { void loadAdminAcademicFamilies(); }, 0);
+                } else if (section === 'graduation' && window.GraduationAdmin?.loadGraduationAdmin) {
+                    window.GraduationAdmin.loadGraduationAdmin();
+                } else if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
+                    window.setTimeout(() => { void loadAdminRecordsFamilies(); }, 0);
+                } else if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
+                    void loadStaffAccessPanel();
+                } else if (section === 'library' && typeof loadAdminStandards === 'function') {
+                    void loadAdminStandards();
+                } else if (section === 'site') {
+                    adminSiteShowPanel('resources');
+                    if (typeof loadAdminSiteSummary === 'function') void loadAdminSiteSummary();
+                    if (typeof loadAdminSharedResources === 'function') void loadAdminSharedResources();
+                    if (typeof loadCurrentBannerForAdmin === 'function') void loadCurrentBannerForAdmin();
+                }
+            } catch (err) {
+                console.error('[Admin] Failed to load section:', section, err);
+            }
         }
         window.showAdminSection = showAdminSection;
 
@@ -4637,6 +4638,11 @@
                     removeBtn.textContent = 'Remove';
                 }
             }
+        }
+
+        function loadAdminMembersPanel() {
+            void loadPendingApprovals();
+            void loadPendingIDsForAdmin();
         }
 
         // Admin-only: families waiting for approval

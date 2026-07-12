@@ -62,10 +62,26 @@
         return state.families.find((profile) => profile.id === state.selectedId) || null;
     }
 
+    function ensureNativeOption(state, userId) {
+        if (!userId) return;
+        const select = state.select;
+        const existing = select.querySelector(`option[value="${userId}"]`);
+        if (existing) return;
+
+        const profile = state.families.find((item) => item.id === userId);
+        if (!profile) return;
+
+        const option = document.createElement('option');
+        option.value = profile.id;
+        option.textContent = formatFamilyOptionLabel(profile);
+        select.appendChild(option);
+    }
+
     function syncNativeSelect(state, userId, options = {}) {
         const select = state.select;
         const nextValue = userId || '';
         if (select.value === nextValue) return;
+        ensureNativeOption(state, nextValue);
         select.value = nextValue;
         if (!options.silent) {
             select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -179,6 +195,9 @@
         }
         state.input.placeholder = state.searchPlaceholder;
         state.meta.textContent = '';
+        if (!state.nativeOptionsFull) {
+            syncNativeOptions(state, { full: true });
+        }
         renderResults(state);
         window.setTimeout(() => {
             state.input.focus();
@@ -301,6 +320,7 @@
             placeholder: 'Select a family...',
             searchPlaceholder: 'Find a family by name or email',
             isOpen: false,
+            nativeOptionsFull: false,
         };
 
         input.addEventListener('focus', () => {
@@ -363,13 +383,34 @@
         return bindSelect(select) || pickers.get(select.id) || null;
     }
 
-    function syncNativeOptions(state) {
+    function syncNativeOptions(state, options = {}) {
         const { select, families, placeholder } = state;
+        const full = options.full === true;
+
+        if (!families.length) {
+            select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>`;
+            state.nativeOptionsFull = true;
+            return;
+        }
+
+        if (!full) {
+            const selected = getSelectedProfile(state);
+            let html = `<option value="">${escapeHtml(placeholder)}</option>`;
+            if (selected) {
+                html += `<option value="${escapeHtml(selected.id)}" selected>${escapeHtml(formatFamilyOptionLabel(selected))}</option>`;
+            }
+            select.innerHTML = html;
+            state.nativeOptionsFull = false;
+            return;
+        }
+
         let html = `<option value="">${escapeHtml(placeholder)}</option>`;
         families.forEach((profile) => {
-            html += `<option value="${escapeHtml(profile.id)}">${escapeHtml(formatFamilyOptionLabel(profile))}</option>`;
+            const selectedAttr = profile.id === state.selectedId ? ' selected' : '';
+            html += `<option value="${escapeHtml(profile.id)}"${selectedAttr}>${escapeHtml(formatFamilyOptionLabel(profile))}</option>`;
         });
         select.innerHTML = html;
+        state.nativeOptionsFull = true;
     }
 
     function setFamilies(selectOrId, families, placeholder = 'Select a family...', preserveUserId = null) {
