@@ -684,6 +684,8 @@
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Family Records</button>
                         <button type="button" onclick="showAdminSection('library')" id="admin-nav-library" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Document Library</button>
+                        <button type="button" onclick="showAdminSection('districts')" id="admin-nav-districts" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Districts</button>
                     </div>
                 </div>
 
@@ -1000,6 +1002,55 @@
                     </div>
                 </div>
 
+                <div id="admin-section-districts" class="hidden">
+                    <div class="hub-admin-block">
+                        <h3 class="hub-admin-block-title mb-1">Public school districts</h3>
+                        <p class="hub-section-subtitle mb-6">Families and students grouped by the public school district on their 2026/2027 Enrollment Package. Select one or more students to build a withdrawal notice you can copy or download.</p>
+
+                        <div class="hub-panel hub-panel-padded mb-6">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-navy">Enrollment packets</h4>
+                                    <p class="text-xs text-slate-500 mt-1">Read district, student name, date of birth, and grade from each family’s signed enrollment package.</p>
+                                </div>
+                                <button type="button" onclick="scanEnrollmentPacketsForDistricts(this)"
+                                        class="hub-admin-action-btn admin-families-action admin-families-action--primary whitespace-nowrap">
+                                    <i class="fas fa-file-import" aria-hidden="true"></i> Scan enrollment packets
+                                </button>
+                            </div>
+                            <p id="admin-districts-scan-status" class="mt-3 text-sm hidden" role="status" aria-live="polite"></p>
+                        </div>
+
+                        <div class="grid gap-6 lg:grid-cols-5">
+                            <div class="lg:col-span-3 space-y-4" id="admin-districts-list">
+                                <div class="hub-empty-state">Loading districts...</div>
+                            </div>
+                            <div class="lg:col-span-2">
+                                <div class="hub-panel hub-panel-padded space-y-4">
+                                    <h4 class="text-sm font-semibold text-navy">Withdrawal notice</h4>
+                                    <p id="admin-districts-selected-count" class="text-xs text-slate-500">No students selected.</p>
+                                    <label class="block text-sm font-medium text-slate-700">
+                                        Returning to public school at
+                                        <input type="text" id="admin-districts-school-name" class="form-input mt-1.5 w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm" placeholder="e.g. Douglas Elementary">
+                                    </label>
+                                    <textarea id="admin-districts-letter" rows="14" class="form-input w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed" placeholder="Select students to build the letter."></textarea>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" onclick="copyDistrictNoticeText()"
+                                                class="hub-admin-action-btn admin-families-action">
+                                            <i class="fas fa-copy" aria-hidden="true"></i> Copy text
+                                        </button>
+                                        <button type="button" onclick="downloadDistrictNoticePdf(this)"
+                                                class="hub-admin-action-btn admin-families-action admin-families-action--primary">
+                                            <i class="fas fa-file-pdf" aria-hidden="true"></i> Download PDF
+                                        </button>
+                                    </div>
+                                    <p id="admin-districts-letter-status" class="text-sm hidden" role="status"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 3. Document Library: standard templates -->
                 <div id="admin-section-library" class="hidden">
                 <div class="pt-2">
@@ -1200,7 +1251,9 @@
 
     <script src="assets/app-dialog.js?v=20260792"></script>
     <script src="assets/progress-report-pdf.js?v=20260721"></script>
-    <script src="assets/enrollment-roster-pdf.js?v=20260818"></script>
+    <script src="assets/enrollment-roster-pdf.js?v=20260818c"></script>
+    <script src="assets/enrollment-packet-parse.js?v=20260818"></script>
+    <script src="assets/district-notice-pdf.js?v=20260818"></script>
     <script src="assets/graduation-pdf.js?v=20260740"></script>
     <script src="assets/task-notify.js?v=20260750"></script>
     <script src="assets/graduation-tasks.js?v=20260750"></script>
@@ -1251,7 +1304,8 @@
             { id: 'graduation', label: 'Graduation' },
             { id: 'records', label: 'Family Records' },
             { id: 'site', label: 'Site Content' },
-            { id: 'library', label: 'Document Library' }
+            { id: 'library', label: 'Document Library' },
+            { id: 'districts', label: 'Districts' }
         ];
 
         let lastAdminSection = 'members';
@@ -2423,7 +2477,7 @@
         }
 
         function getFirstAllowedAdminSection() {
-            const order = ['members', 'families', 'academic', 'site', 'records', 'library', 'access'];
+            const order = ['members', 'families', 'academic', 'districts', 'site', 'records', 'library', 'access'];
             const allowed = new Set(getAllowedAdminSections());
             return order.find(section => allowed.has(section)) || 'records';
         }
@@ -2436,6 +2490,15 @@
 
             const accessBtn = document.getElementById('admin-nav-access');
             if (accessBtn) accessBtn.classList.toggle('hidden', !currentUserAccess.isFullAdmin);
+
+            const districtsBtn = document.getElementById('admin-nav-districts');
+            if (districtsBtn) {
+                const canSeeDistricts = currentUserAccess.isFullAdmin
+                    || staffHasAdminSection('districts')
+                    || staffHasAdminSection('families')
+                    || staffHasAdminSection('academic');
+                districtsBtn.classList.toggle('hidden', !canSeeDistricts);
+            }
         }
 
         function renderStaffSectionCheckboxes(selectedSections, namePrefix) {
@@ -2904,6 +2967,7 @@
                 records: document.getElementById('admin-section-records'),
                 access: document.getElementById('admin-section-access'),
                 library: document.getElementById('admin-section-library'),
+                districts: document.getElementById('admin-section-districts'),
                 site: document.getElementById('admin-section-site')
             };
             const navButtons = {
@@ -2914,6 +2978,7 @@
                 records: document.getElementById('admin-nav-records'),
                 access: document.getElementById('admin-nav-access'),
                 library: document.getElementById('admin-nav-library'),
+                districts: document.getElementById('admin-nav-districts'),
                 site: document.getElementById('admin-nav-site')
             };
 
@@ -2942,6 +3007,8 @@
                     void loadStaffAccessPanel();
                 } else if (section === 'library' && typeof loadAdminStandards === 'function') {
                     void loadAdminStandards();
+                } else if (section === 'districts') {
+                    void loadAdminDistrictsPanel();
                 } else if (section === 'site') {
                     adminSiteShowPanel('resources');
                     if (typeof loadAdminSiteSummary === 'function') void loadAdminSiteSummary();
@@ -4135,7 +4202,7 @@
 
             const { data, error } = await supabaseClient
                 .from('profiles')
-                .select('id, first_name, last_name, full_name, email')
+                .select('id, first_name, last_name, full_name, email, public_school_district')
                 .eq('approved', true)
                 .order('created_at', { ascending: false });
 
@@ -4198,7 +4265,7 @@
             const familyRows = await fetchAllQueryPages(() => (
                 supabaseClient
                     .from('profiles')
-                    .select('id, first_name, last_name, full_name, email, approved')
+                    .select('id, first_name, last_name, full_name, email, approved, public_school_district')
                     .eq('approved', true)
                     .order('last_name', { ascending: true })
             ));
@@ -4253,6 +4320,7 @@
                 id: family.id,
                 name: formatFamilyName(family),
                 email: family.email || '',
+                district: family.public_school_district || '',
                 students: studentsByFamily.get(family.id) || [],
             }));
 
@@ -4299,6 +4367,441 @@
             }
         }
         window.downloadEnrollmentRosterPdf = downloadEnrollmentRosterPdf;
+
+        let districtNoticeStudents = [];
+        let selectedDistrictStudentIds = new Set();
+        let pdfJsLoadPromise = null;
+
+        function canManageDistricts() {
+            return currentUserAccess.isFullAdmin
+                || staffHasAdminSection('districts')
+                || staffHasAdminSection('families')
+                || staffHasAdminSection('academic');
+        }
+
+        function setDistrictStatus(id, tone, message) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = message || '';
+            el.classList.toggle('hidden', !message);
+            el.classList.remove('text-red-600', 'text-slate-600', 'text-emerald-700');
+            if (tone === 'error') el.classList.add('text-red-600');
+            else if (tone === 'success') el.classList.add('text-emerald-700');
+            else el.classList.add('text-slate-600');
+        }
+
+        function namesLikelyMatch(packetName, student) {
+            const packet = String(packetName || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+            const first = String(student.first_name || '').toLowerCase().trim();
+            const last = String(student.last_name || '').toLowerCase().trim();
+            const combined = `${first} ${last}`.trim();
+            if (!packet || !combined) return false;
+            if (packet === combined) return true;
+            if (first && last && packet.includes(first) && packet.includes(last)) return true;
+            return false;
+        }
+
+        async function ensurePdfJs() {
+            if (window.pdfjsLib?.getDocument) return window.pdfjsLib;
+            if (!pdfJsLoadPromise) {
+                pdfJsLoadPromise = new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                    script.async = true;
+                    script.onload = () => {
+                        if (!window.pdfjsLib) {
+                            reject(new Error('PDF reader failed to load.'));
+                            return;
+                        }
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                        resolve(window.pdfjsLib);
+                    };
+                    script.onerror = () => reject(new Error('PDF reader failed to load.'));
+                    document.head.appendChild(script);
+                });
+            }
+            return pdfJsLoadPromise;
+        }
+
+        function pdfTextContentToString(content) {
+            const lines = [];
+            let lastY = null;
+            let buffer = [];
+            (content.items || []).forEach((item) => {
+                const y = item.transform ? item.transform[5] : 0;
+                if (lastY != null && Math.abs(y - lastY) > 3) {
+                    lines.push(buffer.join(' '));
+                    buffer = [];
+                }
+                if (item.str) buffer.push(item.str);
+                lastY = y;
+            });
+            if (buffer.length) lines.push(buffer.join(' '));
+            return lines.join('\n');
+        }
+
+        async function extractTextFromPdfBytes(bytes) {
+            const pdfjsLib = await ensurePdfJs();
+            const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+            const pages = [];
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+                const page = await pdf.getPage(pageNum);
+                const content = await page.getTextContent();
+                pages.push(pdfTextContentToString(content));
+            }
+            return pages.join('\n');
+        }
+
+        function mapPacketStudent(row, family) {
+            return {
+                id: row.id,
+                familyUserId: row.family_user_id,
+                familyName: family ? formatFamilyName(family) : 'Unknown family',
+                familyEmail: family?.email || '',
+                fullName: row.full_name,
+                dateOfBirth: row.date_of_birth,
+                dateOfBirthDisplay: window.DistrictNoticePdf?.formatDob?.({ dateOfBirth: row.date_of_birth }) || '',
+                gradeLabel: row.grade_label || '',
+                district: row.public_school_district || family?.public_school_district || '',
+            };
+        }
+
+        function getSelectedDistrictStudents() {
+            return districtNoticeStudents.filter((student) => selectedDistrictStudentIds.has(student.id));
+        }
+
+        function defaultSchoolNameForSelection(students) {
+            const districts = [...new Set(students
+                .map((student) => canonicalDistrictName(student.district))
+                .filter((name) => name && name !== 'District not on file'))];
+            return districts.length === 1 ? districts[0] : '';
+        }
+
+        function updateDistrictNoticePreview() {
+            const selected = getSelectedDistrictStudents();
+            const countEl = document.getElementById('admin-districts-selected-count');
+            const schoolInput = document.getElementById('admin-districts-school-name');
+            const letterEl = document.getElementById('admin-districts-letter');
+            if (countEl) {
+                countEl.textContent = selected.length
+                    ? `${selected.length} student${selected.length === 1 ? '' : 's'} selected.`
+                    : 'No students selected.';
+            }
+            if (schoolInput && !schoolInput.dataset.touched) {
+                schoolInput.value = defaultSchoolNameForSelection(selected);
+            }
+            if (letterEl && window.DistrictNoticePdf?.buildNoticeText) {
+                letterEl.value = selected.length
+                    ? window.DistrictNoticePdf.buildNoticeText(selected, schoolInput?.value || '')
+                    : '';
+            }
+        }
+
+        function canonicalDistrictName(raw) {
+            const value = String(raw || '').toLowerCase().replace(/[.]/g, ' ').replace(/\s+/g, ' ').trim();
+            if (!value) return 'District not on file';
+            if (/etowah/.test(value)) return 'Etowah County';
+            if (/attalla/.test(value)) return 'Attalla';
+            if (/st\s*clair/.test(value) || /st\s*claire/.test(value)) {
+                return /springville/.test(value) ? 'St. Clair County — Springville' : 'St. Clair County';
+            }
+            if (/dekalb/.test(value)) return 'DeKalb County';
+            if (/gadsden/.test(value)) return 'Gadsden City';
+            if (/rainbow/.test(value)) return 'Rainbow City';
+            if (/elmore/.test(value)) return 'Elmore County';
+            if (/marion/.test(value)) return 'Marion County';
+            if (/calhoun/.test(value)) return 'Calhoun County';
+            return String(raw).replace(/\s+/g, ' ').trim();
+        }
+
+        function renderAdminDistrictsList() {
+            const root = document.getElementById('admin-districts-list');
+            if (!root) return;
+            if (!districtNoticeStudents.length) {
+                root.innerHTML = '<div class="hub-empty-state">No enrollment-packet students yet. Scan enrollment packets to load districts, names, and birthdates.</div>';
+                return;
+            }
+
+            const groups = new Map();
+            districtNoticeStudents.forEach((student) => {
+                const key = canonicalDistrictName(student.district);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(student);
+            });
+            const districtNames = [...groups.keys()].sort((a, b) => {
+                if (a === 'District not on file') return 1;
+                if (b === 'District not on file') return -1;
+                return a.localeCompare(b, undefined, { sensitivity: 'base' });
+            });
+
+            root.innerHTML = districtNames.map((district) => {
+                const students = groups.get(district).sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: 'base' }));
+                const allSelected = students.every((student) => selectedDistrictStudentIds.has(student.id));
+                const rows = students.map((student) => {
+                    const checked = selectedDistrictStudentIds.has(student.id) ? 'checked' : '';
+                    const meta = [student.gradeLabel, student.dateOfBirth ? window.DistrictNoticePdf?.formatDob?.(student) : '', student.familyName]
+                        .filter(Boolean)
+                        .join(' · ');
+                    return `
+                        <label class="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 cursor-pointer">
+                            <input type="checkbox" class="mt-1 district-student-check rounded border-slate-300" data-student-id="${student.id}" ${checked}>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-semibold text-navy">${escapeHtml(student.fullName)}</span>
+                                <span class="block text-xs text-slate-500">${escapeHtml(meta)}</span>
+                            </span>
+                        </label>
+                    `;
+                }).join('');
+                return `
+                    <details class="hub-panel overflow-hidden" open>
+                        <summary class="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
+                            <span class="font-semibold text-navy">${escapeHtml(district)}</span>
+                            <span class="text-xs text-slate-500">${students.length} student${students.length === 1 ? '' : 's'}</span>
+                        </summary>
+                        <div class="border-t border-slate-100 px-2 pb-3">
+                            <label class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600">
+                                <input type="checkbox" class="district-select-all rounded border-slate-300" data-district="${escapeHtml(district)}" ${allSelected ? 'checked' : ''}>
+                                Select all in this district
+                            </label>
+                            ${rows}
+                        </div>
+                    </details>
+                `;
+            }).join('');
+
+            root.querySelectorAll('.district-student-check').forEach((input) => {
+                input.addEventListener('change', () => {
+                    if (input.checked) selectedDistrictStudentIds.add(input.dataset.studentId);
+                    else selectedDistrictStudentIds.delete(input.dataset.studentId);
+                    updateDistrictNoticePreview();
+                    renderAdminDistrictsList();
+                });
+            });
+            root.querySelectorAll('.district-select-all').forEach((input) => {
+                input.addEventListener('change', () => {
+                    const students = groups.get(input.dataset.district) || [];
+                    students.forEach((student) => {
+                        if (input.checked) selectedDistrictStudentIds.add(student.id);
+                        else selectedDistrictStudentIds.delete(student.id);
+                    });
+                    updateDistrictNoticePreview();
+                    renderAdminDistrictsList();
+                });
+            });
+        }
+
+        async function loadAdminDistrictsPanel() {
+            const root = document.getElementById('admin-districts-list');
+            if (!root || !supabaseClient) return;
+            if (!canManageDistricts()) {
+                root.innerHTML = '<div class="hub-empty-state">You do not have access to district notices.</div>';
+                return;
+            }
+            root.innerHTML = '<div class="hub-empty-state">Loading districts...</div>';
+            try {
+                const [packetRows, families] = await Promise.all([
+                    fetchAllQueryPages(() => (
+                        supabaseClient
+                            .from('enrollment_packet_students')
+                            .select('id, family_user_id, full_name, date_of_birth, grade_label, public_school_district, school_year')
+                            .eq('school_year', '2026-2027')
+                            .order('full_name', { ascending: true })
+                    )),
+                    fetchApprovedFamilies(),
+                ]);
+                const familyMap = new Map(families.map((family) => [family.id, family]));
+                districtNoticeStudents = packetRows.map((row) => mapPacketStudent(row, familyMap.get(row.family_user_id)));
+                selectedDistrictStudentIds = new Set(
+                    [...selectedDistrictStudentIds].filter((id) => districtNoticeStudents.some((student) => student.id === id))
+                );
+                const schoolInput = document.getElementById('admin-districts-school-name');
+                if (schoolInput && schoolInput.dataset.bound !== '1') {
+                    schoolInput.dataset.bound = '1';
+                    schoolInput.addEventListener('input', () => {
+                        schoolInput.dataset.touched = '1';
+                        updateDistrictNoticePreview();
+                    });
+                }
+                renderAdminDistrictsList();
+                updateDistrictNoticePreview();
+            } catch (err) {
+                console.error('[Districts] Failed to load:', err);
+                root.innerHTML = `<div class="text-red-600 text-sm p-4 border border-red-200 rounded-2xl">Could not load districts. Run supabase/enrollment-districts.sql in the Supabase SQL Editor if this is the first time.<br>${escapeHtml(err.message || String(err))}</div>`;
+            }
+        }
+
+        async function scanEnrollmentPacketsForDistricts(triggerEl) {
+            if (!canManageDistricts()) {
+                await showAppAlert('Only admins and Families/Academic Records staff can scan enrollment packets.');
+                return;
+            }
+            if (!window.EnrollmentPacketParse?.parseEnrollmentPacketText) {
+                await showAppAlert('Packet reader is not loaded. Please refresh the page.');
+                return;
+            }
+            const original = triggerEl?.innerHTML;
+            if (triggerEl) {
+                triggerEl.disabled = true;
+                triggerEl.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Scanning…';
+            }
+            setDistrictStatus('admin-districts-scan-status', 'info', 'Reading enrollment packages…');
+
+            try {
+                const docs = await fetchAllQueryPages(() => (
+                    supabaseClient
+                        .from('family_documents')
+                        .select('id, user_id, title, url, school_year, created_at')
+                        .eq('title', '2026/2027 Enrollment Package')
+                        .order('created_at', { ascending: false })
+                ));
+                const latestByFamily = new Map();
+                docs.forEach((doc) => {
+                    if (doc.user_id && !latestByFamily.has(doc.user_id)) latestByFamily.set(doc.user_id, doc);
+                });
+
+                const families = await fetchApprovedFamilies({ force: true });
+                const familyMap = new Map(families.map((family) => [family.id, family]));
+                const hubStudents = await fetchAllQueryPages(() => (
+                    supabaseClient
+                        .from('students')
+                        .select('id, family_user_id, first_name, last_name, date_of_birth')
+                        .eq('active', true)
+                ));
+                const studentsByFamily = new Map();
+                hubStudents.forEach((student) => {
+                    if (!studentsByFamily.has(student.family_user_id)) studentsByFamily.set(student.family_user_id, []);
+                    studentsByFamily.get(student.family_user_id).push(student);
+                });
+
+                let scanned = 0;
+                let withDistrict = 0;
+                let studentCount = 0;
+                const entries = [...latestByFamily.entries()];
+                for (let i = 0; i < entries.length; i += 1) {
+                    const [familyId, doc] = entries[i];
+                    setDistrictStatus('admin-districts-scan-status', 'info', `Reading packet ${i + 1} of ${entries.length}…`);
+                    const signedUrl = await getSignedStorageUrl(doc.url);
+                    if (!signedUrl) continue;
+                    const response = await fetch(signedUrl);
+                    if (!response.ok) continue;
+                    const bytes = new Uint8Array(await response.arrayBuffer());
+                    const text = await extractTextFromPdfBytes(bytes);
+                    const parsed = window.EnrollmentPacketParse.parseEnrollmentPacketText(text);
+                    scanned += 1;
+                    if (parsed.district) {
+                        withDistrict += 1;
+                        await supabaseClient
+                            .from('profiles')
+                            .update({ public_school_district: parsed.district })
+                            .eq('id', familyId);
+                    }
+
+                    await supabaseClient
+                        .from('enrollment_packet_students')
+                        .delete()
+                        .eq('family_user_id', familyId)
+                        .eq('school_year', '2026-2027');
+
+                    const familyStudents = studentsByFamily.get(familyId) || [];
+                    const rows = parsed.students.map((student) => {
+                        const match = familyStudents.find((hub) => namesLikelyMatch(student.fullName, hub));
+                        if (match && student.dateOfBirth && !match.date_of_birth) {
+                            void supabaseClient
+                                .from('students')
+                                .update({ date_of_birth: student.dateOfBirth })
+                                .eq('id', match.id);
+                        }
+                        return {
+                            family_user_id: familyId,
+                            student_id: match?.id || null,
+                            full_name: student.fullName,
+                            date_of_birth: student.dateOfBirth,
+                            grade_label: student.gradeLabel || null,
+                            public_school_district: parsed.district || null,
+                            source_document_id: doc.id,
+                            school_year: '2026-2027',
+                            updated_at: new Date().toISOString(),
+                        };
+                    });
+                    if (rows.length) {
+                        const { error } = await supabaseClient.from('enrollment_packet_students').insert(rows);
+                        if (error) throw error;
+                        studentCount += rows.length;
+                    }
+                }
+
+                await loadAdminDistrictsPanel();
+                setDistrictStatus(
+                    'admin-districts-scan-status',
+                    'success',
+                    `Scanned ${scanned} packages. Found ${withDistrict} districts and ${studentCount} students.`
+                );
+            } catch (err) {
+                console.error('[Districts] Scan failed:', err);
+                setDistrictStatus('admin-districts-scan-status', 'error', err.message || String(err));
+                await showAppAlert(err.message || String(err));
+            } finally {
+                if (triggerEl) {
+                    triggerEl.disabled = false;
+                    if (original) triggerEl.innerHTML = original;
+                }
+            }
+        }
+
+        async function copyDistrictNoticeText() {
+            const letterEl = document.getElementById('admin-districts-letter');
+            const text = letterEl?.value.trim();
+            if (!text) {
+                await showAppAlert('Select at least one student first.');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                setDistrictStatus('admin-districts-letter-status', 'success', 'Letter copied. Paste it into your email.');
+            } catch (err) {
+                letterEl.select();
+                document.execCommand('copy');
+                setDistrictStatus('admin-districts-letter-status', 'success', 'Letter copied.');
+            }
+        }
+
+        async function downloadDistrictNoticePdf(triggerEl) {
+            const selected = getSelectedDistrictStudents();
+            if (!selected.length) {
+                await showAppAlert('Select at least one student first.');
+                return;
+            }
+            const schoolName = document.getElementById('admin-districts-school-name')?.value.trim() || '';
+            const letterEl = document.getElementById('admin-districts-letter');
+            const original = triggerEl?.innerHTML;
+            if (triggerEl) {
+                triggerEl.disabled = true;
+                triggerEl.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Preparing PDF…';
+            }
+            try {
+                const districts = [...new Set(selected.map((student) => student.district).filter(Boolean))];
+                await window.DistrictNoticePdf.generateAndDownload({
+                    students: selected,
+                    schoolName,
+                    district: districts.length === 1 ? districts[0] : '',
+                    text: letterEl?.value || window.DistrictNoticePdf.buildNoticeText(selected, schoolName),
+                    filename: `SCS-District-Withdrawal-${(schoolName || districts[0] || 'notice').replace(/[^\w.-]+/g, '_')}.pdf`,
+                });
+                setDistrictStatus('admin-districts-letter-status', 'success', 'PDF downloaded.');
+            } catch (err) {
+                setDistrictStatus('admin-districts-letter-status', 'error', err.message || String(err));
+                await showAppAlert(err.message || String(err));
+            } finally {
+                if (triggerEl) {
+                    triggerEl.disabled = false;
+                    if (original) triggerEl.innerHTML = original;
+                }
+            }
+        }
+
+        window.scanEnrollmentPacketsForDistricts = scanEnrollmentPacketsForDistricts;
+        window.copyDistrictNoticeText = copyDistrictNoticeText;
+        window.downloadDistrictNoticePdf = downloadDistrictNoticePdf;
 
         async function renderFamilyRecordsView(docsContainer, idContainer, familyUserId) {
             if (!docsContainer || !idContainer || !familyUserId || !supabaseClient) return;

@@ -106,7 +106,13 @@
         const students = sortStudents(family.students);
         const header = {
             columns: [
-                { text: family.name || 'Unknown family', style: 'familyName', width: '*' },
+                {
+                    stack: [
+                        { text: family.name || 'Unknown family', style: 'familyName' },
+                        { text: family.district ? `District: ${family.district}` : 'District: not on file', style: 'familyEmail' },
+                    ],
+                    width: '*',
+                },
                 { text: family.email || '', style: 'familyEmail', width: 'auto', alignment: 'right' },
             ],
             margin: [0, 8, 0, 3],
