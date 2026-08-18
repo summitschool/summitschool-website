@@ -125,6 +125,13 @@
   transform: rotate(180deg);
 }
 
+/* Open pickers must escape the hub card; overflow:hidden there was clipping the list. */
+.hub-card:has(.family-picker.is-open),
+.hub-panel:has(.family-picker.is-open),
+.hub-content:has(.family-picker.is-open) {
+  overflow: visible !important;
+}
+
 .family-picker__menu {
   position: absolute;
   top: calc(100% + 0.4rem);
@@ -141,9 +148,27 @@
     0 10px 20px -12px rgb(15 23 42 / 0.16);
 }
 
-.family-picker.is-open .family-picker__menu {
-  display: block;
+.family-picker__menu[popover] {
+  inset: unset;
+  margin: 0;
+  padding: 0;
+  width: auto;
+  height: auto;
+  overflow: hidden;
+  color: inherit;
+  background: #fff;
+}
+
+.family-picker.is-open .family-picker__menu,
+.family-picker__menu.is-open {
+  display: flex;
+  flex-direction: column;
   pointer-events: auto;
+}
+
+.family-picker__menu.is-ported {
+  position: fixed;
+  margin: 0;
 }
 
 .family-picker:not(.is-open) .family-picker__menu {
@@ -171,13 +196,19 @@
 .family-picker__results {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 0.1rem;
+  min-height: 0;
   max-height: min(50vh, 15rem);
   overflow: auto;
   padding: 0.35rem;
   margin: 0;
   list-style: none;
   -webkit-overflow-scrolling: touch;
+}
+
+.family-picker__menu.is-ported .family-picker__results {
+  max-height: none;
 }
 
 .family-picker__option {

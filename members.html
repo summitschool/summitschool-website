@@ -31,8 +31,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260796">
-    <link rel="stylesheet" href="assets/family-picker.css?v=20260796">
+    <link rel="stylesheet" href="assets/styles.css?v=20260818b">
+    <link rel="stylesheet" href="assets/family-picker.css?v=20260818b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -659,7 +659,7 @@
                 </div>
             </div>
 
-            <!-- Admin Tab Content (only for sjesimon@gmail.com) -->
+            <!-- Admin Tab Content (full admins and assigned staff) -->
             <div id="dashboard-admin" class="hidden">
                 <div class="hub-section-intro">
                     <h2 class="hub-section-heading">Administration</h2>
@@ -1181,14 +1181,14 @@
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260754"></script>
     <script src="assets/onboarding-checklist.js?v=20260796"></script>
-    <script src="assets/family-picker.js?v=20260796"></script>
+    <script src="assets/family-picker.js?v=20260818b"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
         // =============================================
         const SUPABASE_URL = 'https://tajyrmydwqsijstyzsjr.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_JYGgJw9y87hnCeEM66Lbcg_xJqpMWcy'; // publishable key
-        const FULL_ADMIN_EMAIL = 'sjesimon@gmail.com';
+        const FULL_ADMIN_EMAILS = ['sjesimon@gmail.com', 'summitchurchschool@gmail.com'];
         const SITE_ORIGIN = 'https://summitchurchschool.org';
 
         function getAuthRedirectUrl(path = '/confirm-email.html') {
@@ -2361,7 +2361,7 @@
         }
 
         function isFullAdminUser(user) {
-            return user?.email === FULL_ADMIN_EMAIL;
+            return FULL_ADMIN_EMAILS.includes(String(user?.email || '').trim().toLowerCase());
         }
 
         function normalizeStaffAdminSections(sections) {
@@ -2853,6 +2853,7 @@
 
         // Admin sub-section navigation
         function showAdminSection(section) {
+            if (window.FamilyPicker?.closeAll) window.FamilyPicker.closeAll();
             if (!staffHasAdminSection(section)) {
                 section = getFirstAllowedAdminSection();
             }
@@ -2927,6 +2928,7 @@
 
         // Tab switching for the logged-in dashboard (My Documents / My Tasks / Resources / Family Records / Admin)
         function showDashboardTab(tab) {
+            if (window.FamilyPicker?.closeAll) window.FamilyPicker.closeAll();
             if (tab !== lastDashboardTab) {
                 resetDashboardTabState(lastDashboardTab);
             }
@@ -3677,7 +3679,7 @@
 
                 hideLoginView();
 
-                if (profile && profile.denied === true) {
+                if (profile && profile.denied === true && !isFullAdminUser(user)) {
                     pendingView.classList.remove('hidden');
                     dashboardView.classList.add('hidden');
 
@@ -3689,7 +3691,7 @@
                     if (pendingSecondary) pendingSecondary.innerHTML = 'If you believe this was a mistake, please <a href="index.html?interest=family-hub-help#contact" class="text-navy underline hover:text-sage transition">contact us</a>.';
 
                     setLogoutButtonsVisible(true);
-                } else if (profile && profile.approved === true) {
+                } else if (isFullAdminUser(user) || (profile && profile.approved === true)) {
                     // Fully approved
                     pendingView.classList.add('hidden');
                     dashboardView.classList.remove('hidden');
@@ -4498,7 +4500,9 @@
 
             const staffIds = new Set((staffRows || []).map(row => row.user_id));
             const families = await fetchApprovedFamilies();
-            const addCandidates = families.filter(f => f.email !== FULL_ADMIN_EMAIL && !staffIds.has(f.id));
+            const addCandidates = families.filter(f =>
+                !FULL_ADMIN_EMAILS.includes(String(f.email || '').trim().toLowerCase()) && !staffIds.has(f.id)
+            );
 
             setFamilyPickerFamilies(
                 'staff-add-select',

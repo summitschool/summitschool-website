@@ -8,6 +8,9 @@
     ];
 
     const pickers = new Map();
+    const MENU_GAP = 8;
+    const VIEWPORT_PAD = 12;
+    let globalListenersBound = false;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -144,8 +147,110 @@
 
         const selectedBtn = state.results.querySelector('.family-picker__option.is-selected');
         if (selectedBtn && state.isOpen) {
-            selectedBtn.scrollIntoView({ block: 'nearest' });
+            const container = state.results;
+            const top = selectedBtn.offsetTop;
+            const bottom = top + selectedBtn.offsetHeight;
+            if (top < container.scrollTop) {
+                container.scrollTop = top;
+            } else if (bottom > container.scrollTop + container.clientHeight) {
+                container.scrollTop = bottom - container.clientHeight;
+            }
         }
+    }
+
+    function ensureGlobalListeners() {
+        if (globalListenersBound) return;
+        globalListenersBound = true;
+        document.addEventListener('pointerdown', (event) => {
+            pickers.forEach((state) => {
+                if (!state.isOpen) return;
+                const target = event.target;
+                if (state.wrap.contains(target) || state.menu.contains(target)) return;
+                closeMenu(state);
+                state.input.setAttribute('aria-expanded', 'false');
+                state.menu.setAttribute('aria-hidden', 'true');
+            });
+        });
+        window.addEventListener('resize', repositionOpenMenus);
+        window.addEventListener('scroll', repositionOpenMenus, true);
+    }
+
+    function repositionOpenMenus() {
+        pickers.forEach((state) => {
+            if (!state.isOpen) return;
+            if (!isPickerVisible(state)) {
+                closeMenu(state);
+                return;
+            }
+            const rect = state.field.getBoundingClientRect();
+            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+                closeMenu(state);
+                return;
+            }
+            positionMenu(state);
+        });
+    }
+
+    function positionMenu(state) {
+        const rect = state.field.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom - MENU_GAP - VIEWPORT_PAD;
+        const spaceAbove = rect.top - MENU_GAP - VIEWPORT_PAD;
+        const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+        const available = Math.max(openUp ? spaceAbove : spaceBelow, 80);
+        const preferred = Math.min(window.innerHeight * 0.55, 22 * 16);
+        const maxHeight = Math.min(preferred, available);
+        const width = Math.min(rect.width, window.innerWidth - VIEWPORT_PAD * 2);
+        const left = Math.min(
+            Math.max(VIEWPORT_PAD, rect.left),
+            window.innerWidth - VIEWPORT_PAD - width
+        );
+
+        const menu = state.menu;
+        menu.style.position = 'fixed';
+        menu.style.left = `${left}px`;
+        menu.style.width = `${width}px`;
+        menu.style.right = 'auto';
+        menu.style.zIndex = '90';
+        menu.style.maxHeight = `${maxHeight}px`;
+        if (openUp) {
+            menu.style.top = 'auto';
+            menu.style.bottom = `${window.innerHeight - rect.top + MENU_GAP}px`;
+            menu.classList.add('is-above');
+        } else {
+            menu.style.top = `${rect.bottom + MENU_GAP}px`;
+            menu.style.bottom = 'auto';
+            menu.classList.remove('is-above');
+        }
+    }
+
+    function portMenu(state) {
+        if (state.menu.parentNode !== document.body) {
+            document.body.appendChild(state.menu);
+        }
+        state.menu.classList.add('is-ported', 'is-open');
+        if (typeof state.menu.showPopover === 'function') {
+            try {
+                if (!state.menu.matches(':popover-open')) state.menu.showPopover();
+            } catch (_) {
+                /* popover API unavailable or already open */
+            }
+        }
+        positionMenu(state);
+    }
+
+    function restoreMenu(state) {
+        if (typeof state.menu.hidePopover === 'function') {
+            try {
+                if (state.menu.matches(':popover-open')) state.menu.hidePopover();
+            } catch (_) {
+                /* popover API unavailable or already closed */
+            }
+        }
+        if (state.menu.parentNode !== state.wrap) {
+            state.wrap.insertBefore(state.menu, state.select);
+        }
+        state.menu.classList.remove('is-ported', 'is-open', 'is-above');
+        state.menu.removeAttribute('style');
     }
 
     function updateClosedDisplay(state) {
@@ -190,9 +295,12 @@
 
     function openMenu(state) {
         if (!state.families.length || state.isOpen || !isPickerVisible(state)) return;
+        ensureGlobalListeners();
         state.isOpen = true;
         state.wrap.classList.add('is-open');
         state.input.readOnly = false;
+        state.input.setAttribute('aria-expanded', 'true');
+        state.menu.setAttribute('aria-hidden', 'false');
         state.query = state.input.value.trim();
         if (getSelectedProfile(state) && state.input.value === formatFamilyName(getSelectedProfile(state))) {
             state.query = '';
@@ -203,7 +311,9 @@
         if (!state.nativeOptionsFull) {
             syncNativeOptions(state, { full: true });
         }
+        portMenu(state);
         renderResults(state);
+        window.requestAnimationFrame(() => positionMenu(state));
         window.setTimeout(() => {
             state.input.focus();
             state.input.select();
@@ -217,6 +327,9 @@
         }
         state.isOpen = false;
         state.wrap.classList.remove('is-open');
+        state.input.setAttribute('aria-expanded', 'false');
+        state.menu.setAttribute('aria-hidden', 'true');
+        restoreMenu(state);
         state.query = '';
         updateClosedDisplay(state);
         if (!options.keepInputValue) {
@@ -286,6 +399,7 @@
         const menu = document.createElement('div');
         menu.className = 'family-picker__menu';
         menu.setAttribute('aria-hidden', 'true');
+        menu.setAttribute('popover', 'manual');
 
         const status = document.createElement('p');
         status.className = 'family-picker__status';
