@@ -4387,6 +4387,8 @@
         PROGRESS_TASK_URL_PREFIX,
         currentSchoolYear,
         priorSchoolYears,
+        formatGradeLabel,
+        studentDisplayName,
         isHighSchoolGrade,
         parseProgressReportStudentId,
         percentToGpa,

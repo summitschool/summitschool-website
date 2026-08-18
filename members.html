@@ -735,6 +735,19 @@
                         <h3 class="hub-admin-block-title mb-1">Academic Records</h3>
                         <p class="hub-section-subtitle mb-6">View each family's students, reopen locked school years when corrections are needed, or remove duplicate student records.</p>
 
+                        <div class="hub-panel hub-panel-padded mb-6">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-navy">Enrollment roster</h4>
+                                    <p class="text-xs text-slate-500 mt-1">Download a school-wide PDF of enrolled families and current student grade levels.</p>
+                                </div>
+                                <button type="button" onclick="downloadEnrollmentRosterPdf(this)"
+                                        class="hub-admin-action-btn admin-families-action admin-families-action--primary whitespace-nowrap">
+                                    <i class="fas fa-file-pdf" aria-hidden="true"></i> Download roster PDF
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="hub-panel hub-panel-padded">
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
@@ -764,6 +777,20 @@
                     <div class="hub-admin-block">
                         <h3 class="hub-admin-block-title mb-1">Families</h3>
                         <p class="hub-section-subtitle mb-6">Upload documents, assign tasks, and manage onboarding for approved families.</p>
+
+                        <div class="hub-panel hub-panel-padded mb-6">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-navy">Enrollment roster</h4>
+                                    <p class="text-xs text-slate-500 mt-1">PDF of all enrolled families, each student’s name and current grade, plus family and student totals.</p>
+                                </div>
+                                <button type="button" onclick="downloadEnrollmentRosterPdf(this)"
+                                        class="hub-admin-action-btn admin-families-action admin-families-action--primary whitespace-nowrap">
+                                    <i class="fas fa-file-pdf" aria-hidden="true"></i> Download roster PDF
+                                </button>
+                            </div>
+                            <p id="admin-enrollment-roster-status" class="mt-3 text-sm hidden" role="status" aria-live="polite"></p>
+                        </div>
 
                         <div class="admin-families-toolbar hub-panel hub-panel-padded">
                             <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-family-select">Family</label>
@@ -1173,13 +1200,14 @@
 
     <script src="assets/app-dialog.js?v=20260792"></script>
     <script src="assets/progress-report-pdf.js?v=20260721"></script>
+    <script src="assets/enrollment-roster-pdf.js?v=20260818"></script>
     <script src="assets/graduation-pdf.js?v=20260740"></script>
     <script src="assets/task-notify.js?v=20260750"></script>
     <script src="assets/graduation-tasks.js?v=20260750"></script>
     <script src="assets/kindergarten-graduation-tasks.js?v=20260750"></script>
     <script src="assets/graduation-admin.js?v=20260755"></script>
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
-    <script src="assets/academic-records.js?v=20260754"></script>
+    <script src="assets/academic-records.js?v=20260818"></script>
     <script src="assets/onboarding-checklist.js?v=20260796"></script>
     <script src="assets/family-picker.js?v=20260818b"></script>
     <script>
@@ -4123,6 +4151,154 @@
             approvedFamiliesCacheAt = now;
             return sorted;
         }
+
+        function canDownloadEnrollmentRoster() {
+            return currentUserAccess.isFullAdmin
+                || staffHasAdminSection('families')
+                || staffHasAdminSection('academic');
+        }
+
+        function showEnrollmentRosterStatus(tone, message) {
+            const status = document.getElementById('admin-enrollment-roster-status');
+            if (!status) return;
+            status.textContent = message || '';
+            status.classList.toggle('hidden', !message);
+            status.classList.remove('text-red-600', 'text-slate-600', 'text-emerald-700');
+            if (tone === 'error') status.classList.add('text-red-600');
+            else if (tone === 'success') status.classList.add('text-emerald-700');
+            else status.classList.add('text-slate-600');
+        }
+
+        async function fetchAllQueryPages(buildQuery, pageSize = 1000) {
+            const rows = [];
+            let from = 0;
+            while (true) {
+                const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+                if (error) throw error;
+                const batch = data || [];
+                rows.push(...batch);
+                if (batch.length < pageSize) break;
+                from += pageSize;
+            }
+            return rows;
+        }
+
+        function resolveStudentGradeLevel(student, yearByStudentId) {
+            const yearGrade = yearByStudentId.get(student.id);
+            return String(yearGrade || student.current_grade_level || '').trim();
+        }
+
+        async function buildEnrollmentRosterPayload() {
+            if (!supabaseClient) throw new Error('Family Hub is not connected.');
+            if (!window.EnrollmentRosterPdf?.generateAndDownload) {
+                throw new Error('PDF module is not loaded. Please refresh the page and try again.');
+            }
+
+            const schoolYear = window.AcademicRecords?.currentSchoolYear?.() || '2026-2027';
+            const familyRows = await fetchAllQueryPages(() => (
+                supabaseClient
+                    .from('profiles')
+                    .select('id, first_name, last_name, full_name, email, approved')
+                    .eq('approved', true)
+                    .order('last_name', { ascending: true })
+            ));
+            const families = (window.FamilyPicker?.sortFamiliesAlphabetically
+                ? window.FamilyPicker.sortFamiliesAlphabetically(familyRows)
+                : familyRows
+            ).filter((family) => !FULL_ADMIN_EMAILS.includes(String(family.email || '').trim().toLowerCase()));
+
+            const students = await fetchAllQueryPages(() => (
+                supabaseClient
+                    .from('students')
+                    .select('id, family_user_id, first_name, last_name, current_grade_level, active')
+                    .eq('active', true)
+                    .order('last_name', { ascending: true })
+            ));
+
+            const yearRows = students.length
+                ? await fetchAllQueryPages(() => (
+                    supabaseClient
+                        .from('student_school_years')
+                        .select('student_id, grade_level')
+                        .eq('school_year', schoolYear)
+                        .eq('entry_type', 'current')
+                ))
+                : [];
+
+            const yearByStudentId = new Map();
+            yearRows.forEach((row) => {
+                if (row.student_id && row.grade_level) {
+                    yearByStudentId.set(row.student_id, row.grade_level);
+                }
+            });
+
+            const studentsByFamily = new Map();
+            students.forEach((student) => {
+                const familyId = student.family_user_id;
+                if (!familyId) return;
+                if (!studentsByFamily.has(familyId)) studentsByFamily.set(familyId, []);
+                const gradeLevel = resolveStudentGradeLevel(student, yearByStudentId);
+                const name = window.AcademicRecords?.studentDisplayName
+                    ? window.AcademicRecords.studentDisplayName(student)
+                    : [student.first_name, student.last_name].filter(Boolean).join(' ').trim();
+                studentsByFamily.get(familyId).push({
+                    id: student.id,
+                    name: name || 'Unnamed student',
+                    gradeLevel,
+                    gradeLabel: window.EnrollmentRosterPdf.formatGradeLabel(gradeLevel),
+                });
+            });
+
+            const rosterFamilies = families.map((family) => ({
+                id: family.id,
+                name: formatFamilyName(family),
+                email: family.email || '',
+                students: studentsByFamily.get(family.id) || [],
+            }));
+
+            const studentCount = rosterFamilies.reduce((sum, family) => sum + family.students.length, 0);
+
+            return {
+                schoolYear,
+                generatedAt: new Date().toISOString(),
+                familyCount: rosterFamilies.length,
+                studentCount,
+                families: rosterFamilies,
+                filename: `Summit-Enrollment-Roster-${schoolYear}.pdf`,
+            };
+        }
+
+        async function downloadEnrollmentRosterPdf(triggerEl) {
+            if (!canDownloadEnrollmentRoster()) {
+                await showAppAlert('Only admins and staff with Families or Academic Records access can download this roster.');
+                return;
+            }
+
+            const originalLabel = triggerEl?.innerHTML;
+            showEnrollmentRosterStatus('info', 'Preparing enrollment roster…');
+            if (triggerEl) {
+                triggerEl.disabled = true;
+                triggerEl.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Preparing PDF…';
+            }
+
+            try {
+                const payload = await buildEnrollmentRosterPayload();
+                await window.EnrollmentRosterPdf.generateAndDownload(payload);
+                const summary = `${payload.familyCount} ${payload.familyCount === 1 ? 'family' : 'families'}, ${payload.studentCount} ${payload.studentCount === 1 ? 'student' : 'students'}.`;
+                showEnrollmentRosterStatus('success', `Roster downloaded — ${summary}`);
+            } catch (err) {
+                console.error('[Enrollment roster] PDF failed:', err);
+                const message = err?.message || String(err);
+                showEnrollmentRosterStatus('error', message);
+                await showAppAlert(message);
+            } finally {
+                if (triggerEl) {
+                    triggerEl.disabled = false;
+                    if (originalLabel) triggerEl.innerHTML = originalLabel;
+                }
+            }
+        }
+        window.downloadEnrollmentRosterPdf = downloadEnrollmentRosterPdf;
 
         async function renderFamilyRecordsView(docsContainer, idContainer, familyUserId) {
             if (!docsContainer || !idContainer || !familyUserId || !supabaseClient) return;
