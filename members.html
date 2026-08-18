@@ -1043,6 +1043,10 @@
                                         District contact name
                                         <input type="text" id="admin-districts-contact-name" class="form-input mt-1.5 w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm" placeholder="e.g. Allison">
                                     </label>
+                                    <label class="block text-sm font-medium text-slate-700">
+                                        District email address
+                                        <input type="email" id="admin-districts-email" class="form-input mt-1.5 w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm" placeholder="e.g. registrar@etowahk12.org" autocomplete="off">
+                                    </label>
                                     <label id="admin-districts-school-wrap" class="block text-sm font-medium text-slate-700">
                                         Returning to public school at
                                         <input type="text" id="admin-districts-school-name" class="form-input mt-1.5 w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm" placeholder="e.g. Douglas Elementary">
@@ -1054,8 +1058,12 @@
                                             <i class="fas fa-copy" aria-hidden="true"></i> Copy text
                                         </button>
                                         <button type="button" onclick="downloadDistrictNoticePdf(this)"
-                                                class="hub-admin-action-btn admin-families-action admin-families-action--primary">
+                                                class="hub-admin-action-btn admin-families-action">
                                             <i class="fas fa-file-pdf" aria-hidden="true"></i> Download PDF
+                                        </button>
+                                        <button type="button" onclick="sendDistrictNoticeEmail(this)"
+                                                class="hub-admin-action-btn admin-families-action admin-families-action--primary">
+                                            <i class="fas fa-paper-plane" aria-hidden="true"></i> Send email
                                         </button>
                                     </div>
                                     <p id="admin-districts-letter-status" class="text-sm hidden" role="status"></p>
@@ -4385,6 +4393,8 @@
         let districtNoticeStudents = [];
         let selectedDistrictStudentIds = new Set();
         let districtNoticeType = 'return';
+        let districtContactsByKey = new Map();
+        let lastFilledDistrictKey = '';
         let pdfJsLoadPromise = null;
 
         function canManageDistricts() {
@@ -4519,6 +4529,19 @@
             if (schoolInput && !schoolInput.dataset.touched) {
                 schoolInput.value = defaultSchoolNameForSelection(selected);
             }
+            const districtKey = defaultSchoolNameForSelection(selected);
+            const emailInput = document.getElementById('admin-districts-email');
+            const contactInput = document.getElementById('admin-districts-contact-name');
+            if (districtKey && districtKey !== lastFilledDistrictKey) {
+                lastFilledDistrictKey = districtKey;
+                const saved = districtContactsByKey.get(districtKey.toLowerCase());
+                if (emailInput && !emailInput.dataset.touched) {
+                    emailInput.value = saved?.email || '';
+                }
+                if (contactInput && !contactInput.dataset.touched && saved?.contact_name) {
+                    contactInput.value = saved.contact_name;
+                }
+            }
             if (letterEl && window.DistrictNoticePdf?.buildNoticeText) {
                 letterEl.value = selected.length
                     ? window.DistrictNoticePdf.buildNoticeText(selected, {
@@ -4632,7 +4655,7 @@
             }
             root.innerHTML = '<div class="hub-empty-state">Loading districts...</div>';
             try {
-                const [packetRows, families] = await Promise.all([
+                const [packetRows, families, contacts] = await Promise.all([
                     fetchAllQueryPages(() => (
                         supabaseClient
                             .from('enrollment_packet_students')
@@ -4641,7 +4664,20 @@
                             .order('full_name', { ascending: true })
                     )),
                     fetchApprovedFamilies(),
+                    supabaseClient
+                        .from('district_contacts')
+                        .select('district_key, email, contact_name')
+                        .then(({ data, error }) => {
+                            if (error) {
+                                console.warn('[Districts] Could not load saved district emails:', error.message);
+                                return [];
+                            }
+                            return data || [];
+                        }),
                 ]);
+                districtContactsByKey = new Map(
+                    (contacts || []).map((row) => [String(row.district_key || '').toLowerCase(), row])
+                );
                 const familyMap = new Map(families.map((family) => [family.id, family]));
                 districtNoticeStudents = packetRows.map((row) => mapPacketStudent(row, familyMap.get(row.family_user_id)));
                 selectedDistrictStudentIds = new Set(
@@ -4658,7 +4694,17 @@
                 const contactInput = document.getElementById('admin-districts-contact-name');
                 if (contactInput && contactInput.dataset.bound !== '1') {
                     contactInput.dataset.bound = '1';
-                    contactInput.addEventListener('input', updateDistrictNoticePreview);
+                    contactInput.addEventListener('input', () => {
+                        contactInput.dataset.touched = '1';
+                        updateDistrictNoticePreview();
+                    });
+                }
+                const emailInput = document.getElementById('admin-districts-email');
+                if (emailInput && emailInput.dataset.bound !== '1') {
+                    emailInput.dataset.bound = '1';
+                    emailInput.addEventListener('input', () => {
+                        emailInput.dataset.touched = '1';
+                    });
                 }
                 setDistrictNoticeType(districtNoticeType);
                 renderAdminDistrictsList();
@@ -4847,9 +4893,106 @@
         }
 
         window.scanEnrollmentPacketsForDistricts = scanEnrollmentPacketsForDistricts;
+        async function sendDistrictNoticeEmail(triggerEl) {
+            const selected = getSelectedDistrictStudents();
+            const letterEl = document.getElementById('admin-districts-letter');
+            const email = document.getElementById('admin-districts-email')?.value.trim().toLowerCase() || '';
+            const contactName = document.getElementById('admin-districts-contact-name')?.value.trim() || '';
+            const schoolName = document.getElementById('admin-districts-school-name')?.value.trim() || '';
+            const letterText = letterEl?.value.trim() || '';
+            if (!selected.length || !letterText) {
+                await showAppAlert('Select at least one student first.');
+                return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                await showAppAlert('Enter the district email address before sending.');
+                return;
+            }
+
+            const kind = districtNoticeType === 'enroll' ? 'now-enrolled notice' : 'withdrawal notice';
+            const confirmed = await showAppConfirm({
+                title: 'Send district email?',
+                message: `Send this ${kind} to ${email}?`,
+                confirmLabel: 'Send email',
+                tone: 'primary',
+            });
+            if (!confirmed) return;
+
+            const original = triggerEl?.innerHTML;
+            if (triggerEl) {
+                triggerEl.disabled = true;
+                triggerEl.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Sending…';
+            }
+
+            try {
+                const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+                if (sessionError || !session?.access_token) {
+                    throw new Error('You must be signed in as admin to send this email.');
+                }
+
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/send-district-notice`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`,
+                        apikey: SUPABASE_ANON_KEY,
+                    },
+                    body: JSON.stringify({
+                        to: email,
+                        type: districtNoticeType,
+                        letter_text: letterText,
+                        district: defaultSchoolNameForSelection(selected),
+                        contact_name: contactName,
+                        school_name: schoolName,
+                    }),
+                });
+
+                let result = {};
+                try {
+                    result = await response.json();
+                } catch (_) {
+                    result = {};
+                }
+                if (!response.ok || result.ok === false) {
+                    throw new Error(result.error || `Email failed (${response.status})`);
+                }
+
+                const districtKey = defaultSchoolNameForSelection(selected);
+                if (districtKey) {
+                    const { error: saveError } = await supabaseClient
+                        .from('district_contacts')
+                        .upsert({
+                            district_key: districtKey,
+                            email,
+                            contact_name: contactName || null,
+                            updated_at: new Date().toISOString(),
+                        });
+                    if (!saveError) {
+                        districtContactsByKey.set(districtKey.toLowerCase(), {
+                            district_key: districtKey,
+                            email,
+                            contact_name: contactName,
+                        });
+                    }
+                }
+
+                setDistrictStatus('admin-districts-letter-status', 'success', `Email sent to ${email}.`);
+            } catch (err) {
+                console.error('[Districts] Send email failed:', err);
+                setDistrictStatus('admin-districts-letter-status', 'error', err.message || String(err));
+                await showAppAlert(err.message || String(err));
+            } finally {
+                if (triggerEl) {
+                    triggerEl.disabled = false;
+                    if (original) triggerEl.innerHTML = original;
+                }
+            }
+        }
+
         window.setDistrictNoticeType = setDistrictNoticeType;
         window.copyDistrictNoticeText = copyDistrictNoticeText;
         window.downloadDistrictNoticePdf = downloadDistrictNoticePdf;
+        window.sendDistrictNoticeEmail = sendDistrictNoticeEmail;
 
         async function renderFamilyRecordsView(docsContainer, idContainer, familyUserId) {
             if (!docsContainer || !idContainer || !familyUserId || !supabaseClient) return;

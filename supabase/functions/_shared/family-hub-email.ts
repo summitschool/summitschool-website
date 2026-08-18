@@ -15,6 +15,7 @@ type FamilyHubEmailOptions = {
   preheader?: string;
   greeting?: string;
   paragraphs: string[];
+  extraHtml?: string;
   ctaLabel?: string;
   ctaUrl?: string;
   footerNote: string;
@@ -62,6 +63,7 @@ export function buildFamilyHubEmailHtml(options: FamilyHubEmailOptions) {
             <td style="padding:8px 32px 24px;text-align:center;">
               ${greetingBlock}
               ${paragraphBlocks}
+              ${options.extraHtml || ''}
               ${ctaBlock ? `<div style="margin-top:8px;">${ctaBlock}</div>` : ''}
             </td>
           </tr>
