@@ -1005,7 +1005,7 @@
                 <div id="admin-section-districts" class="hidden">
                     <div class="hub-admin-block">
                         <h3 class="hub-admin-block-title mb-1">Public school districts</h3>
-                        <p class="hub-section-subtitle mb-6">Families and students grouped by the public school district on their 2026/2027 Enrollment Package. Select one or more students to build a withdrawal notice you can copy or download.</p>
+                        <p class="hub-section-subtitle mb-6">Families and students grouped by the public school district on their 2026/2027 Enrollment Package. Select students, then build either a return-to-public-school notice or a now-enrolled-at-Summit notice.</p>
 
                         <div class="hub-panel hub-panel-padded mb-6">
                             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1027,9 +1027,23 @@
                             </div>
                             <div class="lg:col-span-2">
                                 <div class="hub-panel hub-panel-padded space-y-4">
-                                    <h4 class="text-sm font-semibold text-navy">Withdrawal notice</h4>
+                                    <h4 class="text-sm font-semibold text-navy">District letter</h4>
                                     <p id="admin-districts-selected-count" class="text-xs text-slate-500">No students selected.</p>
-                                    <label class="block text-sm font-medium text-slate-700">
+                                    <div class="flex flex-wrap gap-2" role="group" aria-label="Letter type">
+                                        <button type="button" id="admin-districts-type-return" onclick="setDistrictNoticeType('return')"
+                                                class="hub-admin-action-btn admin-families-action admin-families-action--primary">
+                                            Returning to public school
+                                        </button>
+                                        <button type="button" id="admin-districts-type-enroll" onclick="setDistrictNoticeType('enroll')"
+                                                class="hub-admin-action-btn admin-families-action">
+                                            Now enrolled at Summit
+                                        </button>
+                                    </div>
+                                    <label id="admin-districts-contact-wrap" class="hidden block text-sm font-medium text-slate-700">
+                                        District contact name
+                                        <input type="text" id="admin-districts-contact-name" class="form-input mt-1.5 w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm" placeholder="e.g. Allison">
+                                    </label>
+                                    <label id="admin-districts-school-wrap" class="block text-sm font-medium text-slate-700">
                                         Returning to public school at
                                         <input type="text" id="admin-districts-school-name" class="form-input mt-1.5 w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm" placeholder="e.g. Douglas Elementary">
                                     </label>
@@ -1253,7 +1267,7 @@
     <script src="assets/progress-report-pdf.js?v=20260721"></script>
     <script src="assets/enrollment-roster-pdf.js?v=20260818c"></script>
     <script src="assets/enrollment-packet-parse.js?v=20260818"></script>
-    <script src="assets/district-notice-pdf.js?v=20260818"></script>
+    <script src="assets/district-notice-pdf.js?v=20260818d"></script>
     <script src="assets/graduation-pdf.js?v=20260740"></script>
     <script src="assets/task-notify.js?v=20260750"></script>
     <script src="assets/graduation-tasks.js?v=20260750"></script>
@@ -4370,6 +4384,7 @@
 
         let districtNoticeStudents = [];
         let selectedDistrictStudentIds = new Set();
+        let districtNoticeType = 'return';
         let pdfJsLoadPromise = null;
 
         function canManageDistricts() {
@@ -4477,10 +4492,24 @@
             return districts.length === 1 ? districts[0] : '';
         }
 
+        function setDistrictNoticeType(type) {
+            districtNoticeType = type === 'enroll' ? 'enroll' : 'return';
+            const returnBtn = document.getElementById('admin-districts-type-return');
+            const enrollBtn = document.getElementById('admin-districts-type-enroll');
+            const schoolWrap = document.getElementById('admin-districts-school-wrap');
+            const contactWrap = document.getElementById('admin-districts-contact-wrap');
+            returnBtn?.classList.toggle('admin-families-action--primary', districtNoticeType === 'return');
+            enrollBtn?.classList.toggle('admin-families-action--primary', districtNoticeType === 'enroll');
+            if (schoolWrap) schoolWrap.classList.toggle('hidden', districtNoticeType !== 'return');
+            if (contactWrap) contactWrap.classList.toggle('hidden', districtNoticeType !== 'enroll');
+            updateDistrictNoticePreview();
+        }
+
         function updateDistrictNoticePreview() {
             const selected = getSelectedDistrictStudents();
             const countEl = document.getElementById('admin-districts-selected-count');
             const schoolInput = document.getElementById('admin-districts-school-name');
+            const contactInput = document.getElementById('admin-districts-contact-name');
             const letterEl = document.getElementById('admin-districts-letter');
             if (countEl) {
                 countEl.textContent = selected.length
@@ -4492,7 +4521,11 @@
             }
             if (letterEl && window.DistrictNoticePdf?.buildNoticeText) {
                 letterEl.value = selected.length
-                    ? window.DistrictNoticePdf.buildNoticeText(selected, schoolInput?.value || '')
+                    ? window.DistrictNoticePdf.buildNoticeText(selected, {
+                        type: districtNoticeType,
+                        schoolName: schoolInput?.value || '',
+                        contactName: contactInput?.value || '',
+                    })
                     : '';
             }
         }
@@ -4622,6 +4655,12 @@
                         updateDistrictNoticePreview();
                     });
                 }
+                const contactInput = document.getElementById('admin-districts-contact-name');
+                if (contactInput && contactInput.dataset.bound !== '1') {
+                    contactInput.dataset.bound = '1';
+                    contactInput.addEventListener('input', updateDistrictNoticePreview);
+                }
+                setDistrictNoticeType(districtNoticeType);
                 renderAdminDistrictsList();
                 updateDistrictNoticePreview();
             } catch (err) {
@@ -4772,6 +4811,7 @@
                 return;
             }
             const schoolName = document.getElementById('admin-districts-school-name')?.value.trim() || '';
+            const contactName = document.getElementById('admin-districts-contact-name')?.value.trim() || '';
             const letterEl = document.getElementById('admin-districts-letter');
             const original = triggerEl?.innerHTML;
             if (triggerEl) {
@@ -4780,12 +4820,19 @@
             }
             try {
                 const districts = [...new Set(selected.map((student) => student.district).filter(Boolean))];
+                const label = districtNoticeType === 'enroll' ? 'Now-Enrolled' : 'Withdrawal';
                 await window.DistrictNoticePdf.generateAndDownload({
+                    type: districtNoticeType,
                     students: selected,
                     schoolName,
+                    contactName,
                     district: districts.length === 1 ? districts[0] : '',
-                    text: letterEl?.value || window.DistrictNoticePdf.buildNoticeText(selected, schoolName),
-                    filename: `SCS-District-Withdrawal-${(schoolName || districts[0] || 'notice').replace(/[^\w.-]+/g, '_')}.pdf`,
+                    text: letterEl?.value || window.DistrictNoticePdf.buildNoticeText(selected, {
+                        type: districtNoticeType,
+                        schoolName,
+                        contactName,
+                    }),
+                    filename: `SCS-District-${label}-${(schoolName || contactName || districts[0] || 'notice').replace(/[^\w.-]+/g, '_')}.pdf`,
                 });
                 setDistrictStatus('admin-districts-letter-status', 'success', 'PDF downloaded.');
             } catch (err) {
@@ -4800,6 +4847,7 @@
         }
 
         window.scanEnrollmentPacketsForDistricts = scanEnrollmentPacketsForDistricts;
+        window.setDistrictNoticeType = setDistrictNoticeType;
         window.copyDistrictNoticeText = copyDistrictNoticeText;
         window.downloadDistrictNoticePdf = downloadDistrictNoticePdf;
 

@@ -70,6 +70,15 @@
         return `${Number(match[2])}/${Number(match[3])}/${match[1].slice(-2)}`;
     }
 
+    function compactGrade(student) {
+        const raw = String(student?.gradeLabel || student?.gradeLevel || '').trim();
+        if (!raw) return '—';
+        if (/k|kindergarten/i.test(raw)) return 'K';
+        const num = raw.match(/\d{1,2}/);
+        if (num) return String(Number(num[0]));
+        return raw;
+    }
+
     function studentLine(student, schoolName) {
         const parse = window.EnrollmentPacketParse;
         const grade = parse?.gradePhrase(student.gradeLabel || student.gradeLevel) || 'their current grade';
@@ -78,7 +87,34 @@
         return `${name} DOB: ${formatDob(student)} going into ${grade} and returning to public school at ${school}.`;
     }
 
-    function buildNoticeText(students, schoolName) {
+    function enrolledStudentLine(student) {
+        const name = student.fullName || student.name || 'Student';
+        return `${name} grade ${compactGrade(student)}, DOB: ${formatDob(student)}`;
+    }
+
+    function groupStudentsByFamily(students) {
+        const groups = [];
+        const index = new Map();
+        students.forEach((student) => {
+            const key = student.familyUserId || student.familyName || student.fullName || student.name;
+            if (!index.has(key)) {
+                index.set(key, []);
+                groups.push(index.get(key));
+            }
+            index.get(key).push(student);
+        });
+        return groups;
+    }
+
+    function greetingLine(options) {
+        const hour = new Date().getHours();
+        const timeOfDay = options.timeOfDay
+            || (hour < 12 ? 'Good morning' : 'Good afternoon');
+        const contact = String(options.contactName || '').trim();
+        return contact ? `${timeOfDay}, ${contact}.` : `${timeOfDay}.`;
+    }
+
+    function buildReturnNoticeText(students, schoolName) {
         const list = Array.isArray(students) ? students.filter(Boolean) : [];
         const plural = list.length !== 1;
         return [
@@ -94,9 +130,41 @@
         ].join('\n');
     }
 
+    function buildEnrollNoticeText(students, options = {}) {
+        const list = Array.isArray(students) ? students.filter(Boolean) : [];
+        const familyBlocks = groupStudentsByFamily(list).map((group) => (
+            group.map((student) => enrolledStudentLine(student)).join('\n')
+        ));
+        return [
+            greetingLine(options),
+            'This is Ryan Simon with Summit Church School notifying you of the following students that are now enrolled.',
+            '',
+            familyBlocks.join('\n\n'),
+            '',
+            'Thanks,',
+            'Ryan Simon',
+            'SCS Administrator',
+        ].join('\n');
+    }
+
+    function buildNoticeText(students, schoolNameOrOptions) {
+        const options = typeof schoolNameOrOptions === 'string' || schoolNameOrOptions == null
+            ? { schoolName: schoolNameOrOptions || '', type: 'return' }
+            : schoolNameOrOptions;
+        if (options.type === 'enroll') {
+            return buildEnrollNoticeText(students, options);
+        }
+        return buildReturnNoticeText(students, options.schoolName);
+    }
+
+    function noticeTitle(type) {
+        return type === 'enroll' ? 'Now enrolled notice' : 'Student withdrawal notice';
+    }
+
     function buildDocDefinition(payload, logoDataUrl) {
         const students = payload.students || [];
-        const text = payload.text || buildNoticeText(students, payload.schoolName);
+        const type = payload.type === 'enroll' ? 'enroll' : 'return';
+        const text = payload.text || buildNoticeText(students, payload);
         const header = [];
         if (logoDataUrl) {
             header.push({ image: logoDataUrl, width: 48, margin: [0, 0, 14, 0] });
@@ -104,7 +172,7 @@
         header.push({
             stack: [
                 { text: 'SUMMIT CHURCH SCHOOL', style: 'schoolName' },
-                { text: 'Student withdrawal notice', style: 'reportTitle' },
+                { text: noticeTitle(type), style: 'reportTitle' },
                 { text: payload.district ? `Public school district: ${payload.district}` : '', style: 'reportSubtitle' },
             ],
             width: '*',
@@ -131,7 +199,8 @@
         const pdfMake = await ensurePdfMake();
         const logoDataUrl = await loadLogoDataUrl();
         const docDefinition = buildDocDefinition(payload, logoDataUrl);
-        const filename = payload.filename || 'SCS-District-Withdrawal-Notice.pdf';
+        const filename = payload.filename
+            || (payload.type === 'enroll' ? 'SCS-District-Now-Enrolled-Notice.pdf' : 'SCS-District-Withdrawal-Notice.pdf');
         return new Promise((resolve, reject) => {
             try {
                 pdfMake.createPdf(docDefinition).download(filename, () => resolve());
@@ -143,7 +212,9 @@
 
     window.DistrictNoticePdf = {
         formatDob,
+        compactGrade,
         studentLine,
+        enrolledStudentLine,
         buildNoticeText,
         generateAndDownload,
     };
