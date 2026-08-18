@@ -4531,7 +4531,6 @@
             }
             const districtKey = defaultSchoolNameForSelection(selected);
             const emailInput = document.getElementById('admin-districts-email');
-            const contactInput = document.getElementById('admin-districts-contact-name');
             if (districtKey && districtKey !== lastFilledDistrictKey) {
                 lastFilledDistrictKey = districtKey;
                 const saved = districtContactsByKey.get(districtKey.toLowerCase());
