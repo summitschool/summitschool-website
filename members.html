@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Playfair+Display:wght@700&amp;display=swap">
-    <link rel="stylesheet" href="assets/styles.css?v=20260818b">
+    <link rel="stylesheet" href="assets/styles.css?v=20260913">
     <link rel="stylesheet" href="assets/family-picker.css?v=20260818b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
@@ -663,33 +663,52 @@
             <div id="dashboard-admin" class="hidden">
                 <div class="hub-section-intro">
                     <h2 class="hub-section-heading">Administration</h2>
-                    <p class="hub-section-subtitle">Manage Family Hub access, family documents, and site-wide content.</p>
+                    <p class="hub-section-subtitle">Review approvals, work with families, run schoolwide reports, and update site content.</p>
                 </div>
 
                 <div class="hub-nav-wrap !px-0 !pt-0 mb-6">
                     <div class="hub-admin-tab-group" role="tablist" aria-label="Admin sections">
                         <button type="button" onclick="showAdminSection('members')" id="admin-nav-members" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn is-active" aria-selected="true">Signups</button>
+                                class="hub-admin-tab-btn admin-nav-btn is-active" aria-selected="true">Approvals</button>
                         <button type="button" onclick="showAdminSection('families')" id="admin-nav-families" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Families</button>
                         <button type="button" onclick="showAdminSection('academic')" id="admin-nav-academic" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Academic Records</button>
-                        <button type="button" onclick="showAdminSection('graduation')" id="admin-nav-graduation" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Graduation</button>
-                        <button type="button" onclick="showAdminSection('site')" id="admin-nav-site" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Site Content</button>
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Academic</button>
+                        <button type="button" onclick="showAdminSection('reports')" id="admin-nav-reports" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Reports</button>
+                        <button type="button" onclick="showAdminSection('content')" id="admin-nav-content" role="tab"
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Content</button>
                         <button type="button" onclick="showAdminSection('access')" id="admin-nav-access" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Staff Access</button>
-                        <button type="button" onclick="showAdminSection('records')" id="admin-nav-records" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Family Records</button>
-                        <button type="button" onclick="showAdminSection('library')" id="admin-nav-library" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Document Library</button>
-                        <button type="button" onclick="showAdminSection('districts')" id="admin-nav-districts" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Districts</button>
+                                class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Settings</button>
                     </div>
                 </div>
 
-                <!-- 1. Signups: approvals + ID review -->
+                <div id="admin-reports-chrome" class="hidden mb-6">
+                    <div class="hub-admin-tab-group admin-grouped-subtabs" role="tablist" aria-label="Report views">
+                        <button type="button" role="tab" id="admin-reports-tab-enrollment" class="hub-admin-tab-btn" aria-selected="false" onclick="showAdminSection('enrollment')">
+                            <i class="fas fa-file-pdf" aria-hidden="true"></i> Roster
+                        </button>
+                        <button type="button" role="tab" id="admin-reports-tab-districts" class="hub-admin-tab-btn" aria-selected="false" onclick="showAdminSection('districts')">
+                            <i class="fas fa-school" aria-hidden="true"></i> Districts
+                        </button>
+                        <button type="button" role="tab" id="admin-reports-tab-graduation" class="hub-admin-tab-btn" aria-selected="false" onclick="showAdminSection('graduation')">
+                            <i class="fas fa-user-graduate" aria-hidden="true"></i> Graduation
+                        </button>
+                    </div>
+                </div>
+
+                <div id="admin-content-chrome" class="hidden mb-6">
+                    <div class="hub-admin-tab-group admin-grouped-subtabs" role="tablist" aria-label="Content views">
+                        <button type="button" role="tab" id="admin-content-tab-site" class="hub-admin-tab-btn" aria-selected="false" onclick="showAdminSection('site')">
+                            <i class="fas fa-newspaper" aria-hidden="true"></i> Site Content
+                        </button>
+                        <button type="button" role="tab" id="admin-content-tab-library" class="hub-admin-tab-btn" aria-selected="false" onclick="showAdminSection('library')">
+                            <i class="fas fa-copy" aria-hidden="true"></i> Templates
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 1. Approvals: pending family access + ID review -->
                 <div id="admin-section-members">
                     <div id="admin-approvals-section" class="hub-admin-block">
                         <h3 class="hub-admin-block-title mb-1">Pending Family Approvals</h3>
@@ -708,6 +727,28 @@
                             Loading pending ID uploads...
                         </div>
                         <div id="admin-pending-ids-status" class="mt-4 text-sm hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Reports: schoolwide enrollment roster -->
+                <div id="admin-section-enrollment" class="hidden">
+                    <div class="hub-admin-block">
+                        <h3 class="hub-admin-block-title mb-1">Enrollment roster</h3>
+                        <p class="hub-section-subtitle mb-6">Download a school-wide PDF of enrolled families, each student’s name and current grade, plus family and student totals.</p>
+
+                        <div class="hub-panel hub-panel-padded">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-navy">Roster PDF</h4>
+                                    <p class="text-xs text-slate-500 mt-1">Includes all approved families and current student grade levels.</p>
+                                </div>
+                                <button type="button" onclick="downloadEnrollmentRosterPdf(this)"
+                                        class="hub-admin-action-btn admin-families-action admin-families-action--primary whitespace-nowrap">
+                                    <i class="fas fa-file-pdf" aria-hidden="true"></i> Download roster PDF
+                                </button>
+                            </div>
+                            <p id="admin-enrollment-roster-status" class="mt-3 text-sm hidden" role="status" aria-live="polite"></p>
+                        </div>
                     </div>
                 </div>
 
@@ -735,20 +776,7 @@
                 <div id="admin-section-academic" class="hidden">
                     <div class="hub-admin-block">
                         <h3 class="hub-admin-block-title mb-1">Academic Records</h3>
-                        <p class="hub-section-subtitle mb-6">View each family's students, reopen locked school years when corrections are needed, or remove duplicate student records.</p>
-
-                        <div class="hub-panel hub-panel-padded mb-6">
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                <div>
-                                    <h4 class="text-sm font-semibold text-navy">Enrollment roster</h4>
-                                    <p class="text-xs text-slate-500 mt-1">Download a school-wide PDF of enrolled families and current student grade levels.</p>
-                                </div>
-                                <button type="button" onclick="downloadEnrollmentRosterPdf(this)"
-                                        class="hub-admin-action-btn admin-families-action admin-families-action--primary whitespace-nowrap">
-                                    <i class="fas fa-file-pdf" aria-hidden="true"></i> Download roster PDF
-                                </button>
-                            </div>
-                        </div>
+                        <p class="hub-section-subtitle mb-6">View each family's students, reopen locked school years when corrections are needed, or remove duplicate student records. School-wide roster download is under <strong>Reports</strong>.</p>
 
                         <div class="hub-panel hub-panel-padded">
                             <div>
@@ -778,21 +806,7 @@
                 <div id="admin-section-families" class="hidden">
                     <div class="hub-admin-block">
                         <h3 class="hub-admin-block-title mb-1">Families</h3>
-                        <p class="hub-section-subtitle mb-6">Upload documents, assign tasks, and manage onboarding for approved families.</p>
-
-                        <div class="hub-panel hub-panel-padded mb-6">
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                <div>
-                                    <h4 class="text-sm font-semibold text-navy">Enrollment roster</h4>
-                                    <p class="text-xs text-slate-500 mt-1">PDF of all enrolled families, each student’s name and current grade, plus family and student totals.</p>
-                                </div>
-                                <button type="button" onclick="downloadEnrollmentRosterPdf(this)"
-                                        class="hub-admin-action-btn admin-families-action admin-families-action--primary whitespace-nowrap">
-                                    <i class="fas fa-file-pdf" aria-hidden="true"></i> Download roster PDF
-                                </button>
-                            </div>
-                            <p id="admin-enrollment-roster-status" class="mt-3 text-sm hidden" role="status" aria-live="polite"></p>
-                        </div>
+                        <p class="hub-section-subtitle mb-6">Select a family to browse documents and IDs, assign tasks, or upload items. School-wide roster download is under <strong>Reports</strong>.</p>
 
                         <div class="admin-families-toolbar hub-panel hub-panel-padded">
                             <label class="block text-sm font-medium text-slate-700 mb-1.5" for="admin-family-select">Family</label>
@@ -800,18 +814,27 @@
                                 <option value="">Loading families...</option>
                             </select>
                             <div class="admin-families-actions">
-                                <button type="button" onclick="assignSetupTasksForSelectedFamily()" class="hub-admin-action-btn admin-families-action admin-families-action--primary">
-                                    <i class="fas fa-list-check" aria-hidden="true"></i> Assign setup tasks
-                                </button>
-                                <button type="button" onclick="resendApprovalEmailForSelectedFamily()" class="hub-admin-action-btn admin-families-action">
-                                    <i class="fas fa-envelope" aria-hidden="true"></i> Resend approval email
-                                </button>
-                                <button type="button" onclick="reSendIDTask()" class="hub-admin-action-btn admin-families-action">
-                                    <i class="fas fa-id-card" aria-hidden="true"></i> Re-send ID task
-                                </button>
-                                <button type="button" onclick="openSelectedFamilyInAcademicTab()" class="hub-admin-action-btn admin-families-action">
-                                    <i class="fas fa-graduation-cap" aria-hidden="true"></i> Academic records
-                                </button>
+                                <div id="admin-families-manage-actions" class="admin-families-actions-primary">
+                                    <button type="button" onclick="assignSetupTasksForSelectedFamily()" class="hub-admin-action-btn admin-families-action admin-families-action--primary">
+                                        <i class="fas fa-list-check" aria-hidden="true"></i> Assign setup tasks
+                                    </button>
+                                    <button type="button" id="admin-families-academic-btn" onclick="openSelectedFamilyInAcademicTab()" class="hub-admin-action-btn admin-families-action">
+                                        <i class="fas fa-graduation-cap" aria-hidden="true"></i> Academic records
+                                    </button>
+                                    <div class="admin-families-actions-wrap">
+                                        <button type="button" id="admin-families-actions-toggle" class="hub-admin-action-btn admin-families-action" aria-haspopup="true" aria-expanded="false" aria-controls="admin-families-actions-menu" onclick="toggleAdminFamiliesActionsMenu(event)">
+                                            <i class="fas fa-ellipsis" aria-hidden="true"></i> Actions
+                                        </button>
+                                        <div id="admin-families-actions-menu" class="admin-families-actions-dropdown hidden" role="menu" hidden>
+                                            <button type="button" role="menuitem" onclick="resendApprovalEmailForSelectedFamily(); closeAdminFamiliesActionsMenu();">
+                                                <i class="fas fa-envelope" aria-hidden="true"></i> Resend approval email
+                                            </button>
+                                            <button type="button" role="menuitem" onclick="reSendIDTask(); closeAdminFamiliesActionsMenu();">
+                                                <i class="fas fa-id-card" aria-hidden="true"></i> Re-send ID task
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                                 <button type="button" onclick="resetAdminFamilySelection()" class="hub-admin-action-btn admin-families-action admin-families-action--muted">
                                     Clear
                                 </button>
@@ -831,7 +854,10 @@
                             <div id="admin-upload-status" class="text-sm hidden"></div>
 
                             <div class="hub-admin-tab-group admin-families-subtabs" role="tablist" aria-label="Family management views">
-                                <button type="button" role="tab" id="admin-families-tab-tasks" class="hub-admin-tab-btn is-active" aria-selected="true" onclick="adminFamiliesShowPanel('tasks')">
+                                <button type="button" role="tab" id="admin-families-tab-overview" class="hub-admin-tab-btn is-active" aria-selected="true" onclick="adminFamiliesShowPanel('overview')">
+                                    <i class="fas fa-id-card" aria-hidden="true"></i> Overview
+                                </button>
+                                <button type="button" role="tab" id="admin-families-tab-tasks" class="hub-admin-tab-btn" aria-selected="false" onclick="adminFamiliesShowPanel('tasks')">
                                     <i class="fas fa-clipboard-list" aria-hidden="true"></i> Tasks
                                 </button>
                                 <button type="button" role="tab" id="admin-families-tab-documents" class="hub-admin-tab-btn" aria-selected="false" onclick="adminFamiliesShowPanel('documents')">
@@ -845,7 +871,29 @@
                                 </button>
                             </div>
 
-                            <div id="admin-families-panel-tasks" class="admin-families-panel hub-panel hub-panel-padded" role="tabpanel">
+                            <div id="admin-families-panel-overview" class="admin-families-panel hub-panel hub-panel-padded" role="tabpanel">
+                                <p id="admin-families-overview-hint" class="text-xs text-slate-500 mb-3">Documents and government ID on file. Read-only — use Documents or Add document to upload or manage items.</p>
+                                <div id="admin-section-records">
+                                    <div id="admin-records-content" class="hidden space-y-6">
+                                        <div>
+                                            <h4 class="text-sm font-semibold text-navy mb-3 uppercase tracking-wide">Documents</h4>
+                                            <div id="admin-records-docs" class="space-y-4"></div>
+                                        </div>
+                                        <details id="admin-records-id-panel" class="border border-slate-200 rounded-2xl bg-slate-50/50 overflow-hidden">
+                                            <summary class="cursor-pointer px-4 py-3 flex items-center justify-between text-navy font-semibold text-sm uppercase tracking-wide list-none [&::-webkit-details-marker]:hidden">
+                                                <span class="flex items-center gap-2 normal-case tracking-normal">
+                                                    <i class="fas fa-id-card text-sage"></i>
+                                                    Government ID
+                                                </span>
+                                                <span id="admin-records-id-hint" class="text-[10px] font-normal text-slate-500 normal-case tracking-normal">Click to expand</span>
+                                            </summary>
+                                            <div id="admin-records-id" class="px-4 pb-4 border-t border-slate-200 pt-3"></div>
+                                        </details>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="admin-families-panel-tasks" class="admin-families-panel hub-panel hub-panel-padded hidden" role="tabpanel">
                                 <p class="text-xs text-slate-500 mb-3">Active tasks in My Tasks. New assignments default to due one week out — edit dates below.</p>
                                 <div id="admin-family-tasks-list" class="admin-families-list text-sm text-slate-600">
                                     Loading tasks...
@@ -908,7 +956,7 @@
                             </div>
 
                             <div id="admin-families-panel-assign" class="admin-families-panel hub-panel hub-panel-padded hidden" role="tabpanel">
-                                <p class="text-xs text-slate-500 mb-3">Copy templates from the Document Library to this family. Uncheck items they do not need (e.g. graduation packets for non-seniors).</p>
+                                <p class="text-xs text-slate-500 mb-3">Copy templates from Content → Templates to this family. Uncheck items they do not need (e.g. graduation packets for non-seniors).</p>
                                 <div class="flex flex-wrap items-center gap-4 mb-3 text-sm text-slate-700">
                                     <span class="font-medium">Send to:</span>
                                     <label class="flex items-center gap-1.5 cursor-pointer">
@@ -930,46 +978,10 @@
                     </div>
                 </div>
 
-                <!-- 2b. Family Records: read-only browse for any family -->
-                <div id="admin-section-records" class="hidden">
-                    <h3 class="hub-admin-block-title mb-1">Family Records</h3>
-                    <p class="hub-section-subtitle mb-6">Select any approved family to view their documents and government ID. Read-only — use <strong>Families</strong> to upload or manage items.</p>
-
-                    <div class="hub-panel hub-panel-padded">
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Family</label>
-                        <div class="flex flex-col sm:flex-row gap-3 mb-6">
-                            <select id="admin-records-family-select" class="sr-only flex-1" tabindex="-1" aria-hidden="true" onchange="loadAdminFamilyRecords()">
-                                <option value="">Loading families...</option>
-                            </select>
-                            <button type="button" onclick="resetAdminRecordsSection()"
-                                    class="px-5 py-3 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all text-sm whitespace-nowrap">
-                                Clear
-                            </button>
-                        </div>
-
-                        <div id="admin-records-content" class="hidden space-y-6">
-                            <div>
-                                <h4 class="text-sm font-semibold text-navy mb-3 uppercase tracking-wide">Documents</h4>
-                                <div id="admin-records-docs" class="space-y-4"></div>
-                            </div>
-                            <details id="admin-records-id-panel" class="border border-slate-200 rounded-2xl bg-slate-50/50 overflow-hidden">
-                                <summary class="cursor-pointer px-4 py-3 flex items-center justify-between text-navy font-semibold text-sm uppercase tracking-wide list-none [&::-webkit-details-marker]:hidden">
-                                    <span class="flex items-center gap-2 normal-case tracking-normal">
-                                        <i class="fas fa-id-card text-sage"></i>
-                                        Government ID
-                                    </span>
-                                    <span id="admin-records-id-hint" class="text-[10px] font-normal text-slate-500 normal-case tracking-normal">Click to expand</span>
-                                </summary>
-                                <div id="admin-records-id" class="px-4 pb-4 border-t border-slate-200 pt-3"></div>
-                            </details>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2c. Staff Access: staff view all families (read-only) -->
+                <!-- Settings: staff access (full admin only) -->
                 <div id="admin-section-access" class="hidden">
                     <h3 class="hub-admin-block-title mb-1">Staff Access</h3>
-                    <p class="text-sm text-slate-600 mb-6">Add approved Family Hub users as staff and choose which <strong>Admin</strong> sub-tabs they can use. Only you (full admin) can manage staff access.</p>
+                    <p class="text-sm text-slate-600 mb-6">Add approved Family Hub users as staff and choose which Admin areas they can use. Only you (full admin) can manage staff access.</p>
 
                     <div class="hub-panel hub-panel-padded space-y-6">
                         <div id="staff-access-list" class="border border-slate-200 rounded-2xl p-4 min-h-[80px] text-sm text-slate-600">
@@ -992,7 +1004,7 @@
                                 </button>
                             </div>
                             <div class="mt-4">
-                                <p class="text-xs font-medium text-slate-600 mb-2">Admin sub-tabs this staff member can access:</p>
+                                <p class="text-xs font-medium text-slate-600 mb-2">Admin areas this staff member can access:</p>
                                 <div id="staff-add-sections" class="flex flex-wrap gap-2">
                                     <!-- Filled by renderStaffSectionCheckboxes on load -->
                                 </div>
@@ -1077,7 +1089,7 @@
                 <div id="admin-section-library" class="hidden">
                 <div class="pt-2">
                     <h3 class="hub-admin-block-title mb-1">Standard Document Templates</h3>
-                    <p class="text-xs text-slate-500 mb-4">Curate reusable documents and links for your families. After approving a family in the <strong>Signups</strong> tab, assign templates from the <strong>Families</strong> tab. You can exclude items a family does not need (e.g. graduation packets for non-seniors).</p>
+                    <p class="text-xs text-slate-500 mb-4">Curate reusable documents and links for your families. After approving a family under <strong>Approvals</strong>, assign templates from <strong>Families</strong>. You can exclude items a family does not need (e.g. graduation packets for non-seniors).</p>
 
                     <div class="hub-panel hub-panel-padded">
                         <form id="admin-standard-form" class="space-y-4" autocomplete="off">
@@ -1284,7 +1296,7 @@
     <script src="assets/kindergarten-graduation-admin.js?v=20260754"></script>
     <script src="assets/academic-records.js?v=20260818"></script>
     <script src="assets/onboarding-checklist.js?v=20260796"></script>
-    <script src="assets/family-picker.js?v=20260818b"></script>
+    <script src="assets/family-picker.js?v=20260913"></script>
     <script>
         // =============================================
         // SUPABASE CONFIGURATION - REPLACE THESE VALUES
@@ -1320,15 +1332,30 @@
         };
 
         const STAFF_ASSIGNABLE_ADMIN_SECTIONS = [
-            { id: 'members', label: 'Signups' },
+            { id: 'members', label: 'Approvals' },
             { id: 'families', label: 'Families' },
             { id: 'academic', label: 'Academic Records' },
             { id: 'graduation', label: 'Graduation' },
-            { id: 'records', label: 'Family Records' },
+            { id: 'records', label: 'Family documents (read-only)' },
             { id: 'site', label: 'Site Content' },
-            { id: 'library', label: 'Document Library' },
+            { id: 'library', label: 'Templates' },
             { id: 'districts', label: 'Districts' }
         ];
+
+        const ADMIN_SECTION_GROUP = {
+            members: 'members',
+            families: 'families',
+            records: 'families',
+            academic: 'academic',
+            reports: 'reports',
+            enrollment: 'reports',
+            districts: 'reports',
+            graduation: 'reports',
+            content: 'content',
+            site: 'content',
+            library: 'content',
+            access: 'access'
+        };
 
         let lastAdminSection = 'members';
         let lastDashboardTab = 'my-tasks';
@@ -2498,29 +2525,164 @@
             return getAllowedAdminSections().includes(section);
         }
 
+        function staffCanSeeDistricts() {
+            return currentUserAccess.isFullAdmin
+                || staffHasAdminSection('districts')
+                || staffHasAdminSection('families')
+                || staffHasAdminSection('academic');
+        }
+
+        function staffCanManageFamilies() {
+            return currentUserAccess.isFullAdmin || staffHasAdminSection('families');
+        }
+
+        function staffCanBrowseFamilyRecords() {
+            return currentUserAccess.isFullAdmin
+                || staffHasAdminSection('families')
+                || staffHasAdminSection('records');
+        }
+
+        function canOpenAdminSection(section) {
+            if (currentUserAccess.isFullAdmin) return true;
+            switch (section) {
+                case 'members':
+                    return staffHasAdminSection('members');
+                case 'families':
+                case 'records':
+                    return staffCanBrowseFamilyRecords();
+                case 'academic':
+                    return staffHasAdminSection('academic');
+                case 'graduation':
+                    return staffHasAdminSection('graduation');
+                case 'districts':
+                    return staffCanSeeDistricts();
+                case 'enrollment':
+                    return canDownloadEnrollmentRoster();
+                case 'reports':
+                    return canDownloadEnrollmentRoster() || staffCanSeeDistricts() || staffHasAdminSection('graduation');
+                case 'site':
+                    return staffHasAdminSection('site');
+                case 'library':
+                    return staffHasAdminSection('library');
+                case 'content':
+                    return staffHasAdminSection('site') || staffHasAdminSection('library');
+                case 'access':
+                    return false;
+                default:
+                    return staffHasAdminSection(section);
+            }
+        }
+
         function getFirstAllowedAdminSection() {
-            const order = ['members', 'families', 'academic', 'districts', 'site', 'records', 'library', 'access'];
-            const allowed = new Set(getAllowedAdminSections());
-            return order.find(section => allowed.has(section)) || 'records';
+            const order = ['members', 'families', 'academic', 'enrollment', 'districts', 'graduation', 'site', 'library', 'access'];
+            return order.find(section => canOpenAdminSection(section)) || 'families';
+        }
+
+        function resolveAdminSection(section) {
+            if (section === 'reports') {
+                if (canDownloadEnrollmentRoster()) return 'enrollment';
+                if (staffCanSeeDistricts()) return 'districts';
+                if (canOpenAdminSection('graduation')) return 'graduation';
+                return 'enrollment';
+            }
+            if (section === 'content') {
+                if (canOpenAdminSection('site')) return 'site';
+                if (canOpenAdminSection('library')) return 'library';
+                return 'site';
+            }
+            return section;
+        }
+
+        function applyAdminReportsSubnavVisibility() {
+            const enrollmentTab = document.getElementById('admin-reports-tab-enrollment');
+            const districtsTab = document.getElementById('admin-reports-tab-districts');
+            const graduationTab = document.getElementById('admin-reports-tab-graduation');
+            if (enrollmentTab) enrollmentTab.classList.toggle('hidden', !canDownloadEnrollmentRoster());
+            if (districtsTab) districtsTab.classList.toggle('hidden', !staffCanSeeDistricts());
+            if (graduationTab) graduationTab.classList.toggle('hidden', !canOpenAdminSection('graduation'));
+        }
+
+        function applyAdminContentSubnavVisibility() {
+            const siteTab = document.getElementById('admin-content-tab-site');
+            const libraryTab = document.getElementById('admin-content-tab-library');
+            if (siteTab) siteTab.classList.toggle('hidden', !canOpenAdminSection('site'));
+            if (libraryTab) libraryTab.classList.toggle('hidden', !canOpenAdminSection('library'));
+        }
+
+        function applyAdminFamiliesCapabilityUI() {
+            const canManage = staffCanManageFamilies();
+            const canAcademic = currentUserAccess.isFullAdmin || staffHasAdminSection('academic');
+            ['tasks', 'documents', 'add', 'assign'].forEach((id) => {
+                document.getElementById(`admin-families-tab-${id}`)?.classList.toggle('hidden', !canManage);
+                if (!canManage) {
+                    document.getElementById(`admin-families-panel-${id}`)?.classList.add('hidden');
+                }
+            });
+            document.getElementById('admin-families-manage-actions')?.classList.toggle('hidden', !canManage);
+            document.getElementById('admin-families-academic-btn')?.classList.toggle('hidden', !canAcademic);
+
+            const empty = document.getElementById('admin-families-empty');
+            if (empty) {
+                empty.textContent = canManage
+                    ? 'Select a family to view their setup progress, tasks, and documents.'
+                    : 'Select a family to browse their documents and government ID.';
+            }
+
+            const overviewHint = document.getElementById('admin-families-overview-hint');
+            if (overviewHint) {
+                overviewHint.textContent = canManage
+                    ? 'Documents and government ID on file. Read-only — use Documents or Add document to upload or manage items.'
+                    : 'Documents and government ID on file. This view is read-only.';
+            }
+        }
+
+        function applyAdminGroupedChrome(group, resolved) {
+            const reportsChrome = document.getElementById('admin-reports-chrome');
+            const contentChrome = document.getElementById('admin-content-chrome');
+            if (reportsChrome) reportsChrome.classList.toggle('hidden', group !== 'reports');
+            if (contentChrome) contentChrome.classList.toggle('hidden', group !== 'content');
+
+            const reportTabs = {
+                enrollment: document.getElementById('admin-reports-tab-enrollment'),
+                districts: document.getElementById('admin-reports-tab-districts'),
+                graduation: document.getElementById('admin-reports-tab-graduation')
+            };
+            Object.entries(reportTabs).forEach(([id, tab]) => {
+                if (!tab) return;
+                const active = group === 'reports' && resolved === id;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+
+            const contentTabs = {
+                site: document.getElementById('admin-content-tab-site'),
+                library: document.getElementById('admin-content-tab-library')
+            };
+            Object.entries(contentTabs).forEach(([id, tab]) => {
+                if (!tab) return;
+                const active = group === 'content' && resolved === id;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
         }
 
         function applyStaffAdminNavVisibility() {
-            STAFF_ASSIGNABLE_ADMIN_SECTIONS.forEach(({ id }) => {
+            const visibility = {
+                members: canOpenAdminSection('members'),
+                families: canOpenAdminSection('families'),
+                academic: canOpenAdminSection('academic'),
+                reports: canOpenAdminSection('reports'),
+                content: canOpenAdminSection('content'),
+                access: currentUserAccess.isFullAdmin
+            };
+            Object.entries(visibility).forEach(([id, visible]) => {
                 const btn = document.getElementById(`admin-nav-${id}`);
-                if (btn) btn.classList.toggle('hidden', !staffHasAdminSection(id));
+                if (btn) btn.classList.toggle('hidden', !visible);
             });
 
-            const accessBtn = document.getElementById('admin-nav-access');
-            if (accessBtn) accessBtn.classList.toggle('hidden', !currentUserAccess.isFullAdmin);
-
-            const districtsBtn = document.getElementById('admin-nav-districts');
-            if (districtsBtn) {
-                const canSeeDistricts = currentUserAccess.isFullAdmin
-                    || staffHasAdminSection('districts')
-                    || staffHasAdminSection('families')
-                    || staffHasAdminSection('academic');
-                districtsBtn.classList.toggle('hidden', !canSeeDistricts);
-            }
+            applyAdminReportsSubnavVisibility();
+            applyAdminContentSubnavVisibility();
+            applyAdminFamiliesCapabilityUI();
         }
 
         function renderStaffSectionCheckboxes(selectedSections, namePrefix) {
@@ -2688,7 +2850,8 @@
             if (checklistSummary) checklistSummary.innerHTML = '';
 
             updateAdminFamiliesWorkspace();
-            adminFamiliesShowPanel('tasks');
+            resetAdminRecordsBrowse();
+            adminFamiliesShowPanel(getDefaultAdminFamiliesPanel());
         }
 
         function resetFamilyRecordsPanels() {
@@ -2738,12 +2901,7 @@
             resetAdminUploadFormOnly();
         }
 
-        function resetAdminRecordsSection() {
-            const section = document.getElementById('admin-section-records');
-            collapseOpenAccordions(section);
-            clearFamilyPickerValue('admin-records-family-select');
-            clearFieldsInContainer(section);
-
+        function resetAdminRecordsBrowse() {
             const content = document.getElementById('admin-records-content');
             if (content) content.classList.add('hidden');
 
@@ -2758,6 +2916,16 @@
 
             const hint = document.getElementById('admin-records-id-hint');
             if (hint) hint.textContent = 'Click to expand';
+        }
+
+        function resetAdminRecordsSection() {
+            const section = document.getElementById('admin-section-records');
+            collapseOpenAccordions(section);
+            resetAdminRecordsBrowse();
+        }
+
+        function getDefaultAdminFamiliesPanel() {
+            return staffCanManageFamilies() ? 'tasks' : 'overview';
         }
 
         function resetAdminBannerDraft() {
@@ -2924,27 +3092,23 @@
         function resetAdminSectionState(section) {
             if (!section) return;
             try {
-                switch (section) {
+                const group = ADMIN_SECTION_GROUP[section] || section;
+                switch (group) {
                     case 'families':
                         resetAdminFamiliesSection();
                         break;
                     case 'academic':
                         resetAdminAcademicSection();
                         break;
-                    case 'graduation':
+                    case 'reports':
                         resetAdminGraduationSection();
                         break;
-                    case 'records':
-                        resetAdminRecordsSection();
-                        break;
-                    case 'site':
-                        resetAdminSiteSection();
+                    case 'content':
+                        if (section === 'library') resetAdminLibrarySection();
+                        else resetAdminSiteSection();
                         break;
                     case 'access':
                         resetAdminAccessSection();
-                        break;
-                    case 'library':
-                        resetAdminLibrarySection();
                         break;
                     case 'members':
                         resetAdminMembersSection();
@@ -2967,14 +3131,21 @@
         // Admin sub-section navigation
         function showAdminSection(section) {
             if (window.FamilyPicker?.closeAll) window.FamilyPicker.closeAll();
-            if (!staffHasAdminSection(section)) {
+            if (typeof closeAdminFamiliesActionsMenu === 'function') closeAdminFamiliesActionsMenu();
+
+            if (!canOpenAdminSection(section)) {
                 section = getFirstAllowedAdminSection();
             }
 
-            const isSwitching = currentAdminSection !== section;
+            const resolved = resolveAdminSection(section);
+            const group = ADMIN_SECTION_GROUP[resolved] || resolved;
+            const previousGroup = currentAdminSection
+                ? (ADMIN_SECTION_GROUP[currentAdminSection] || currentAdminSection)
+                : null;
+            const isSwitchingGroup = Boolean(previousGroup && previousGroup !== group);
 
             try {
-                if (currentAdminSection && isSwitching) {
+                if (isSwitchingGroup) {
                     resetAdminSectionState(currentAdminSection);
                 }
             } catch (err) {
@@ -2985,8 +3156,8 @@
                 members: document.getElementById('admin-section-members'),
                 families: document.getElementById('admin-section-families'),
                 academic: document.getElementById('admin-section-academic'),
+                enrollment: document.getElementById('admin-section-enrollment'),
                 graduation: document.getElementById('admin-section-graduation'),
-                records: document.getElementById('admin-section-records'),
                 access: document.getElementById('admin-section-access'),
                 library: document.getElementById('admin-section-library'),
                 districts: document.getElementById('admin-section-districts'),
@@ -2996,49 +3167,55 @@
                 members: document.getElementById('admin-nav-members'),
                 families: document.getElementById('admin-nav-families'),
                 academic: document.getElementById('admin-nav-academic'),
-                graduation: document.getElementById('admin-nav-graduation'),
-                records: document.getElementById('admin-nav-records'),
-                access: document.getElementById('admin-nav-access'),
-                library: document.getElementById('admin-nav-library'),
-                districts: document.getElementById('admin-nav-districts'),
-                site: document.getElementById('admin-nav-site')
+                reports: document.getElementById('admin-nav-reports'),
+                content: document.getElementById('admin-nav-content'),
+                access: document.getElementById('admin-nav-access')
             };
 
             Object.values(sections).forEach(el => el?.classList.add('hidden'));
 
-            const activeSection = sections[section];
-            const activeButton = navButtons[section];
+            const panelId = resolved === 'records' ? 'families' : resolved;
+            const activeSection = sections[panelId];
+            const activeButton = navButtons[group];
             if (activeSection) activeSection.classList.remove('hidden');
             activateHubTabButtons(Object.values(navButtons), activeButton);
+            applyAdminGroupedChrome(group, resolved === 'records' ? 'families' : resolved);
 
-            lastAdminSection = section;
-            currentAdminSection = section;
+            lastAdminSection = resolved;
+            currentAdminSection = resolved;
 
             try {
-                if (section === 'members') {
+                if (group === 'families') {
+                    applyAdminFamiliesCapabilityUI();
+                    if (resolved === 'records' || !staffCanManageFamilies()) {
+                        adminFamiliesShowPanel('overview');
+                    } else if (isSwitchingGroup || !previousGroup) {
+                        adminFamiliesShowPanel(getDefaultAdminFamiliesPanel());
+                    }
+                }
+
+                if (resolved === 'members') {
                     loadAdminMembersPanel();
-                } else if (section === 'families' && typeof loadAdminFamilies === 'function') {
+                } else if ((resolved === 'families' || resolved === 'records') && typeof loadAdminFamilies === 'function') {
                     window.setTimeout(() => { void loadAdminFamilies(); }, 0);
-                } else if (section === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
+                } else if (resolved === 'academic' && typeof loadAdminAcademicFamilies === 'function') {
                     window.setTimeout(() => { void loadAdminAcademicFamilies(); }, 0);
-                } else if (section === 'graduation' && window.GraduationAdmin?.loadGraduationAdmin) {
+                } else if (resolved === 'graduation' && window.GraduationAdmin?.loadGraduationAdmin) {
                     window.GraduationAdmin.loadGraduationAdmin();
-                } else if (section === 'records' && typeof loadAdminRecordsFamilies === 'function') {
-                    window.setTimeout(() => { void loadAdminRecordsFamilies(); }, 0);
-                } else if (section === 'access' && typeof loadStaffAccessPanel === 'function') {
+                } else if (resolved === 'access' && typeof loadStaffAccessPanel === 'function') {
                     void loadStaffAccessPanel();
-                } else if (section === 'library' && typeof loadAdminStandards === 'function') {
+                } else if (resolved === 'library' && typeof loadAdminStandards === 'function') {
                     void loadAdminStandards();
-                } else if (section === 'districts') {
+                } else if (resolved === 'districts') {
                     void loadAdminDistrictsPanel();
-                } else if (section === 'site') {
+                } else if (resolved === 'site') {
                     adminSiteShowPanel('resources');
                     if (typeof loadAdminSiteSummary === 'function') void loadAdminSiteSummary();
                     if (typeof loadAdminSharedResources === 'function') void loadAdminSharedResources();
                     if (typeof loadCurrentBannerForAdmin === 'function') void loadCurrentBannerForAdmin();
                 }
             } catch (err) {
-                console.error('[Admin] Failed to load section:', section, err);
+                console.error('[Admin] Failed to load section:', resolved, err);
             }
         }
         window.showAdminSection = showAdminSection;
@@ -5169,28 +5346,13 @@
         }
 
         async function loadAdminRecordsFamilies() {
-            const select = document.getElementById('admin-records-family-select');
-            if (!select || !supabaseClient) return;
-
-            try {
-                const families = await fetchApprovedFamilies();
-                setFamilyPickerFamilies(
-                    'admin-records-family-select',
-                    families,
-                    families.length ? 'Select a family...' : 'No approved families found'
-                );
-            } catch (err) {
-                console.error('[Admin Records] Failed to load families:', err);
-                setFamilyPickerFamilies(
-                    'admin-records-family-select',
-                    [],
-                    'Could not load families'
-                );
+            if (typeof loadAdminFamilies === 'function') {
+                await loadAdminFamilies();
             }
         }
 
         async function loadAdminFamilyRecords() {
-            const select = document.getElementById('admin-records-family-select');
+            const select = document.getElementById('admin-family-select');
             const content = document.getElementById('admin-records-content');
             const docsContainer = document.getElementById('admin-records-docs');
             const idContainer = document.getElementById('admin-records-id');
@@ -5310,7 +5472,7 @@
             }
 
             if (!staffRows?.length) {
-                list.innerHTML = '<div class="text-slate-500 text-xs italic">No staff members yet. Add someone below and choose which Admin sub-tabs they can use.</div>';
+                list.innerHTML = '<div class="text-slate-500 text-xs italic">No staff members yet. Add someone below and choose which Admin areas they can use.</div>';
             } else {
             const { data: profiles, error: profilesError } = await supabaseClient
                 .from('profiles')
@@ -5351,7 +5513,7 @@
                             </button>
                         </div>
                         <div class="mt-3">
-                            <p class="text-[10px] font-medium text-slate-600 mb-2">Admin sub-tabs</p>
+                            <p class="text-[10px] font-medium text-slate-600 mb-2">Admin areas</p>
                             <div id="staff-sections-${row.id}" class="flex flex-wrap gap-2">
                                 ${renderStaffSectionCheckboxes(sections, `staff-edit-${row.id}`)}
                             </div>
@@ -5393,7 +5555,7 @@
 
             const sections = getStaffSectionCheckboxValues(`staff-sections-${staffRowId}`);
             if (!sections.length) {
-                await showAppAlert('Select at least one Admin sub-tab for this staff member.');
+                await showAppAlert('Select at least one Admin area for this staff member.');
                 return;
             }
 
@@ -5426,7 +5588,7 @@
 
             const sections = getStaffSectionCheckboxValues('staff-add-sections');
             if (!sections.length) {
-                await showAppAlert('Select at least one Admin sub-tab for this staff member.');
+                await showAppAlert('Select at least one Admin area for this staff member.');
                 return;
             }
 
@@ -5773,7 +5935,7 @@
             }
 
             if (!profile.approved) {
-                await showAppAlert('This family is not approved yet. Approve them first on the Signups tab.');
+                await showAppAlert('This family is not approved yet. Approve them first on the Approvals tab.');
                 return;
             }
 
@@ -5989,12 +6151,14 @@
 
         function adminFamiliesShowPanel(panelId) {
             const panels = {
+                overview: document.getElementById('admin-families-panel-overview'),
                 tasks: document.getElementById('admin-families-panel-tasks'),
                 documents: document.getElementById('admin-families-panel-documents'),
                 add: document.getElementById('admin-families-panel-add'),
                 assign: document.getElementById('admin-families-panel-assign'),
             };
             const tabs = {
+                overview: document.getElementById('admin-families-tab-overview'),
                 tasks: document.getElementById('admin-families-tab-tasks'),
                 documents: document.getElementById('admin-families-tab-documents'),
                 add: document.getElementById('admin-families-tab-add'),
@@ -6080,13 +6244,49 @@
         }
 
         // Helper for family select in admin (loads docs, tasks, standards checkboxes)
+        function closeAdminFamiliesActionsMenu() {
+            const menu = document.getElementById('admin-families-actions-menu');
+            const toggle = document.getElementById('admin-families-actions-toggle');
+            if (menu) {
+                menu.classList.add('hidden');
+                menu.hidden = true;
+            }
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        function toggleAdminFamiliesActionsMenu(event) {
+            event?.preventDefault?.();
+            event?.stopPropagation?.();
+            const menu = document.getElementById('admin-families-actions-menu');
+            const toggle = document.getElementById('admin-families-actions-toggle');
+            if (!menu || !toggle) return;
+            const willOpen = menu.classList.contains('hidden') || menu.hidden;
+            menu.classList.toggle('hidden', !willOpen);
+            menu.hidden = !willOpen;
+            toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        }
+
+        document.addEventListener('click', (event) => {
+            const wrap = document.querySelector('.admin-families-actions-wrap');
+            if (wrap && !wrap.contains(event.target)) {
+                closeAdminFamiliesActionsMenu();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeAdminFamiliesActionsMenu();
+        });
+
         function onAdminFamilyChange() {
             if (suppressAdminFamilyChange) return;
+            closeAdminFamiliesActionsMenu();
             updateAdminFamiliesWorkspace();
             renderAdminFamilyChecklistSummary(document.getElementById('admin-family-select')?.value || '');
             loadAdminFamilyDocs();
             loadAdminFamilyTasks();
             loadStandardCheckboxesForFamily();
+            if (typeof loadAdminFamilyRecords === 'function') {
+                void loadAdminFamilyRecords();
+            }
         }
 
         let cachedStandards = [];

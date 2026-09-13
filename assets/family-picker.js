@@ -1,7 +1,6 @@
 (function () {
     const PICKER_SELECT_IDS = [
         'admin-family-select',
-        'admin-records-family-select',
         'admin-academic-family-select',
         'viewer-family-select',
         'staff-add-select',
