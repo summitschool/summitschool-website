@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <script>
         (function () {
-            var BUILD = '20260796';
+            var BUILD = '20260913';
             var key = 'scsmembers_build';
             try {
                 var prev = localStorage.getItem(key);
@@ -669,7 +669,10 @@
                 <div class="hub-nav-wrap !px-0 !pt-0 mb-6">
                     <div class="hub-admin-tab-group" role="tablist" aria-label="Admin sections">
                         <button type="button" onclick="showAdminSection('members')" id="admin-nav-members" role="tab"
-                                class="hub-admin-tab-btn admin-nav-btn is-active" aria-selected="true">Approvals</button>
+                                class="hub-admin-tab-btn admin-nav-btn is-active" aria-selected="true">
+                            <span>Approvals</span>
+                            <span id="admin-approvals-badge" class="hub-tab-badge hidden">0</span>
+                        </button>
                         <button type="button" onclick="showAdminSection('families')" id="admin-nav-families" role="tab"
                                 class="hub-admin-tab-btn admin-nav-btn" aria-selected="false">Families</button>
                         <button type="button" onclick="showAdminSection('academic')" id="admin-nav-academic" role="tab"
@@ -1367,6 +1370,8 @@
         let authTransitionFailsafeTimer = null;
         let suppressAdminFamilyChange = false;
         let myTasksLoadVersion = 0;
+        let lastPendingApprovalsCount = 0;
+        let lastPendingIdsCount = 0;
         let approvedFamiliesCache = null;
         let approvedFamiliesCacheAt = 0;
         const APPROVED_FAMILIES_CACHE_MS = 60000;
@@ -2683,6 +2688,7 @@
             applyAdminReportsSubnavVisibility();
             applyAdminContentSubnavVisibility();
             applyAdminFamiliesCapabilityUI();
+            updateAdminApprovalsBadge(lastPendingApprovalsCount, lastPendingIdsCount);
         }
 
         function renderStaffSectionCheckboxes(selectedSections, namePrefix) {
@@ -5679,6 +5685,31 @@
             void loadPendingIDsForAdmin();
         }
 
+        function updateAdminApprovalsBadge(pendingApprovalsCount, pendingIdsCount) {
+            lastPendingApprovalsCount = Number(pendingApprovalsCount) || 0;
+            lastPendingIdsCount = Number(pendingIdsCount) || 0;
+
+            const badge = document.getElementById('admin-approvals-badge');
+            const navBtn = document.getElementById('admin-nav-members');
+            if (!badge) return;
+
+            const approvalsVisible = Boolean(
+                navBtn &&
+                !navBtn.classList.contains('hidden') &&
+                typeof canOpenAdminSection === 'function' &&
+                canOpenAdminSection('members')
+            );
+            const total = lastPendingApprovalsCount + lastPendingIdsCount;
+
+            if (!approvalsVisible || total <= 0) {
+                badge.classList.add('hidden');
+                return;
+            }
+
+            badge.textContent = String(total);
+            badge.classList.remove('hidden');
+        }
+
         // Admin-only: families waiting for approval
         async function loadPendingApprovals() {
             const list = document.getElementById('admin-pending-approvals-list');
@@ -5710,6 +5741,7 @@
             }
 
             const waiting = (profiles || []).filter(p => p.denied !== true);
+            updateAdminApprovalsBadge(waiting.length, lastPendingIdsCount);
 
             if (waiting.length === 0) {
                 list.innerHTML = '<div class="hub-empty-state">No families waiting for approval.</div>';
@@ -7032,6 +7064,8 @@
                 list.innerHTML = `<div class="text-red-600 text-xs p-3 border border-red-200 rounded-xl">Could not load pending ID uploads: ${escapeHtml(err?.message || String(err))}</div>`;
                 return;
             }
+
+            updateAdminApprovalsBadge(lastPendingApprovalsCount, pending.length);
 
             if (!pending.length) {
                 list.innerHTML = `<div class="text-xs text-slate-500">No pending ID uploads. When a family submits their ID task in My Tasks, it will appear here for review.</div>`;
